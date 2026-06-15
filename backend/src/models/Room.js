@@ -2,7 +2,12 @@ const mongoose = require("mongoose");
 
 const roomSchema = new mongoose.Schema(
   {
-    roomNumber: { type: String, required: true, unique: true, trim: true }, // So phong
+    building: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Building",
+      required: true,
+    }, // Toa nha chua phong
+    roomNumber: { type: String, required: true, trim: true }, // So phong
     name: { type: String, required: true, trim: true }, // Ten phong
     floor: { type: Number, default: 1, min: 0 }, // Tang
     area: { type: Number, default: 0, min: 0 }, // Dien tich
@@ -21,5 +26,7 @@ const roomSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+roomSchema.index({ building: 1, roomNumber: 1 }, { unique: true });
 
 module.exports = mongoose.model("Room", roomSchema);
