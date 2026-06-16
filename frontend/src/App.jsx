@@ -1,17 +1,32 @@
-import { Layout } from "antd";
-import HomePage from "./pages/HomePage";
-
-const { Content, Header } = Layout;
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import ProtectedRoute from "./components/ProtectedRoute";
+import AdminHomePage from "./pages/admin/AdminHomePage";
+import LoginPage from "./pages/auth/LoginPage";
+import UserHomePage from "./pages/user/UserHomePage";
 
 const App = () => (
-  <Layout className="app-shell">
-    <Header className="app-header">
-      <div className="brand">Project Base</div>
-    </Header>
-    <Content className="app-content">
-      <HomePage />
-    </Content>
-  </Layout>
+  <BrowserRouter>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute adminOnly>
+            <AdminHomePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/user"
+        element={
+          <ProtectedRoute>
+            <UserHomePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="*" element={<Navigate to="/login" replace />} />
+    </Routes>
+  </BrowserRouter>
 );
 
 export default App;
