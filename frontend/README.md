@@ -1,6 +1,6 @@
-# Frontend Base
+# Frontend
 
-React, Vite, Ant Design, and Axios base app.
+React, Vite, Ant Design, Axios, React Router, and JWT admin login UI.
 
 ## Setup
 
@@ -10,4 +10,10 @@ copy .env.example .env
 npm run dev
 ```
 
-Default URL: `http://localhost:5173`
+## Pages
+
+```text
+/login Login page
+/admin Admin home page
+/user  Tenant profile page placeholder
+```

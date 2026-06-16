@@ -1,26 +1,27 @@
-# Project Base
+# TRO PLUS
 
-Clean full-stack base using Node.js, Express, MongoDB, React, Vite, Ant Design, and Axios.
+Full-stack project using Node.js, Express, MongoDB, React, Ant Design, Axios, JWT authentication, and admin authorization.
 
-## Structure
-
-```text
-backend/   Express.js REST API with MongoDB connection
-frontend/  React app with Ant Design and Axios
-```
-
-## Run Backend
+## Backend
 
 ```bash
 cd backend
 npm install
 copy .env.example .env
+npm run seed:admin
 npm run dev
 ```
 
-Backend runs at `http://localhost:5000`.
+Default backend URL: `http://localhost:5000`
 
-## Run Frontend
+Default admin from `.env.example`:
+
+```text
+Email: admin@example.com
+Password: 123456
+```
+
+## Frontend
 
 ```bash
 cd frontend
@@ -29,9 +30,21 @@ copy .env.example .env
 npm run dev
 ```
 
-Frontend runs at `http://localhost:5173`.
+Default frontend URL: `http://localhost:5173`
 
-## Starter Endpoints
+## Current Auth Flow
 
-- `GET http://localhost:5000/`
-- `GET http://localhost:5000/api/health`
+- Public registration is disabled.
+- Admin account is created directly in MongoDB by `npm run seed:admin`.
+- Admin can log in and access `/admin`.
+- Tenant account creation will be built later as a separate feature.
+- Roles are only `admin` and `user`.
+- JWT is sent with `Authorization: Bearer <token>`.
+
+## Main Auth APIs
+
+```text
+POST /api/auth/login
+GET  /api/auth/profile
+PUT  /api/auth/profile
+```
