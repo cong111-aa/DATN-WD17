@@ -1,6 +1,8 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
-import AdminHomePage from "./pages/admin/AdminHomePage";
+import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
+import AdminLayout from "./pages/admin/AdminLayout";
+import UserManagementPage from "./pages/admin/UserManagementPage";
 import LoginPage from "./pages/auth/LoginPage";
 import UserHomePage from "./pages/user/UserHomePage";
 
@@ -12,10 +14,13 @@ const App = () => (
         path="/admin"
         element={
           <ProtectedRoute adminOnly>
-            <AdminHomePage />
+            <AdminLayout />
           </ProtectedRoute>
         }
-      />
+      >
+        <Route index element={<AdminDashboardPage />} />
+        <Route path="users" element={<UserManagementPage />} />
+      </Route>
       <Route
         path="/user"
         element={
