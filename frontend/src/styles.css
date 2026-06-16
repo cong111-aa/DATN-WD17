@@ -200,7 +200,7 @@ body {
   padding: 34px;
 }
 
-.auth-card .ant-form-item-label > label {
+.auth-card .ant-form-item-label>label {
   color: #233633;
   font-weight: 600;
 }
@@ -274,7 +274,9 @@ body {
 
   .auth-card .ant-card-body {
     padding: 28px 22px;
-  .page-toolbar {
-    flex-direction: column;
+
+    .page-toolbar {
+      flex-direction: column;
+    }
   }
 }
