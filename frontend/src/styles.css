@@ -22,6 +22,20 @@ body {
   background: #1677ff;
 }
 
+.admin-sider {
+  min-height: 100vh;
+}
+
+.admin-logo {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 700;
+}
+
 .brand {
   color: #ffffff;
   font-size: 18px;
@@ -38,6 +52,17 @@ body {
 
 .page-stack {
   width: 100%;
+}
+
+.page-title h3 {
+  margin-bottom: 4px;
+}
+
+.page-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .form-grid {
@@ -249,5 +274,7 @@ body {
 
   .auth-card .ant-card-body {
     padding: 28px 22px;
+  .page-toolbar {
+    flex-direction: column;
   }
 }
