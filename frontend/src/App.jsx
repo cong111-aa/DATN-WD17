@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
+import BuildingManagementPage from "./pages/admin/BuildingManagementPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminLayout from "./pages/admin/AdminLayout";
 import UserManagementPage from "./pages/admin/UserManagementPage";
@@ -19,6 +20,7 @@ const App = () => (
         }
       >
         <Route index element={<AdminDashboardPage />} />
+        <Route path="buildings" element={<BuildingManagementPage />} />
         <Route path="users" element={<UserManagementPage />} />
       </Route>
       <Route

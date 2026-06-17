@@ -71,6 +71,10 @@ body {
   gap: 0 16px;
 }
 
+.full-width-input {
+  width: 100%;
+}
+
 .auth-page {
   min-height: 100vh;
   display: flex;

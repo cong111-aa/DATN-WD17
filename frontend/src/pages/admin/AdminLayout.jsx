@@ -1,4 +1,5 @@
 import {
+  BankOutlined,
   DashboardOutlined,
   LogoutOutlined,
   TeamOutlined,
@@ -21,7 +22,9 @@ const AdminLayout = () => {
 
   const selectedKey = location.pathname.startsWith("/admin/users")
     ? "/admin/users"
-    : "/admin";
+    : location.pathname.startsWith("/admin/buildings")
+      ? "/admin/buildings"
+      : "/admin";
 
   return (
     <Layout className="app-shell">
@@ -43,6 +46,12 @@ const AdminLayout = () => {
               icon: <TeamOutlined />,
               label: "Quan ly tai khoan",
               onClick: () => navigate("/admin/users"),
+            },
+            {
+              key: "/admin/buildings",
+              icon: <BankOutlined />,
+              label: "Quan ly toa nha",
+              onClick: () => navigate("/admin/buildings"),
             },
           ]}
         />
