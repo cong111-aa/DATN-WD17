@@ -1,6 +1,7 @@
 import {
   BankOutlined,
   DashboardOutlined,
+  HomeOutlined,
   LogoutOutlined,
   TeamOutlined,
 } from "@ant-design/icons";
@@ -24,6 +25,8 @@ const AdminLayout = () => {
     ? "/admin/users"
     : location.pathname.startsWith("/admin/buildings")
       ? "/admin/buildings"
+      : location.pathname.startsWith("/admin/rooms")
+        ? "/admin/rooms"
       : "/admin";
 
   return (
@@ -52,6 +55,12 @@ const AdminLayout = () => {
               icon: <BankOutlined />,
               label: "Quan ly toa nha",
               onClick: () => navigate("/admin/buildings"),
+            },
+            {
+              key: "/admin/rooms",
+              icon: <HomeOutlined />,
+              label: "Quan ly phong",
+              onClick: () => navigate("/admin/rooms"),
             },
           ]}
         />
