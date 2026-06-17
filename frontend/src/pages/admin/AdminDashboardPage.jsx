@@ -18,7 +18,7 @@ const AdminDashboardPage = () => (
       <Col xs={24} md={8}>
         <Card>
           <Typography.Text type="secondary">Phong tro</Typography.Text>
-          <Typography.Title level={3}>Dang phat trien</Typography.Title>
+          <Typography.Title level={3}>Quan ly phong</Typography.Title>
         </Card>
       </Col>
       <Col xs={24} md={8}>

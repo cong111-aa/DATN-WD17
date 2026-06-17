@@ -5,6 +5,7 @@ const morgan = require("morgan");
 const env = require("./config/env");
 const authRoutes = require("./routes/authRoutes");
 const buildingRoutes = require("./routes/buildingRoutes");
+const roomRoutes = require("./routes/roomRoutes");
 const userRoutes = require("./routes/userRoutes");
 const { notFound, errorHandler } = require("./middlewares/errorMiddleware");
 
@@ -33,6 +34,7 @@ app.get("/api/health", (req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/buildings", buildingRoutes);
+app.use("/api/rooms", roomRoutes);
 app.use("/api/users", userRoutes);
 
 app.use(notFound);
