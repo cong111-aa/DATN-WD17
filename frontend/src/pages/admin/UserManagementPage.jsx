@@ -1,8 +1,11 @@
 import {
   DeleteOutlined,
   EditOutlined,
+  FilterOutlined,
   LockOutlined,
   PlusOutlined,
+  ReloadOutlined,
+  TeamOutlined,
   UnlockOutlined,
 } from "@ant-design/icons";
 import {
@@ -16,6 +19,7 @@ import {
   Space,
   Table,
   Tag,
+  Tooltip,
   Typography,
   message,
 } from "antd";
@@ -38,6 +42,12 @@ const statusOptions = [
   { label: "Da khoa", value: "inactive" },
 ];
 
+const filterRoleOptions = [{ label: "Tat ca vai tro", value: "all" }, ...roleOptions];
+const filterStatusOptions = [{ label: "Tat ca trang thai", value: "all" }, ...statusOptions];
+const avatarColors = ["#6d28d9", "#0f766e", "#0ea5e9", "#7c3aed", "#059669", "#dc2626"];
+
+const normalize = (value) => String(value || "").trim().toLowerCase();
+
 const UserManagementPage = () => {
   const [form] = Form.useForm();
   const { user: currentUser } = useAuth();
@@ -46,6 +56,9 @@ const UserManagementPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [keyword, setKeyword] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const currentUserId = currentUser?.id || currentUser?._id;
 
@@ -65,6 +78,33 @@ const UserManagementPage = () => {
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  const stats = useMemo(() => {
+    const activeCount = users.filter((user) => user.status === "active").length;
+    const adminCount = users.filter((user) => user.role === "admin").length;
+
+    return {
+      total: users.length,
+      active: activeCount,
+      admin: adminCount,
+    };
+  }, [users]);
+
+  const filteredUsers = useMemo(() => {
+    const searchValue = normalize(keyword);
+
+    return users.filter((user) => {
+      const matchesRole = roleFilter === "all" || user.role === roleFilter;
+      const matchesStatus = statusFilter === "all" || user.status === statusFilter;
+      const matchesKeyword =
+        !searchValue ||
+        [user.name, user.email, user.phone, user.identityNumber]
+          .map(normalize)
+          .some((value) => value.includes(searchValue));
+
+      return matchesRole && matchesStatus && matchesKeyword;
+    });
+  }, [users, keyword, roleFilter, statusFilter]);
 
   const openCreateModal = () => {
     setEditingUser(null);
@@ -87,6 +127,12 @@ const UserManagementPage = () => {
     setModalOpen(false);
     setEditingUser(null);
     form.resetFields();
+  };
+
+  const handleResetFilters = () => {
+    setKeyword("");
+    setRoleFilter("all");
+    setStatusFilter("all");
   };
 
   const handleSubmit = async (values) => {
@@ -141,67 +187,97 @@ const UserManagementPage = () => {
   const columns = useMemo(
     () => [
       {
-        title: "Ho ten",
+        title: "HO TEN",
         dataIndex: "name",
         key: "name",
+        width: 240,
+        render: (name, record, index) => (
+          <div className="entity-cell">
+            <div
+              className="entity-avatar"
+              style={{ background: avatarColors[index % avatarColors.length] }}
+            >
+              {String(name || record.email || "U").slice(0, 1).toUpperCase()}
+            </div>
+            <div>
+              <div className="entity-name">{name}</div>
+              <div className="entity-sub">{record.identityNumber || "Chua co CCCD"}</div>
+            </div>
+          </div>
+        ),
       },
       {
-        title: "Email",
+        title: "EMAIL",
         dataIndex: "email",
         key: "email",
+        ellipsis: true,
+        render: (value) => <span className="muted-text">{value}</span>,
       },
       {
-        title: "So dien thoai",
+        title: "SDT",
         dataIndex: "phone",
         key: "phone",
-        render: (value) => value || "-",
+        width: 150,
+        render: (value) => <span className="muted-text">{value || "-"}</span>,
       },
       {
-        title: "Vai tro",
+        title: "VAI TRO",
         dataIndex: "role",
         key: "role",
+        width: 130,
         render: (role) => (
-          <Tag color={role === "admin" ? "blue" : "green"}>
+          <Tag className={role === "admin" ? "result-tag" : "soft-tag user-role-tag"}>
             {role === "admin" ? "Admin" : "Nguoi dung"}
           </Tag>
         ),
       },
       {
-        title: "Trang thai",
+        title: "TRANG THAI",
         dataIndex: "status",
         key: "status",
+        width: 145,
         render: (status) => (
-          <Tag color={status === "active" ? "success" : "default"}>
+          <Tag className={`status-pill ${status === "active" ? "status-active" : "status-locked"}`}>
             {status === "active" ? "Hoat dong" : "Da khoa"}
           </Tag>
         ),
       },
       {
-        title: "Ngay tao",
+        title: "NGAY TAO",
         dataIndex: "createdAt",
         key: "createdAt",
-        render: (value) => (value ? new Date(value).toLocaleDateString("vi-VN") : "-"),
+        width: 130,
+        render: (value) => (
+          <span className="muted-text">{value ? new Date(value).toLocaleDateString("vi-VN") : "-"}</span>
+        ),
       },
       {
-        title: "Thao tac",
+        title: "THAO TAC",
         key: "actions",
         fixed: "right",
+        align: "right",
+        width: 146,
         render: (_, record) => {
           const isSelf = String(record.id) === String(currentUserId);
           const isActive = record.status === "active";
 
           return (
-            <Space wrap>
-              <Button icon={<EditOutlined />} onClick={() => openEditModal(record)}>
-                Sua
-              </Button>
-              <Button
-                icon={isActive ? <LockOutlined /> : <UnlockOutlined />}
-                disabled={isSelf && isActive}
-                onClick={() => handleToggleStatus(record)}
-              >
-                {isActive ? "Khoa" : "Mo khoa"}
-              </Button>
+            <Space size={8} className="action-buttons">
+              <Tooltip title="Sua tai khoan">
+                <Button
+                  aria-label="Sua tai khoan"
+                  icon={<EditOutlined />}
+                  onClick={() => openEditModal(record)}
+                />
+              </Tooltip>
+              <Tooltip title={isActive ? "Khoa tai khoan" : "Mo khoa tai khoan"}>
+                <Button
+                  aria-label={isActive ? "Khoa tai khoan" : "Mo khoa tai khoan"}
+                  icon={isActive ? <LockOutlined /> : <UnlockOutlined />}
+                  disabled={isSelf && isActive}
+                  onClick={() => handleToggleStatus(record)}
+                />
+              </Tooltip>
               <Popconfirm
                 title="Xoa tai khoan nay?"
                 description="Hanh dong nay khong the hoan tac."
@@ -210,9 +286,9 @@ const UserManagementPage = () => {
                 onConfirm={() => handleDelete(record)}
                 disabled={isSelf}
               >
-                <Button danger icon={<DeleteOutlined />} disabled={isSelf}>
-                  Xoa
-                </Button>
+                <Tooltip title="Xoa tai khoan">
+                  <Button danger aria-label="Xoa tai khoan" icon={<DeleteOutlined />} disabled={isSelf} />
+                </Tooltip>
               </Popconfirm>
             </Space>
           );
@@ -223,27 +299,92 @@ const UserManagementPage = () => {
   );
 
   return (
-    <Space direction="vertical" size={16} className="page-stack">
-      <div className="page-toolbar">
-        <div className="page-title">
-          <Typography.Title level={3}>Quan ly tai khoan</Typography.Title>
-          <Typography.Text type="secondary">
+    <Space direction="vertical" size={18} className="page-stack admin-management-page">
+      <style>
+        {`
+          .user-filter-controls {
+            grid-template-columns: minmax(220px, 1fr) minmax(160px, 190px) minmax(160px, 190px) 150px;
+          }
+
+          .user-role-tag {
+            background: #dcfce7;
+            color: #15803d;
+          }
+
+          @media (max-width: 768px) {
+            .user-filter-controls {
+              grid-template-columns: 1fr;
+            }
+          }
+        `}
+      </style>
+
+      <section className="admin-hero">
+        <div>
+          <div className="admin-eyebrow">TRO PLUS ADMIN</div>
+          <Typography.Title level={2}>Quan ly tai khoan</Typography.Title>
+          <Typography.Text>
             Tao, cap nhat, khoa hoac xoa tai khoan trong he thong.
           </Typography.Text>
+          <div className="hero-pills">
+            <span>{stats.total} tai khoan</span>
+            <span>{stats.active} dang hoat dong</span>
+            <span>{stats.admin} admin</span>
+          </div>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
-          Them tai khoan
-        </Button>
-      </div>
+        <div className="hero-actions">
+          <Button icon={<ReloadOutlined />} onClick={fetchUsers} loading={loading}>
+            Tai lai
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
+            Them tai khoan
+          </Button>
+        </div>
+      </section>
 
-      <Card>
+      <Card className="filter-card">
+        <div className="filter-title">
+          <FilterOutlined />
+          <div>
+            <strong>Bo loc tai khoan</strong>
+            <span>Loc nhanh theo thong tin, vai tro va trang thai</span>
+          </div>
+        </div>
+        <div className="filter-controls user-filter-controls">
+          <Input
+            allowClear
+            value={keyword}
+            onChange={(event) => setKeyword(event.target.value)}
+            placeholder="Tim ten, email, SDT hoac CCCD"
+          />
+          <Select value={roleFilter} options={filterRoleOptions} onChange={setRoleFilter} />
+          <Select value={statusFilter} options={filterStatusOptions} onChange={setStatusFilter} />
+          <Button icon={<ReloadOutlined />} onClick={handleResetFilters}>
+            Dat lai
+          </Button>
+        </div>
+      </Card>
+
+      <Card className="table-card">
+        <div className="table-heading">
+          <div className="table-title">
+            <TeamOutlined />
+            <div>
+              <strong>Danh sach tai khoan</strong>
+              <span>Quan ly thong tin va quyen truy cap nguoi dung</span>
+            </div>
+          </div>
+          <Tag className="result-tag">Hien thi {filteredUsers.length}/{users.length}</Tag>
+        </div>
+
         <Table
           rowKey="id"
           columns={columns}
-          dataSource={users}
+          dataSource={filteredUsers}
           loading={loading}
           scroll={{ x: 1100 }}
-          pagination={{ pageSize: 8 }}
+          pagination={{ pageSize: 8, showSizeChanger: false }}
+          className="management-table"
         />
       </Card>
 
@@ -255,27 +396,28 @@ const UserManagementPage = () => {
         confirmLoading={submitting}
         okText={editingUser ? "Luu" : "Tao tai khoan"}
         cancelText="Huy"
+        width={680}
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
           <Form.Item name="name" label="Ho ten" rules={[{ required: true }]}>
-            <Input />
+            <Input placeholder="Nhap ho ten" />
           </Form.Item>
           <Form.Item name="email" label="Email" rules={[{ required: true }, { type: "email" }]}>
-            <Input />
+            <Input placeholder="name@example.com" />
           </Form.Item>
           <Form.Item
             name="password"
             label={editingUser ? "Mat khau moi" : "Mat khau"}
             rules={editingUser ? [] : [{ required: true }, { min: 6 }]}
           >
-            <Input.Password placeholder={editingUser ? "De trong neu khong doi" : ""} />
+            <Input.Password placeholder={editingUser ? "De trong neu khong doi" : "Toi thieu 6 ky tu"} />
           </Form.Item>
           <div className="form-grid">
             <Form.Item name="phone" label="So dien thoai">
-              <Input />
+              <Input placeholder="Nhap so dien thoai" />
             </Form.Item>
             <Form.Item name="identityNumber" label="So CCCD/CMND">
-              <Input />
+              <Input placeholder="Nhap so CCCD/CMND" />
             </Form.Item>
             <Form.Item name="role" label="Vai tro" rules={[{ required: true }]}>
               <Select options={roleOptions} />
@@ -291,7 +433,7 @@ const UserManagementPage = () => {
             <Input placeholder="URL hoac duong dan anh" />
           </Form.Item>
           <Form.Item name="address" label="Dia chi">
-            <Input.TextArea rows={3} />
+            <Input.TextArea rows={3} placeholder="Nhap dia chi lien he" />
           </Form.Item>
         </Form>
       </Modal>
