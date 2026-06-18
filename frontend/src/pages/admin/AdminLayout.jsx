@@ -4,6 +4,7 @@ import {
   HomeOutlined,
   LogoutOutlined,
   TeamOutlined,
+  UserSwitchOutlined,
 } from "@ant-design/icons";
 import { Button, Layout, Menu, Space, Typography } from "antd";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
@@ -27,6 +28,8 @@ const AdminLayout = () => {
       ? "/admin/buildings"
       : location.pathname.startsWith("/admin/rooms")
         ? "/admin/rooms"
+        : location.pathname.startsWith("/admin/tenants")
+          ? "/admin/tenants"
       : "/admin";
 
   return (
@@ -61,6 +64,12 @@ const AdminLayout = () => {
               icon: <HomeOutlined />,
               label: "Quan ly phong",
               onClick: () => navigate("/admin/rooms"),
+            },
+            {
+              key: "/admin/tenants",
+              icon: <UserSwitchOutlined />,
+              label: "Quan ly khach thue",
+              onClick: () => navigate("/admin/tenants"),
             },
           ]}
         />
