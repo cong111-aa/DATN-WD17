@@ -7,6 +7,7 @@ const buildingSchema = new mongoose.Schema(
     address: { type: String, required: true, trim: true }, // Dia chi toa nha
     description: { type: String, default: "", trim: true }, // Mo ta them
     totalFloors: { type: Number, default: 1, min: 1 }, // Tong so tang
+    purchasePrice: { type: Number, default: 0, min: 0 }, // Gia nhap toa nha
     status: {
       type: String,
       enum: ["active", "inactive"],

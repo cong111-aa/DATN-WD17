@@ -8,18 +8,23 @@ const toBuildingResponse = (building) => ({
   address: building.address,
   description: building.description,
   totalFloors: building.totalFloors,
+  purchasePrice: building.purchasePrice || 0,
   status: building.status,
   createdAt: building.createdAt,
   updatedAt: building.updatedAt,
 });
 
-const validateBuildingPayload = ({ name, code, address, totalFloors, status }, isCreate) => {
+const validateBuildingPayload = ({ name, code, address, totalFloors, purchasePrice, status }, isCreate) => {
   if (isCreate && (!name || !code || !address)) {
     throw new Error("Name, code and address are required");
   }
 
   if (totalFloors !== undefined && Number(totalFloors) < 1) {
     throw new Error("Total floors must be greater than or equal to 1");
+  }
+
+  if (purchasePrice !== undefined && Number(purchasePrice) < 0) {
+    throw new Error("Purchase price must be greater than or equal to 0");
   }
 
   if (status && !["active", "inactive"].includes(status)) {
@@ -53,9 +58,17 @@ const getBuildingById = async (req, res, next) => {
 
 const createBuilding = async (req, res, next) => {
   try {
-    const { name, code, address, description, totalFloors = 1, status = "active" } = req.body;
+    const {
+      name,
+      code,
+      address,
+      description,
+      totalFloors = 1,
+      purchasePrice = 0,
+      status = "active",
+    } = req.body;
 
-    validateBuildingPayload({ name, code, address, totalFloors, status }, true);
+    validateBuildingPayload({ name, code, address, totalFloors, purchasePrice, status }, true);
 
     const existingBuilding = await Building.findOne({ code });
 
@@ -70,6 +83,7 @@ const createBuilding = async (req, res, next) => {
       address,
       description,
       totalFloors,
+      purchasePrice,
       status,
     });
 
@@ -92,9 +106,9 @@ const updateBuilding = async (req, res, next) => {
       throw new Error("Building not found");
     }
 
-    const { name, code, address, description, totalFloors, status } = req.body;
+    const { name, code, address, description, totalFloors, purchasePrice, status } = req.body;
 
-    validateBuildingPayload({ name, code, address, totalFloors, status }, false);
+    validateBuildingPayload({ name, code, address, totalFloors, purchasePrice, status }, false);
 
     if (code && code !== building.code) {
       const existingBuilding = await Building.findOne({ code });
@@ -111,6 +125,7 @@ const updateBuilding = async (req, res, next) => {
     building.address = address ?? building.address;
     building.description = description ?? building.description;
     building.totalFloors = totalFloors ?? building.totalFloors;
+    building.purchasePrice = purchasePrice ?? building.purchasePrice;
     building.status = status ?? building.status;
 
     const updatedBuilding = await building.save();
