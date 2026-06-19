@@ -1,10 +1,7 @@
 import {
   DeleteOutlined,
   EditOutlined,
-  HomeOutlined,
   PlusOutlined,
-  ToolOutlined,
-  UnlockOutlined,
 } from "@ant-design/icons";
 import {
   Button,
@@ -66,6 +63,15 @@ const RoomManagementPage = () => {
         value: building.id,
       })),
     [buildings]
+  );
+
+  const roomStatusOptions = useMemo(
+    () =>
+      statusOptions.map((option) => ({
+        ...option,
+        disabled: editingRoom?.status === "occupied" && option.value === "available",
+      })),
+    [editingRoom]
   );
 
   const fetchBuildings = async () => {
@@ -133,18 +139,6 @@ const RoomManagementPage = () => {
       message.error(error.response?.data?.message || "Luu phong that bai");
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const handleToggleMaintenance = async (record) => {
-    const nextStatus = record.status === "maintenance" ? "available" : "maintenance";
-
-    try {
-      await http.patch(`/rooms/${record.id}/status`, { status: nextStatus });
-      message.success(nextStatus === "maintenance" ? "Da chuyen sang bao tri" : "Da mo lai phong");
-      fetchRooms();
-    } catch (error) {
-      message.error(error.response?.data?.message || "Cap nhat trang thai that bai");
     }
   };
 
@@ -224,19 +218,11 @@ const RoomManagementPage = () => {
         fixed: "right",
         render: (_, record) => {
           const isOccupied = record.status === "occupied";
-          const isMaintenance = record.status === "maintenance";
 
           return (
             <Space wrap>
               <Button icon={<EditOutlined />} onClick={() => openEditModal(record)}>
                 Sua
-              </Button>
-              <Button
-                icon={isMaintenance ? <UnlockOutlined /> : <ToolOutlined />}
-                disabled={isOccupied}
-                onClick={() => handleToggleMaintenance(record)}
-              >
-                {isMaintenance ? "Mo lai" : "Bao tri"}
               </Button>
               <Popconfirm
                 title="Xoa phong nay?"
@@ -264,7 +250,7 @@ const RoomManagementPage = () => {
         <div className="page-title">
           <Typography.Title level={3}>Quan ly phong</Typography.Title>
           <Typography.Text type="secondary">
-            Tao, cap nhat, bao tri hoac xoa phong theo tung toa nha.
+            Tao, cap nhat hoac xoa phong theo tung toa nha.
           </Typography.Text>
         </div>
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
@@ -335,7 +321,7 @@ const RoomManagementPage = () => {
               <InputNumber min={0} className="full-width-input" addonAfter="VND" />
             </Form.Item>
             <Form.Item name="status" label="Trang thai" rules={[{ required: true }]}>
-              <Select options={statusOptions} />
+              <Select options={roomStatusOptions} />
             </Form.Item>
           </div>
 
