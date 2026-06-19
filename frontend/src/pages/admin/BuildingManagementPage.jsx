@@ -38,6 +38,7 @@ import { useEffect, useMemo, useState } from "react";
 import http from "../../api/http";
 
 const defaultFormValues = {
+  purchasePrice: 0,
   status: "active",
   totalFloors: 1,
 };
@@ -84,6 +85,11 @@ const sectionTitleStyle = {
   fontSize: 16,
 };
 
+const currencyFormatter = (value) =>
+  Number(value || 0).toLocaleString("vi-VN", {
+    maximumFractionDigits: 0,
+  });
+
 const BuildingManagementPage = () => {
   const [form] = Form.useForm();
   const [buildings, setBuildings] = useState([]);
@@ -98,12 +104,17 @@ const BuildingManagementPage = () => {
     const active = buildings.filter((item) => item.status === "active").length;
     const inactive = buildings.filter((item) => item.status === "inactive").length;
     const totalFloors = buildings.reduce((sum, item) => sum + Number(item.totalFloors || 0), 0);
+    const totalPurchasePrice = buildings.reduce(
+      (sum, item) => sum + Number(item.purchasePrice || 0),
+      0
+    );
 
     return {
       active,
       inactive,
       total: buildings.length,
       totalFloors,
+      totalPurchasePrice,
     };
   }, [buildings]);
 
@@ -285,6 +296,17 @@ const BuildingManagementPage = () => {
         ),
       },
       {
+        title: "GIA NHAP",
+        dataIndex: "purchasePrice",
+        key: "purchasePrice",
+        width: 170,
+        render: (value) => (
+          <Typography.Text strong style={{ color: "#334155" }}>
+            {currencyFormatter(value)} VND
+          </Typography.Text>
+        ),
+      },
+      {
         title: "TRANG THAI",
         dataIndex: "status",
         key: "status",
@@ -390,6 +412,9 @@ const BuildingManagementPage = () => {
               </Tag>
               <Tag bordered={false} style={{ background: "rgba(255,255,255,0.18)", borderRadius: 999, color: "#ffffff", fontWeight: 800, padding: "4px 14px" }}>
                 {buildingStats.totalFloors} tang
+              </Tag>
+              <Tag bordered={false} style={{ background: "rgba(255,255,255,0.18)", borderRadius: 999, color: "#ffffff", fontWeight: 800, padding: "4px 14px" }}>
+                {currencyFormatter(buildingStats.totalPurchasePrice)} VND gia nhap
               </Tag>
             </Space>
           </Col>
@@ -581,6 +606,9 @@ const BuildingManagementPage = () => {
             </Form.Item>
             <Form.Item name="status" label="Trang thai" rules={[{ required: true }]}>
               <Select options={statusOptions} />
+            </Form.Item>
+            <Form.Item name="purchasePrice" label="Gia nhap toa nha">
+              <InputNumber min={0} className="full-width-input" addonAfter="VND" />
             </Form.Item>
           </div>
           <Form.Item name="description" label="Mo ta">
