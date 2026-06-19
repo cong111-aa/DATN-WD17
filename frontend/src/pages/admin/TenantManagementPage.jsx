@@ -27,6 +27,7 @@ import { useEffect, useMemo, useState } from "react";
 import http from "../../api/http";
 
 const defaultFormValues = {
+  roomRole: "member",
   status: "active",
 };
 
@@ -34,6 +35,16 @@ const statusOptions = [
   { label: "Dang thue", value: "active" },
   { label: "Da ket thuc", value: "inactive" },
 ];
+
+const roomRoleOptions = [
+  { label: "Nguoi dai dien phong", value: "representative" },
+  { label: "Nguoi thue phong", value: "member" },
+];
+
+const roomRoleMeta = {
+  representative: { color: "gold", label: "Dai dien phong" },
+  member: { color: "green", label: "Nguoi thue phong" },
+};
 
 const statusMeta = {
   active: { color: "blue", label: "Dang thue" },
@@ -225,6 +236,15 @@ const TenantManagementPage = () => {
         render: (value, record) => `${value || "-"} - ${record.roomName || "-"}`,
       },
       {
+        title: "Phan loai",
+        dataIndex: "roomRole",
+        key: "roomRole",
+        render: (roomRole) => {
+          const meta = roomRoleMeta[roomRole] || roomRoleMeta.member;
+          return <Tag color={meta.color}>{meta.label}</Tag>;
+        },
+      },
+      {
         title: "Toa nha",
         dataIndex: "buildingName",
         key: "buildingName",
@@ -361,6 +381,9 @@ const TenantManagementPage = () => {
             </Form.Item>
             <Form.Item name="status" label="Trang thai" rules={[{ required: true }]}>
               <Select options={statusOptions} />
+            </Form.Item>
+            <Form.Item name="roomRole" label="Phan loai" rules={[{ required: true }]}>
+              <Select options={roomRoleOptions} />
             </Form.Item>
           </div>
           <Form.Item name="note" label="Ghi chu">

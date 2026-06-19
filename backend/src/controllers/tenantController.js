@@ -3,6 +3,7 @@ const Tenant = require("../models/Tenant");
 const User = require("../models/User");
 
 const tenantStatuses = ["active", "inactive"];
+const roomRoles = ["representative", "member"];
 
 const toTenantResponse = (tenant) => ({
   id: tenant._id,
@@ -12,6 +13,7 @@ const toTenantResponse = (tenant) => ({
   userPhone: tenant.user?.phone,
   userIdentityNumber: tenant.user?.identityNumber,
   room: tenant.room?._id || tenant.room,
+  roomRole: tenant.roomRole || "member",
   roomName: tenant.room?.name,
   roomNumber: tenant.room?.roomNumber,
   building: tenant.room?.building?._id || tenant.room?.building,
@@ -32,9 +34,13 @@ const populateTenant = (query) =>
     populate: { path: "building", select: "name code" },
   });
 
-const validateTenantPayload = ({ user, room, status }, isCreate) => {
+const validateTenantPayload = ({ user, room, roomRole, status }, isCreate) => {
   if (isCreate && (!user || !room)) {
     throw new Error("User and room are required");
+  }
+
+  if (roomRole && !roomRoles.includes(roomRole)) {
+    throw new Error("Invalid room role");
   }
 
   if (status && !tenantStatuses.includes(status)) {
@@ -80,6 +86,24 @@ const updateRoomOccupancy = async (roomId) => {
   await Room.findByIdAndUpdate(roomId, { status: nextStatus });
 };
 
+const ensureSingleRepresentative = async (roomId, exceptTenantId) => {
+  if (!roomId) {
+    return;
+  }
+
+  const filter = {
+    room: roomId,
+    roomRole: "representative",
+    status: "active",
+  };
+
+  if (exceptTenantId) {
+    filter._id = { $ne: exceptTenantId };
+  }
+
+  await Tenant.updateMany(filter, { roomRole: "member" });
+};
+
 const getTenants = async (req, res, next) => {
   try {
     const filter = {};
@@ -123,13 +147,14 @@ const createTenant = async (req, res, next) => {
     const {
       user,
       room,
+      roomRole = "member",
       moveInDate = new Date(),
       moveOutDate,
       status = "active",
       note,
     } = req.body;
 
-    validateTenantPayload({ user, room, status }, true);
+    validateTenantPayload({ user, room, roomRole, status }, true);
     await ensureUserCanBeTenant(user);
     await ensureRoomExists(room);
 
@@ -142,9 +167,14 @@ const createTenant = async (req, res, next) => {
       }
     }
 
+    if (status === "active" && roomRole === "representative") {
+      await ensureSingleRepresentative(room);
+    }
+
     const tenant = await Tenant.create({
       user,
       room,
+      roomRole,
       moveInDate,
       moveOutDate,
       status,
@@ -173,9 +203,9 @@ const updateTenant = async (req, res, next) => {
       throw new Error("Tenant not found");
     }
 
-    const { user, room, moveInDate, moveOutDate, status, note } = req.body;
+    const { user, room, roomRole, moveInDate, moveOutDate, status, note } = req.body;
 
-    validateTenantPayload({ user, room, status }, false);
+    validateTenantPayload({ user, room, roomRole, status }, false);
 
     if (user) {
       await ensureUserCanBeTenant(user);
@@ -187,6 +217,8 @@ const updateTenant = async (req, res, next) => {
 
     const nextUser = user ?? tenant.user;
     const nextStatus = status ?? tenant.status;
+    const nextRoom = room ?? tenant.room;
+    const nextRoomRole = roomRole ?? tenant.roomRole;
 
     if (nextStatus === "active") {
       const activeTenantForUser = await Tenant.findOne({
@@ -201,10 +233,15 @@ const updateTenant = async (req, res, next) => {
       }
     }
 
+    if (nextStatus === "active" && nextRoomRole === "representative") {
+      await ensureSingleRepresentative(nextRoom, tenant._id);
+    }
+
     const previousRoom = tenant.room;
 
     tenant.user = nextUser;
-    tenant.room = room ?? tenant.room;
+    tenant.room = nextRoom;
+    tenant.roomRole = nextRoomRole;
     tenant.moveInDate = moveInDate ?? tenant.moveInDate;
     tenant.moveOutDate = moveOutDate ?? tenant.moveOutDate;
     tenant.status = nextStatus;
@@ -255,6 +292,10 @@ const updateTenantStatus = async (req, res, next) => {
     }
 
     tenant.status = status;
+
+    if (status === "active" && tenant.roomRole === "representative") {
+      await ensureSingleRepresentative(tenant.room, tenant._id);
+    }
 
     if (status === "inactive") {
       tenant.moveOutDate = moveOutDate || tenant.moveOutDate || new Date();
