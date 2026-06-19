@@ -4,6 +4,11 @@ const tenantSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, // Nguoi thue
     room: { type: mongoose.Schema.Types.ObjectId, ref: "Room", required: true }, // Phong thue
+    roomRole: {
+      type: String,
+      enum: ["representative", "member"],
+      default: "member",
+    }, // Vai tro trong phong
     moveInDate: { type: Date, default: Date.now }, // Ngay vao o
     moveOutDate: { type: Date }, // Ngay roi di
     status: {

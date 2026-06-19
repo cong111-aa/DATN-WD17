@@ -1,6 +1,7 @@
 const Invoice = require("../models/Invoice");
 const MeterReading = require("../models/MeterReading");
 const Room = require("../models/Room");
+const Tenant = require("../models/Tenant");
 const User = require("../models/User");
 
 const invoiceStatuses = ["unpaid", "partial", "paid", "overdue"];
@@ -171,6 +172,19 @@ const validateInvoicePayload = async (payload, isCreate) => {
 
     if (!existingTenant || existingTenant.role !== "user") {
       throw new Error("Tenant user not found");
+    }
+  }
+
+  if (room && tenant) {
+    const representative = await Tenant.findOne({
+      user: tenant,
+      room,
+      status: "active",
+      roomRole: "representative",
+    });
+
+    if (!representative) {
+      throw new Error("Invoice tenant must be the active room representative");
     }
   }
 };

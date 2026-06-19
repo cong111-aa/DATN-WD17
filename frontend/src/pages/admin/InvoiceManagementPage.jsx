@@ -96,12 +96,14 @@ const InvoiceManagementPage = () => {
 
   const tenantOptions = useMemo(
     () =>
-      tenants.map((tenant) => ({
-        label: `${tenant.userName} - ${tenant.roomNumber || "Chua co phong"} (${tenant.status === "active" ? "dang thue" : "da ket thuc"})`,
-        room: tenant.room,
-        user: tenant.user,
-        value: `${tenant.user}-${tenant.room}-${tenant.id}`,
-      })),
+      tenants
+        .filter((tenant) => tenant.status === "active" && tenant.roomRole === "representative")
+        .map((tenant) => ({
+          label: `${tenant.userName} - ${tenant.roomNumber || "Chua co phong"} (dai dien phong)`,
+          room: tenant.room,
+          user: tenant.user,
+          value: `${tenant.user}-${tenant.room}-${tenant.id}`,
+        })),
     [tenants]
   );
 
@@ -445,7 +447,7 @@ const InvoiceManagementPage = () => {
           <Form.Item name="tenantPicker" label="Chon khach thue">
             <Select
               options={tenantOptions}
-              placeholder="Chon khach thue de tu dien phong"
+              placeholder="Chon nguoi dai dien phong de tu dien phong"
               showSearch
               optionFilterProp="label"
               onChange={handleTenantChange}
