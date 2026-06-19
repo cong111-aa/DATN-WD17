@@ -5,7 +5,7 @@ const invoiceSchema = new mongoose.Schema(
     invoiceCode: { type: String, required: true, unique: true, trim: true }, // Ma hoa don
     room: { type: mongoose.Schema.Types.ObjectId, ref: "Room", required: true }, // Phong
     tenant: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, // Nguoi thue
-    contract: { type: mongoose.Schema.Types.ObjectId, ref: "Contract", required: true }, // Hop dong
+    contract: { type: mongoose.Schema.Types.ObjectId, ref: "Contract" }, // Hop dong giay, khong bat buoc tren he thong
     meterReading: { type: mongoose.Schema.Types.ObjectId, ref: "MeterReading" }, // Chi so dien nuoc
     month: { type: Number, required: true, min: 1, max: 12 }, // Thang
     year: { type: Number, required: true, min: 2000 }, // Nam
@@ -28,6 +28,6 @@ const invoiceSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-invoiceSchema.index({ room: 1, month: 1, year: 1 }, { unique: true });
+invoiceSchema.index({ tenant: 1, room: 1, month: 1, year: 1 }, { unique: true });
 
 module.exports = mongoose.model("Invoice", invoiceSchema);

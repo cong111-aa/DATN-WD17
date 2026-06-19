@@ -5,6 +5,7 @@ const morgan = require("morgan");
 const env = require("./config/env");
 const authRoutes = require("./routes/authRoutes");
 const buildingRoutes = require("./routes/buildingRoutes");
+const invoiceRoutes = require("./routes/invoiceRoutes");
 const meterReadingRoutes = require("./routes/meterReadingRoutes");
 const roomRoutes = require("./routes/roomRoutes");
 const tenantRoutes = require("./routes/tenantRoutes");
@@ -36,6 +37,7 @@ app.get("/api/health", (req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/buildings", buildingRoutes);
+app.use("/api/invoices", invoiceRoutes);
 app.use("/api/meter-readings", meterReadingRoutes);
 app.use("/api/rooms", roomRoutes);
 app.use("/api/tenants", tenantRoutes);
