@@ -1,5 +1,6 @@
 const Building = require("../models/Building");
 const Room = require("../models/Room");
+const Tenant = require("../models/Tenant");
 
 const roomStatuses = ["available", "occupied", "maintenance"];
 
@@ -76,6 +77,23 @@ const ensureBuildingExists = async (buildingId) => {
   }
 
   return building;
+};
+
+const ensureRoomCanBeMarkedAvailable = async (room, res) => {
+  if (room.status === "occupied") {
+    res.status(400);
+    throw new Error("Cannot mark occupied room as available");
+  }
+
+  const activeTenant = await Tenant.findOne({
+    room: room._id,
+    status: "active",
+  });
+
+  if (activeTenant) {
+    res.status(400);
+    throw new Error("Cannot mark room as available while it has active tenant");
+  }
 };
 
 const getRooms = async (req, res, next) => {
@@ -241,6 +259,10 @@ const updateRoom = async (req, res, next) => {
       }
     }
 
+    if (status === "available") {
+      await ensureRoomCanBeMarkedAvailable(room, res);
+    }
+
     room.building = nextBuilding;
     room.roomNumber = nextRoomNumber;
     room.name = name ?? room.name;
@@ -281,6 +303,10 @@ const updateRoomStatus = async (req, res, next) => {
     if (!room) {
       res.status(404);
       throw new Error("Room not found");
+    }
+
+    if (status === "available") {
+      await ensureRoomCanBeMarkedAvailable(room, res);
     }
 
     room.status = status;
