@@ -23,8 +23,8 @@ const AdminDashboardPage = () => (
       </Col>
       <Col xs={24} md={8}>
         <Card>
-          <Typography.Text type="secondary">Hoa don</Typography.Text>
-          <Typography.Title level={3}>Dang phat trien</Typography.Title>
+          <Typography.Text type="secondary">Dien nuoc</Typography.Text>
+          <Typography.Title level={3}>Quan ly chi so</Typography.Title>
         </Card>
       </Col>
     </Row>
