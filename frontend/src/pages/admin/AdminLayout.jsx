@@ -1,6 +1,7 @@
 import {
   BankOutlined,
   DashboardOutlined,
+  FileTextOutlined,
   HomeOutlined,
   LogoutOutlined,
   TeamOutlined,
@@ -31,6 +32,8 @@ const AdminLayout = () => {
         ? "/admin/rooms"
         : location.pathname.startsWith("/admin/meter-readings")
           ? "/admin/meter-readings"
+        : location.pathname.startsWith("/admin/invoices")
+          ? "/admin/invoices"
         : location.pathname.startsWith("/admin/tenants")
           ? "/admin/tenants"
       : "/admin";
@@ -73,6 +76,12 @@ const AdminLayout = () => {
               icon: <ThunderboltOutlined />,
               label: "Quan ly dien nuoc",
               onClick: () => navigate("/admin/meter-readings"),
+            },
+            {
+              key: "/admin/invoices",
+              icon: <FileTextOutlined />,
+              label: "Quan ly hoa don",
+              onClick: () => navigate("/admin/invoices"),
             },
             {
               key: "/admin/tenants",

@@ -3,6 +3,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import BuildingManagementPage from "./pages/admin/BuildingManagementPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminLayout from "./pages/admin/AdminLayout";
+import InvoiceManagementPage from "./pages/admin/InvoiceManagementPage";
 import MeterReadingManagementPage from "./pages/admin/MeterReadingManagementPage";
 import RoomManagementPage from "./pages/admin/RoomManagementPage";
 import TenantManagementPage from "./pages/admin/TenantManagementPage";
@@ -24,6 +25,7 @@ const App = () => (
       >
         <Route index element={<AdminDashboardPage />} />
         <Route path="buildings" element={<BuildingManagementPage />} />
+        <Route path="invoices" element={<InvoiceManagementPage />} />
         <Route path="meter-readings" element={<MeterReadingManagementPage />} />
         <Route path="rooms" element={<RoomManagementPage />} />
         <Route path="tenants" element={<TenantManagementPage />} />
