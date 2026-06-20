@@ -90,15 +90,18 @@ const calculateTotalAmount = (payload) => {
 };
 
 const deriveStatus = (paidAmount, totalAmount, requestedStatus) => {
-  if (requestedStatus === "overdue") {
+  paidAmount = Number(paidAmount || 0);
+  totalAmount = Number(totalAmount || 0);
+
+  if (requestedStatus === "overdue" && paidAmount < totalAmount) {
     return "overdue";
   }
 
-  if (Number(paidAmount) <= 0) {
+  if (paidAmount <= 0) {
     return "unpaid";
   }
 
-  if (Number(paidAmount) < Number(totalAmount)) {
+  if (paidAmount < totalAmount) {
     return "partial";
   }
 
@@ -124,14 +127,36 @@ const applyMeterReadingAmounts = async (payload) => {
     return payload;
   }
 
-  const electricityUsage = meterReading.electricityNew - meterReading.electricityOld;
-  const waterUsage = meterReading.waterNew - meterReading.waterOld;
+  const electricityUsage = Math.max(
+    meterReading.electricityNew - meterReading.electricityOld,
+    0
+  );
+  const waterUsage = Math.max(meterReading.waterNew - meterReading.waterOld, 0);
 
   payload.meterReading = meterReading._id;
   payload.electricityAmount = electricityUsage * Number(room.electricityPrice || 0);
   payload.waterAmount = waterUsage * Number(room.waterPrice || 0);
 
   return payload;
+};
+
+const ensureInvoiceRepresentative = async (tenant, room) => {
+  const representative = await Tenant.findOne({
+    user: tenant,
+    room,
+    status: "active",
+    roomRole: "representative",
+  });
+
+  if (!representative) {
+    throw new Error("Invoice tenant must be the active room representative");
+  }
+};
+
+const validatePaidAmount = (paidAmount, totalAmount) => {
+  if (Number(paidAmount) > Number(totalAmount)) {
+    throw new Error("Paid amount cannot exceed total amount");
+  }
 };
 
 const validateInvoicePayload = async (payload, isCreate) => {
@@ -153,6 +178,10 @@ const validateInvoicePayload = async (payload, isCreate) => {
     throw new Error("Invalid status");
   }
 
+  if (payload.paidAmount !== undefined && Number(payload.paidAmount) < 0) {
+    throw new Error("Paid amount must be greater than or equal to 0");
+  }
+
   moneyFields.forEach((field) => {
     if (payload[field] !== undefined && Number(payload[field]) < 0) {
       throw new Error(`${field} must be greater than or equal to 0`);
@@ -160,7 +189,7 @@ const validateInvoicePayload = async (payload, isCreate) => {
   });
 
   if (room) {
-    const existingRoom = await Room.findById(room);
+    const existingRoom = await Room.findById(room).select("_id");
 
     if (!existingRoom) {
       throw new Error("Room not found");
@@ -168,30 +197,22 @@ const validateInvoicePayload = async (payload, isCreate) => {
   }
 
   if (tenant) {
-    const existingTenant = await User.findById(tenant);
+    const existingTenant = await User.findById(tenant).select("_id role");
 
     if (!existingTenant || existingTenant.role !== "user") {
       throw new Error("Tenant user not found");
     }
   }
 
-  if (room && tenant) {
-    const representative = await Tenant.findOne({
-      user: tenant,
-      room,
-      status: "active",
-      roomRole: "representative",
-    });
-
-    if (!representative) {
-      throw new Error("Invoice tenant must be the active room representative");
-    }
+  if (isCreate && room && tenant) {
+    await ensureInvoiceRepresentative(tenant, room);
   }
 };
 
 const getInvoices = async (req, res, next) => {
   try {
     const filter = {};
+    const hasPagination = req.query.page !== undefined || req.query.limit !== undefined;
 
     if (req.query.room) {
       filter.room = req.query.room;
@@ -205,7 +226,38 @@ const getInvoices = async (req, res, next) => {
       filter.status = req.query.status;
     }
 
-    const invoices = await populateInvoice(Invoice.find(filter).sort({ createdAt: -1 }));
+    if (req.query.month) {
+      filter.month = Number(req.query.month);
+    }
+
+    if (req.query.year) {
+      filter.year = Number(req.query.year);
+    }
+
+    const page = Math.max(Number(req.query.page || 1), 1);
+    const limit = Math.max(Number(req.query.limit || 20), 1);
+    const skip = (page - 1) * limit;
+    const query = Invoice.find(filter).sort({ createdAt: -1 });
+
+    if (hasPagination) {
+      query.skip(skip).limit(limit);
+    }
+
+    const [invoices, total] = await Promise.all([
+      populateInvoice(query),
+      hasPagination ? Invoice.countDocuments(filter) : Promise.resolve(0),
+    ]);
+
+    if (hasPagination) {
+      return res.json({
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        data: invoices.map(toInvoiceResponse),
+      });
+    }
+
     res.json(invoices.map(toInvoiceResponse));
   } catch (error) {
     next(error);
@@ -256,8 +308,10 @@ const createInvoice = async (req, res, next) => {
 
     const totalAmount = calculateTotalAmount(payload);
     const paidAmount = toNumber(payload.paidAmount);
-    const status = deriveStatus(paidAmount, totalAmount, payload.status);
 
+    validatePaidAmount(paidAmount, totalAmount);
+
+    const status = deriveStatus(paidAmount, totalAmount, payload.status);
     const invoice = await Invoice.create({
       ...payload,
       totalAmount,
@@ -304,12 +358,15 @@ const updateInvoice = async (req, res, next) => {
     const nextMonth = payload.month ?? invoice.month;
     const nextYear = payload.year ?? invoice.year;
 
-    if (
+    const periodChanged =
       String(nextTenant) !== String(invoice.tenant) ||
       String(nextRoom) !== String(invoice.room) ||
       Number(nextMonth) !== Number(invoice.month) ||
-      Number(nextYear) !== Number(invoice.year)
-    ) {
+      Number(nextYear) !== Number(invoice.year);
+
+    if (periodChanged) {
+      await ensureInvoiceRepresentative(nextTenant, nextRoom);
+
       const existingInvoice = await Invoice.findOne({
         _id: { $ne: invoice._id },
         tenant: nextTenant,
@@ -341,6 +398,8 @@ const updateInvoice = async (req, res, next) => {
     await applyMeterReadingAmounts(invoice);
 
     const totalAmount = calculateTotalAmount(invoice);
+    validatePaidAmount(invoice.paidAmount, totalAmount);
+
     invoice.totalAmount = totalAmount;
     invoice.status = deriveStatus(invoice.paidAmount, totalAmount, payload.status ?? invoice.status);
 
@@ -372,7 +431,7 @@ const updateInvoiceStatus = async (req, res, next) => {
       throw new Error("Invoice not found");
     }
 
-    invoice.status = status === "overdue" ? "overdue" : deriveStatus(invoice.paidAmount, invoice.totalAmount, status);
+    invoice.status = deriveStatus(invoice.paidAmount, invoice.totalAmount, status);
     const updatedInvoice = await invoice.save();
     const populatedInvoice = await populateInvoice(Invoice.findById(updatedInvoice._id));
     res.json(toInvoiceResponse(populatedInvoice));

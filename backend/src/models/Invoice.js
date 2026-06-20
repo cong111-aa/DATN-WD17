@@ -29,5 +29,8 @@ const invoiceSchema = new mongoose.Schema(
 );
 
 invoiceSchema.index({ tenant: 1, room: 1, month: 1, year: 1 }, { unique: true });
+invoiceSchema.index({ invoiceCode: 1 }, { unique: true });
+invoiceSchema.index({ status: 1 });
+invoiceSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model("Invoice", invoiceSchema);
