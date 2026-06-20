@@ -5,6 +5,7 @@ import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminLayout from "./pages/admin/AdminLayout";
 import InvoiceManagementPage from "./pages/admin/InvoiceManagementPage";
 import MeterReadingManagementPage from "./pages/admin/MeterReadingManagementPage";
+import OperatingExpenseManagementPage from "./pages/admin/OperatingExpenseManagementPage";
 import RoomManagementPage from "./pages/admin/RoomManagementPage";
 import TenantManagementPage from "./pages/admin/TenantManagementPage";
 import UserManagementPage from "./pages/admin/UserManagementPage";
@@ -27,6 +28,7 @@ const App = () => (
         <Route path="buildings" element={<BuildingManagementPage />} />
         <Route path="invoices" element={<InvoiceManagementPage />} />
         <Route path="meter-readings" element={<MeterReadingManagementPage />} />
+        <Route path="operating-expenses" element={<OperatingExpenseManagementPage />} />
         <Route path="rooms" element={<RoomManagementPage />} />
         <Route path="tenants" element={<TenantManagementPage />} />
         <Route path="users" element={<UserManagementPage />} />
