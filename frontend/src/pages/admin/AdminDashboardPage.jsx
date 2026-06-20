@@ -27,6 +27,12 @@ const AdminDashboardPage = () => (
           <Typography.Title level={3}>Quan ly chi so</Typography.Title>
         </Card>
       </Col>
+      <Col xs={24} md={8}>
+        <Card>
+          <Typography.Text type="secondary">Chi phi</Typography.Text>
+          <Typography.Title level={3}>Quan ly van hanh</Typography.Title>
+        </Card>
+      </Col>
     </Row>
   </Space>
 );
