@@ -204,6 +204,10 @@ body {
   padding: 34px;
 }
 
+.auth-card-narrow {
+  width: min(460px, 100%);
+}
+
 .auth-card .ant-form-item-label>label {
   color: #233633;
   font-weight: 600;
@@ -223,6 +227,11 @@ body {
 
 .auth-options {
   margin-bottom: 18px;
+}
+
+.auth-register-link {
+  margin: 18px 0 0;
+  text-align: center;
 }
 
 .auth-card .ant-btn {

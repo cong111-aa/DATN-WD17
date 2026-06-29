@@ -10,12 +10,14 @@ import RoomManagementPage from "./pages/admin/RoomManagementPage";
 import TenantManagementPage from "./pages/admin/TenantManagementPage";
 import UserManagementPage from "./pages/admin/UserManagementPage";
 import LoginPage from "./pages/auth/LoginPage";
+import RegisterPage from "./pages/auth/RegisterPage";
 import UserHomePage from "./pages/user/UserHomePage";
 
 const App = () => (
   <BrowserRouter>
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
       <Route
         path="/admin"
         element={

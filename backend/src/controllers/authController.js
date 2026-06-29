@@ -42,6 +42,51 @@ const login = async (req, res, next) => {
   }
 };
 
+const register = async (req, res, next) => {
+  try {
+    const {
+      name,
+      email,
+      password,
+      phone,
+      address,
+      identityNumber,
+      identityFrontImage,
+      identityBackImage,
+    } = req.body;
+
+    if (!name || !email || !password) {
+      res.status(400);
+      throw new Error("Name, email and password are required");
+    }
+
+    const User = require("../models/User");
+    const existingUser = await User.findOne({ email });
+
+    if (existingUser) {
+      res.status(400);
+      throw new Error("Email already exists");
+    }
+
+    const user = await User.create({
+      name,
+      email,
+      password,
+      phone,
+      address,
+      identityNumber,
+      identityFrontImage,
+      identityBackImage,
+      role: "user",
+      status: "active",
+    });
+
+    res.status(201).json(toAuthResponse(user));
+  } catch (error) {
+    next(error);
+  }
+};
+
 const getProfile = async (req, res) => {
   res.json(req.user);
 };
@@ -74,4 +119,4 @@ const updateProfile = async (req, res, next) => {
   }
 };
 
-module.exports = { getProfile, login, updateProfile };
+module.exports = { getProfile, login, register, updateProfile };
