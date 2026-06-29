@@ -17,6 +17,14 @@ export const AuthProvider = ({ children }) => {
     return data;
   };
 
+  const register = async (values) => {
+    const { data } = await http.post("/auth/register", values);
+    localStorage.setItem("token", data.token);
+    localStorage.setItem("user", JSON.stringify(data));
+    setUser(data);
+    return data;
+  };
+
   const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
@@ -32,7 +40,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const value = useMemo(
-    () => ({ isAdmin: user?.role === "admin", login, logout, refreshProfile, user }),
+    () => ({ isAdmin: user?.role === "admin", login, logout, refreshProfile, register, user }),
     [user]
   );
 

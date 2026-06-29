@@ -7,7 +7,7 @@ import {
 } from "@ant-design/icons";
 import { Alert, Button, Card, Checkbox, Form, Input, Space, Typography } from "antd";
 import { useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
 const LoginPage = () => {
@@ -116,6 +116,10 @@ const LoginPage = () => {
               Đăng nhập
             </Button>
           </Form>
+
+          <Typography.Paragraph className="auth-register-link">
+            Chua co tai khoan? <Link to="/register">Dang ky ngay</Link>
+          </Typography.Paragraph>
         </Card>
       </div>
     </div>
