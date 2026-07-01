@@ -20,6 +20,7 @@ const toRoomResponse = (room) => ({
   waterPrice: room.waterPrice,
   serviceFee: room.serviceFee,
   description: room.description,
+  images: room.images || [],
   status: room.status,
   createdAt: room.createdAt,
   updatedAt: room.updatedAt,
@@ -139,6 +140,7 @@ const createRoom = async (req, res, next) => {
       waterPrice = 15000,
       serviceFee = 0,
       description,
+      images = [],
       status = "available",
     } = req.body;
 
@@ -182,6 +184,7 @@ const createRoom = async (req, res, next) => {
       waterPrice,
       serviceFee,
       description,
+      images,
       status,
     });
 
@@ -218,6 +221,7 @@ const updateRoom = async (req, res, next) => {
       waterPrice,
       serviceFee,
       description,
+      images,
       status,
     } = req.body;
 
@@ -275,6 +279,7 @@ const updateRoom = async (req, res, next) => {
     room.waterPrice = waterPrice ?? room.waterPrice;
     room.serviceFee = serviceFee ?? room.serviceFee;
     room.description = description ?? room.description;
+    room.images = images ?? room.images;
     room.status = status ?? room.status;
 
     const updatedRoom = await room.save();

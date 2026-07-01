@@ -2,6 +2,7 @@ import {
   DeleteOutlined,
   EditOutlined,
   PlusOutlined,
+  UploadOutlined,
 } from "@ant-design/icons";
 import {
   Button,
@@ -16,6 +17,7 @@ import {
   Table,
   Tag,
   Typography,
+  Upload,
   message,
 } from "antd";
 import { useEffect, useMemo, useState } from "react";
@@ -28,6 +30,7 @@ const defaultFormValues = {
   electricityPrice: 3500,
   floor: 1,
   serviceFee: 0,
+  images: [],
   status: "available",
   waterPrice: 15000,
 };
@@ -47,6 +50,30 @@ const statusMeta = {
 const currencyFormatter = (value) =>
   typeof value === "number" ? value.toLocaleString("vi-VN") : value || "-";
 
+const apiOrigin = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/api\/?$/, "");
+
+const toUploadFileList = (images = []) =>
+  images.map((url, index) => ({
+    uid: `${url}-${index}`,
+    name: url.split("/").pop() || `image-${index + 1}`,
+    status: "done",
+    url: url.startsWith("http") ? url : `${apiOrigin}${url}`,
+    response: { urls: [url] },
+  }));
+
+const toImageUrls = (fileList = []) =>
+  fileList.flatMap((file) => {
+    if (file.response?.urls) {
+      return file.response.urls;
+    }
+
+    if (file.url?.startsWith(apiOrigin)) {
+      return file.url.replace(apiOrigin, "");
+    }
+
+    return file.url ? [file.url] : [];
+  });
+
 const RoomManagementPage = () => {
   const [form] = Form.useForm();
   const [buildings, setBuildings] = useState([]);
@@ -55,6 +82,7 @@ const RoomManagementPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState(null);
+  const [imageFileList, setImageFileList] = useState([]);
 
   const buildingOptions = useMemo(
     () =>
@@ -105,6 +133,7 @@ const RoomManagementPage = () => {
     setEditingRoom(null);
     form.resetFields();
     form.setFieldsValue(defaultFormValues);
+    setImageFileList([]);
     setModalOpen(true);
   };
 
@@ -112,12 +141,14 @@ const RoomManagementPage = () => {
     setEditingRoom(record);
     form.resetFields();
     form.setFieldsValue(record);
+    setImageFileList(toUploadFileList(record.images));
     setModalOpen(true);
   };
 
   const closeModal = () => {
     setModalOpen(false);
     setEditingRoom(null);
+    setImageFileList([]);
     form.resetFields();
   };
 
@@ -125,11 +156,16 @@ const RoomManagementPage = () => {
     setSubmitting(true);
 
     try {
+      const payload = {
+        ...values,
+        images: toImageUrls(imageFileList),
+      };
+
       if (editingRoom) {
-        await http.put(`/rooms/${editingRoom.id}`, values);
+        await http.put(`/rooms/${editingRoom.id}`, payload);
         message.success("Da cap nhat phong");
       } else {
-        await http.post("/rooms", values);
+        await http.post("/rooms", payload);
         message.success("Da tao phong");
       }
 
@@ -149,6 +185,21 @@ const RoomManagementPage = () => {
       fetchRooms();
     } catch (error) {
       message.error(error.response?.data?.message || "Xoa phong that bai");
+    }
+  };
+
+  const handleImageUpload = async ({ file, onError, onSuccess }) => {
+    const formData = new FormData();
+    formData.append("images", file);
+
+    try {
+      const { data } = await http.post("/uploads/rooms", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      onSuccess(data);
+    } catch (error) {
+      message.error(error.response?.data?.message || "Upload anh that bai");
+      onError(error);
     }
   };
 
@@ -327,6 +378,26 @@ const RoomManagementPage = () => {
 
           <Form.Item name="description" label="Mo ta">
             <Input.TextArea rows={3} />
+          </Form.Item>
+          <Form.Item label="Anh phong">
+            <Upload
+              accept="image/png,image/jpeg,image/webp"
+              customRequest={handleImageUpload}
+              fileList={imageFileList}
+              listType="picture-card"
+              multiple
+              onChange={({ fileList }) => setImageFileList(fileList)}
+              onRemove={(file) => {
+                setImageFileList((current) => current.filter((item) => item.uid !== file.uid));
+              }}
+            >
+              {imageFileList.length >= 10 ? null : (
+                <button type="button" className="upload-card-button">
+                  <UploadOutlined />
+                  <span>Tai anh</span>
+                </button>
+              )}
+            </Upload>
           </Form.Item>
         </Form>
       </Modal>

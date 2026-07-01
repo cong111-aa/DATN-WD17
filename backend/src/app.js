@@ -1,6 +1,7 @@
 const cors = require("cors");
 const express = require("express");
 const morgan = require("morgan");
+const path = require("path");
 
 const env = require("./config/env");
 const authRoutes = require("./routes/authRoutes");
@@ -10,6 +11,7 @@ const meterReadingRoutes = require("./routes/meterReadingRoutes");
 const operatingExpenseRoutes = require("./routes/operatingExpenseRoutes");
 const roomRoutes = require("./routes/roomRoutes");
 const tenantRoutes = require("./routes/tenantRoutes");
+const uploadRoutes = require("./routes/uploadRoutes");
 const userRoutes = require("./routes/userRoutes");
 const { notFound, errorHandler } = require("./middlewares/errorMiddleware");
 
@@ -23,6 +25,7 @@ app.use(
 );
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
 if (env.nodeEnv === "development") {
   app.use(morgan("dev"));
@@ -43,6 +46,7 @@ app.use("/api/meter-readings", meterReadingRoutes);
 app.use("/api/operating-expenses", operatingExpenseRoutes);
 app.use("/api/rooms", roomRoutes);
 app.use("/api/tenants", tenantRoutes);
+app.use("/api/uploads", uploadRoutes);
 app.use("/api/users", userRoutes);
 
 app.use(notFound);

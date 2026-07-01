@@ -75,6 +75,17 @@ body {
   width: 100%;
 }
 
+.upload-card-button {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: #475569;
+  cursor: pointer;
+}
+
 .auth-page {
   min-height: 100vh;
   display: flex;
