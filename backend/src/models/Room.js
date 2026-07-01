@@ -18,6 +18,7 @@ const roomSchema = new mongoose.Schema(
     waterPrice: { type: Number, default: 15000, min: 0 }, // Don gia nuoc
     serviceFee: { type: Number, default: 0, min: 0 }, // Phi dich vu
     description: { type: String, default: "", trim: true }, // Mo ta
+    images: [{ type: String, trim: true }], // Danh sach anh phong
     status: {
       type: String,
       enum: ["available", "occupied", "maintenance"],
