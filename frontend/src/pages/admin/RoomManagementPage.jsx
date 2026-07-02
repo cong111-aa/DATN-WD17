@@ -1,15 +1,20 @@
 import {
   DeleteOutlined,
   EditOutlined,
+  EyeOutlined,
   PlusOutlined,
   UploadOutlined,
 } from "@ant-design/icons";
 import {
   Button,
   Card,
+  Descriptions,
+  Divider,
   Form,
+  Image,
   Input,
   InputNumber,
+  List,
   Modal,
   Popconfirm,
   Select,
@@ -47,10 +52,23 @@ const statusMeta = {
   maintenance: { color: "warning", label: "Bao tri" },
 };
 
+const tenantStatusMeta = {
+  active: { color: "blue", label: "Dang thue" },
+  inactive: { color: "default", label: "Da ket thuc" },
+};
+
+const roomRoleMeta = {
+  representative: { color: "gold", label: "Dai dien phong" },
+  member: { color: "green", label: "Nguoi thue phong" },
+};
+
 const currencyFormatter = (value) =>
   typeof value === "number" ? value.toLocaleString("vi-VN") : value || "-";
+const formatCurrency = (value) => `${Number(value || 0).toLocaleString("vi-VN")} VND`;
+const formatDate = (value) => (value ? new Date(value).toLocaleDateString("vi-VN") : "-");
 
 const apiOrigin = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/api\/?$/, "");
+const toAbsoluteImageUrl = (url) => (url?.startsWith("http") ? url : `${apiOrigin}${url}`);
 
 const toUploadFileList = (images = []) =>
   images.map((url, index) => ({
@@ -80,7 +98,11 @@ const RoomManagementPage = () => {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState(null);
+  const [detailRoom, setDetailRoom] = useState(null);
+  const [detailTenants, setDetailTenants] = useState([]);
+  const [detailTenantsLoading, setDetailTenantsLoading] = useState(false);
   const [imageFileList, setImageFileList] = useState([]);
 
   const roomStatusOptions = useMemo(
@@ -123,6 +145,22 @@ const RoomManagementPage = () => {
     form.setFieldsValue(record);
     setImageFileList(toUploadFileList(record.images));
     setModalOpen(true);
+  };
+
+  const openDetailModal = async (record) => {
+    setDetailRoom(record);
+    setDetailTenants([]);
+    setDetailOpen(true);
+    setDetailTenantsLoading(true);
+
+    try {
+      const { data } = await http.get("/tenants", { params: { room: record.id } });
+      setDetailTenants(data);
+    } catch (error) {
+      message.error(error.response?.data?.message || "Khong tai duoc danh sach nguoi thue");
+    } finally {
+      setDetailTenantsLoading(false);
+    }
   };
 
   const closeModal = () => {
@@ -245,6 +283,9 @@ const RoomManagementPage = () => {
 
           return (
             <Space wrap>
+              <Button icon={<EyeOutlined />} onClick={() => openDetailModal(record)}>
+                Chi tiet
+              </Button>
               <Button icon={<EditOutlined />} onClick={() => openEditModal(record)}>
                 Sua
               </Button>
@@ -364,6 +405,101 @@ const RoomManagementPage = () => {
             </Upload>
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title="Chi tiet phong"
+        open={detailOpen}
+        onCancel={() => setDetailOpen(false)}
+        footer={[
+          <Button key="close" onClick={() => setDetailOpen(false)}>
+            Dong
+          </Button>,
+        ]}
+        width={820}
+      >
+        {detailRoom && (
+          <Space direction="vertical" size={16} className="page-stack">
+            <Descriptions bordered size="small" column={2}>
+              <Descriptions.Item label="So phong">{detailRoom.roomNumber}</Descriptions.Item>
+              <Descriptions.Item label="Ten phong">{detailRoom.name}</Descriptions.Item>
+              <Descriptions.Item label="Tang">{detailRoom.floor}</Descriptions.Item>
+              <Descriptions.Item label="Dien tich">{detailRoom.area || 0} m2</Descriptions.Item>
+              <Descriptions.Item label="Suc chua">{detailRoom.capacity}</Descriptions.Item>
+              <Descriptions.Item label="Trang thai">
+                <Tag color={statusMeta[detailRoom.status]?.color}>
+                  {statusMeta[detailRoom.status]?.label}
+                </Tag>
+              </Descriptions.Item>
+            </Descriptions>
+
+            <Divider orientation="left">Gia va dich vu</Divider>
+            <Descriptions bordered size="small" column={2}>
+              <Descriptions.Item label="Gia thue">{formatCurrency(detailRoom.price)}</Descriptions.Item>
+              <Descriptions.Item label="Tien coc">{formatCurrency(detailRoom.deposit)}</Descriptions.Item>
+              <Descriptions.Item label="Gia dien">{formatCurrency(detailRoom.electricityPrice)}</Descriptions.Item>
+              <Descriptions.Item label="Gia nuoc">{formatCurrency(detailRoom.waterPrice)}</Descriptions.Item>
+              <Descriptions.Item label="Phi dich vu">{formatCurrency(detailRoom.serviceFee)}</Descriptions.Item>
+            </Descriptions>
+
+            <Descriptions bordered size="small" column={1}>
+              <Descriptions.Item label="Mo ta">{detailRoom.description || "-"}</Descriptions.Item>
+            </Descriptions>
+
+            <Divider orientation="left">Nguoi thue phong</Divider>
+            <List
+              bordered
+              dataSource={detailTenants}
+              loading={detailTenantsLoading}
+              locale={{ emptyText: "Chua co nguoi thue trong phong" }}
+              renderItem={(tenant) => {
+                const roleMeta = roomRoleMeta[tenant.roomRole] || roomRoleMeta.member;
+                const tenantMeta = tenantStatusMeta[tenant.status] || tenantStatusMeta.active;
+
+                return (
+                  <List.Item>
+                    <Space direction="vertical" size={4} className="page-stack">
+                      <Space wrap>
+                        <Typography.Text strong>{tenant.userName || "-"}</Typography.Text>
+                        <Tag color={roleMeta.color}>{roleMeta.label}</Tag>
+                        <Tag color={tenantMeta.color}>{tenantMeta.label}</Tag>
+                      </Space>
+                      <Typography.Text type="secondary">
+                        {tenant.userPhone || tenant.userEmail || "-"} | Vao: {formatDate(tenant.moveInDate)} | Roi:{" "}
+                        {formatDate(tenant.moveOutDate)}
+                      </Typography.Text>
+                    </Space>
+                  </List.Item>
+                );
+              }}
+            />
+
+            <Divider orientation="left">Anh phong</Divider>
+            {detailRoom.images?.length ? (
+              <Image.PreviewGroup>
+                <Space wrap>
+                  {detailRoom.images.map((url, index) => (
+                    <Image
+                      key={`${url}-${index}`}
+                      src={toAbsoluteImageUrl(url)}
+                      width={120}
+                      height={90}
+                      style={{ objectFit: "cover", borderRadius: 8 }}
+                    />
+                  ))}
+                </Space>
+              </Image.PreviewGroup>
+            ) : (
+              <Typography.Text type="secondary">Chua co anh phong</Typography.Text>
+            )}
+
+            <Divider orientation="left">Thoi gian</Divider>
+            <Descriptions bordered size="small" column={2}>
+              <Descriptions.Item label="Ngay tao">{formatDate(detailRoom.createdAt)}</Descriptions.Item>
+              <Descriptions.Item label="Ngay cap nhat">{formatDate(detailRoom.updatedAt)}</Descriptions.Item>
+            </Descriptions>
+          </Space>
+        )}
       </Modal>
     </Space>
   );
