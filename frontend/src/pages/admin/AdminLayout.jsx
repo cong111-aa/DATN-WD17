@@ -1,6 +1,7 @@
 import {
   DashboardOutlined,
   DollarOutlined,
+  FileProtectOutlined,
   FileTextOutlined,
   HomeOutlined,
   LogoutOutlined,
@@ -30,8 +31,10 @@ const AdminLayout = () => {
       ? "/admin/rooms"
       : location.pathname.startsWith("/admin/meter-readings")
         ? "/admin/meter-readings"
-        : location.pathname.startsWith("/admin/invoices")
-          ? "/admin/invoices"
+          : location.pathname.startsWith("/admin/invoices")
+            ? "/admin/invoices"
+          : location.pathname.startsWith("/admin/contracts")
+            ? "/admin/contracts"
           : location.pathname.startsWith("/admin/operating-expenses")
             ? "/admin/operating-expenses"
             : location.pathname.startsWith("/admin/tenants")
@@ -76,6 +79,12 @@ const AdminLayout = () => {
               icon: <FileTextOutlined />,
               label: "Quan ly hoa don",
               onClick: () => navigate("/admin/invoices"),
+            },
+            {
+              key: "/admin/contracts",
+              icon: <FileProtectOutlined />,
+              label: "Quan ly hop dong",
+              onClick: () => navigate("/admin/contracts"),
             },
             {
               key: "/admin/operating-expenses",
