@@ -97,7 +97,6 @@ const createDefaultExpenseItems = (month = now.getMonth() + 1, year = now.getFul
 const OperatingExpenseManagementPage = () => {
   const [form] = Form.useForm();
   const [filterForm] = Form.useForm();
-  const [buildings, setBuildings] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [filters, setFilters] = useState({});
   const [loading, setLoading] = useState(false);
@@ -106,15 +105,6 @@ const OperatingExpenseManagementPage = () => {
   const [detailGroupKey, setDetailGroupKey] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
-
-  const buildingOptions = useMemo(
-    () =>
-      buildings.map((building) => ({
-        label: `${building.code} - ${building.name}`,
-        value: building.id,
-      })),
-    [buildings]
-  );
 
   const summary = useMemo(() => {
     const initial = {
@@ -143,13 +133,10 @@ const OperatingExpenseManagementPage = () => {
     const groups = new Map();
 
     expenses.forEach((expense) => {
-      const key = `${expense.building || "none"}-${expense.month}-${expense.year}`;
+      const key = `${expense.month}-${expense.year}`;
 
       if (!groups.has(key)) {
         groups.set(key, {
-          building: expense.building,
-          buildingCode: expense.buildingCode,
-          buildingName: expense.buildingName,
           cancelledAmount: 0,
           itemCount: 0,
           items: [],
@@ -192,7 +179,7 @@ const OperatingExpenseManagementPage = () => {
         return Number(second.month) - Number(first.month);
       }
 
-      return String(first.buildingName || "").localeCompare(String(second.buildingName || ""));
+      return 0;
     });
   }, [expenses]);
 
@@ -200,15 +187,6 @@ const OperatingExpenseManagementPage = () => {
     () => groupedExpenses.find((group) => group.key === detailGroupKey),
     [detailGroupKey, groupedExpenses]
   );
-
-  const fetchBuildings = async () => {
-    try {
-      const { data } = await http.get("/buildings");
-      setBuildings(data);
-    } catch (error) {
-      message.error(error.response?.data?.message || "Khong tai duoc danh sach toa nha");
-    }
-  };
 
   const fetchExpenses = async (nextFilters = filters) => {
     setLoading(true);
@@ -224,12 +202,10 @@ const OperatingExpenseManagementPage = () => {
   };
 
   useEffect(() => {
-    fetchBuildings();
     fetchExpenses({});
   }, []);
 
   const refreshAll = () => {
-    fetchBuildings();
     fetchExpenses(filters);
   };
 
@@ -324,13 +300,6 @@ const OperatingExpenseManagementPage = () => {
 
   const columns = useMemo(
     () => [
-      {
-        title: "Toa nha",
-        dataIndex: "buildingName",
-        key: "buildingName",
-        render: (value, record) =>
-          record.buildingCode ? `${record.buildingCode} - ${value}` : value || "-",
-      },
       {
         title: "Ky",
         key: "period",
@@ -471,7 +440,7 @@ const OperatingExpenseManagementPage = () => {
         <div className="page-title">
           <Typography.Title level={3}>Quan ly chi phi van hanh</Typography.Title>
           <Typography.Text type="secondary">
-            Theo doi cac khoan chi cua tung toa nha theo thang va nam.
+            Theo doi cac khoan chi van hanh theo thang va nam.
           </Typography.Text>
         </div>
         <Space wrap>
@@ -514,15 +483,6 @@ const OperatingExpenseManagementPage = () => {
       <Card>
         <Form form={filterForm} layout="vertical" onFinish={handleFilter}>
           <div className="form-grid">
-            <Form.Item name="building" label="Toa nha">
-              <Select
-                allowClear
-                options={buildingOptions}
-                placeholder="Tat ca toa nha"
-                showSearch
-                optionFilterProp="label"
-              />
-            </Form.Item>
             <Form.Item name="category" label="Loai chi phi">
               <Select allowClear options={categoryOptions} placeholder="Tat ca loai" />
             </Form.Item>
@@ -572,14 +532,6 @@ const OperatingExpenseManagementPage = () => {
         width={editingExpense ? 760 : 980}
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
-          <Form.Item name="building" label="Toa nha" rules={[{ required: true }]}>
-            <Select
-              options={buildingOptions}
-              placeholder="Chon toa nha"
-              showSearch
-              optionFilterProp="label"
-            />
-          </Form.Item>
           <div className="form-grid">
             <Form.Item name="expenseDate" label="Ngay phat sinh">
               <DatePicker className="full-width-input" format="DD/MM/YYYY" />
@@ -716,11 +668,6 @@ const OperatingExpenseManagementPage = () => {
         {detailGroup && (
           <Space direction="vertical" size={16} className="page-stack">
             <Descriptions bordered size="small" column={2}>
-              <Descriptions.Item label="Toa nha">
-                {detailGroup.buildingCode
-                  ? `${detailGroup.buildingCode} - ${detailGroup.buildingName}`
-                  : detailGroup.buildingName || "-"}
-              </Descriptions.Item>
               <Descriptions.Item label="Ky">
                 {detailGroup.month}/{detailGroup.year}
               </Descriptions.Item>

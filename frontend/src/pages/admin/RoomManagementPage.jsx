@@ -76,22 +76,12 @@ const toImageUrls = (fileList = []) =>
 
 const RoomManagementPage = () => {
   const [form] = Form.useForm();
-  const [buildings, setBuildings] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState(null);
   const [imageFileList, setImageFileList] = useState([]);
-
-  const buildingOptions = useMemo(
-    () =>
-      buildings.map((building) => ({
-        label: `${building.code} - ${building.name}`,
-        value: building.id,
-      })),
-    [buildings]
-  );
 
   const roomStatusOptions = useMemo(
     () =>
@@ -101,15 +91,6 @@ const RoomManagementPage = () => {
       })),
     [editingRoom]
   );
-
-  const fetchBuildings = async () => {
-    try {
-      const { data } = await http.get("/buildings");
-      setBuildings(data);
-    } catch (error) {
-      message.error(error.response?.data?.message || "Khong tai duoc danh sach toa nha");
-    }
-  };
 
   const fetchRooms = async () => {
     setLoading(true);
@@ -125,7 +106,6 @@ const RoomManagementPage = () => {
   };
 
   useEffect(() => {
-    fetchBuildings();
     fetchRooms();
   }, []);
 
@@ -217,13 +197,6 @@ const RoomManagementPage = () => {
         ),
       },
       {
-        title: "Toa nha",
-        dataIndex: "buildingName",
-        key: "buildingName",
-        render: (value, record) =>
-          record.buildingCode ? `${record.buildingCode} - ${value}` : value || "-",
-      },
-      {
         title: "Tang",
         dataIndex: "floor",
         key: "floor",
@@ -301,7 +274,7 @@ const RoomManagementPage = () => {
         <div className="page-title">
           <Typography.Title level={3}>Quan ly phong</Typography.Title>
           <Typography.Text type="secondary">
-            Tao, cap nhat hoac xoa phong theo tung toa nha.
+            Tao, cap nhat hoac xoa phong trong he thong.
           </Typography.Text>
         </div>
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
@@ -331,15 +304,6 @@ const RoomManagementPage = () => {
         width={720}
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
-          <Form.Item name="building" label="Toa nha" rules={[{ required: true }]}>
-            <Select
-              options={buildingOptions}
-              placeholder="Chon toa nha"
-              showSearch
-              optionFilterProp="label"
-            />
-          </Form.Item>
-
           <div className="form-grid">
             <Form.Item name="roomNumber" label="So phong" rules={[{ required: true }]}>
               <Input placeholder="VD: 101" />

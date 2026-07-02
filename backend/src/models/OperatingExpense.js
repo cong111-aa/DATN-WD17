@@ -2,11 +2,6 @@ const mongoose = require("mongoose");
 
 const operatingExpenseSchema = new mongoose.Schema(
   {
-    building: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Building",
-      required: true,
-    },
     category: {
       type: String,
       enum: [
@@ -38,6 +33,6 @@ const operatingExpenseSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-operatingExpenseSchema.index({ building: 1, month: 1, year: 1, category: 1 });
+operatingExpenseSchema.index({ month: 1, year: 1, category: 1 });
 
 module.exports = mongoose.model("OperatingExpense", operatingExpenseSchema);

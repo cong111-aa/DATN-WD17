@@ -16,9 +16,6 @@ const toTenantResponse = (tenant) => ({
   roomRole: tenant.roomRole || "member",
   roomName: tenant.room?.name,
   roomNumber: tenant.room?.roomNumber,
-  building: tenant.room?.building?._id || tenant.room?.building,
-  buildingName: tenant.room?.building?.name,
-  buildingCode: tenant.room?.building?.code,
   moveInDate: tenant.moveInDate,
   moveOutDate: tenant.moveOutDate,
   status: tenant.status,
@@ -30,8 +27,7 @@ const toTenantResponse = (tenant) => ({
 const populateTenant = (query) =>
   query.populate("user", "name email phone identityNumber role").populate({
     path: "room",
-    select: "name roomNumber status building",
-    populate: { path: "building", select: "name code" },
+    select: "name roomNumber status",
   });
 
 const validateTenantPayload = ({ user, room, roomRole, status }, isCreate) => {
