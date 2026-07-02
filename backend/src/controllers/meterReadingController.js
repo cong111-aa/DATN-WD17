@@ -3,11 +3,7 @@ const Room = require("../models/Room");
 
 const readingPopulate = {
   path: "room",
-  select: "building roomNumber name electricityPrice waterPrice",
-  populate: {
-    path: "building",
-    select: "name code",
-  },
+  select: "roomNumber name electricityPrice waterPrice",
 };
 
 const toMeterReadingResponse = (reading) => {
@@ -19,9 +15,6 @@ const toMeterReadingResponse = (reading) => {
     room: reading.room?._id || reading.room,
     roomNumber: reading.room?.roomNumber,
     roomName: reading.room?.name,
-    building: reading.room?.building?._id || reading.room?.building,
-    buildingName: reading.room?.building?.name,
-    buildingCode: reading.room?.building?.code,
     month: reading.month,
     year: reading.year,
     electricityOld: reading.electricityOld,
@@ -95,16 +88,11 @@ const ensureRoomExists = async (roomId) => {
   return room;
 };
 
-const buildMeterReadingFilter = async (query) => {
+const buildMeterReadingFilter = (query) => {
   const filter = {};
 
   if (query.room) {
     filter.room = query.room;
-  }
-
-  if (query.building && !query.room) {
-    const rooms = await Room.find({ building: query.building }).select("_id");
-    filter.room = { $in: rooms.map((room) => room._id) };
   }
 
   if (query.month) {
@@ -120,7 +108,7 @@ const buildMeterReadingFilter = async (query) => {
 
 const getMeterReadings = async (req, res, next) => {
   try {
-    const filter = await buildMeterReadingFilter(req.query);
+    const filter = buildMeterReadingFilter(req.query);
     const readings = await MeterReading.find(filter)
       .populate(readingPopulate)
       .sort({ year: -1, month: -1, createdAt: -1 });

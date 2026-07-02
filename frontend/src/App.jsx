@@ -1,6 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
-import BuildingManagementPage from "./pages/admin/BuildingManagementPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminLayout from "./pages/admin/AdminLayout";
 import InvoiceManagementPage from "./pages/admin/InvoiceManagementPage";
@@ -27,7 +26,6 @@ const App = () => (
         }
       >
         <Route index element={<AdminDashboardPage />} />
-        <Route path="buildings" element={<BuildingManagementPage />} />
         <Route path="invoices" element={<InvoiceManagementPage />} />
         <Route path="meter-readings" element={<MeterReadingManagementPage />} />
         <Route path="operating-expenses" element={<OperatingExpenseManagementPage />} />

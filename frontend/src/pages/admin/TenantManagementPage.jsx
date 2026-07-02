@@ -89,7 +89,7 @@ const TenantManagementPage = () => {
   const roomOptions = useMemo(
     () =>
       rooms.map((room) => ({
-        label: `${room.buildingCode || "Toa nha"} - ${room.roomNumber} - ${room.name}`,
+        label: `${room.roomNumber} - ${room.name}`,
         value: room.id,
       })),
     [rooms]
@@ -243,13 +243,6 @@ const TenantManagementPage = () => {
           const meta = roomRoleMeta[roomRole] || roomRoleMeta.member;
           return <Tag color={meta.color}>{meta.label}</Tag>;
         },
-      },
-      {
-        title: "Toa nha",
-        dataIndex: "buildingName",
-        key: "buildingName",
-        render: (value, record) =>
-          record.buildingCode ? `${record.buildingCode} - ${value}` : value || "-",
       },
       {
         title: "Ngay vao",

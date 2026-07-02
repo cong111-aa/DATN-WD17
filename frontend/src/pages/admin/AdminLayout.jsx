@@ -1,5 +1,4 @@
 import {
-  BankOutlined,
   DashboardOutlined,
   DollarOutlined,
   FileTextOutlined,
@@ -27,18 +26,16 @@ const AdminLayout = () => {
 
   const selectedKey = location.pathname.startsWith("/admin/users")
     ? "/admin/users"
-    : location.pathname.startsWith("/admin/buildings")
-      ? "/admin/buildings"
-      : location.pathname.startsWith("/admin/rooms")
-        ? "/admin/rooms"
-        : location.pathname.startsWith("/admin/meter-readings")
-          ? "/admin/meter-readings"
+    : location.pathname.startsWith("/admin/rooms")
+      ? "/admin/rooms"
+      : location.pathname.startsWith("/admin/meter-readings")
+        ? "/admin/meter-readings"
         : location.pathname.startsWith("/admin/invoices")
           ? "/admin/invoices"
-        : location.pathname.startsWith("/admin/operating-expenses")
-          ? "/admin/operating-expenses"
-        : location.pathname.startsWith("/admin/tenants")
-          ? "/admin/tenants"
+          : location.pathname.startsWith("/admin/operating-expenses")
+            ? "/admin/operating-expenses"
+            : location.pathname.startsWith("/admin/tenants")
+              ? "/admin/tenants"
       : "/admin";
 
   return (
@@ -61,12 +58,6 @@ const AdminLayout = () => {
               icon: <TeamOutlined />,
               label: "Quan ly tai khoan",
               onClick: () => navigate("/admin/users"),
-            },
-            {
-              key: "/admin/buildings",
-              icon: <BankOutlined />,
-              label: "Quan ly toa nha",
-              onClick: () => navigate("/admin/buildings"),
             },
             {
               key: "/admin/rooms",

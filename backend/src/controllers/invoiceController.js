@@ -20,8 +20,7 @@ const populateInvoice = (query) =>
     .populate("tenant", "name email phone identityNumber")
     .populate({
       path: "room",
-      select: "name roomNumber building electricityPrice waterPrice",
-      populate: { path: "building", select: "name code" },
+      select: "name roomNumber electricityPrice waterPrice",
     })
     .populate("meterReading", "electricityOld electricityNew waterOld waterNew");
 
@@ -31,9 +30,6 @@ const toInvoiceResponse = (invoice) => ({
   room: invoice.room?._id || invoice.room,
   roomName: invoice.room?.name,
   roomNumber: invoice.room?.roomNumber,
-  building: invoice.room?.building?._id || invoice.room?.building,
-  buildingName: invoice.room?.building?.name,
-  buildingCode: invoice.room?.building?.code,
   tenant: invoice.tenant?._id || invoice.tenant,
   tenantName: invoice.tenant?.name,
   tenantEmail: invoice.tenant?.email,

@@ -1,4 +1,3 @@
-const Building = require("../models/Building");
 const OperatingExpense = require("../models/OperatingExpense");
 
 const expenseCategories = [
@@ -15,14 +14,10 @@ const expenseCategories = [
 
 const expenseStatuses = ["pending", "paid", "cancelled"];
 
-const populateExpense = (query) =>
-  query.populate("building", "name code").populate("createdBy", "name email");
+const populateExpense = (query) => query.populate("createdBy", "name email");
 
 const toExpenseResponse = (expense) => ({
   id: expense._id,
-  building: expense.building?._id || expense.building,
-  buildingName: expense.building?.name,
-  buildingCode: expense.building?.code,
   category: expense.category,
   title: expense.title,
   amount: expense.amount,
@@ -38,9 +33,9 @@ const toExpenseResponse = (expense) => ({
   updatedAt: expense.updatedAt,
 });
 
-const validateExpensePayload = ({ building, category, title, amount, month, year, status }, isCreate) => {
-  if (isCreate && (!building || !category || !title || amount === undefined || month === undefined || year === undefined)) {
-    throw new Error("Building, category, title, amount, month and year are required");
+const validateExpensePayload = ({ category, title, amount, month, year, status }, isCreate) => {
+  if (isCreate && (!category || !title || amount === undefined || month === undefined || year === undefined)) {
+    throw new Error("Category, title, amount, month and year are required");
   }
 
   if (category && !expenseCategories.includes(category)) {
@@ -64,22 +59,8 @@ const validateExpensePayload = ({ building, category, title, amount, month, year
   }
 };
 
-const ensureBuildingExists = async (buildingId) => {
-  const building = await Building.findById(buildingId);
-
-  if (!building) {
-    throw new Error("Building not found");
-  }
-
-  return building;
-};
-
 const buildExpenseFilter = (query) => {
   const filter = {};
-
-  if (query.building) {
-    filter.building = query.building;
-  }
 
   if (query.category) {
     filter.category = query.category;
@@ -131,7 +112,6 @@ const getOperatingExpenseById = async (req, res, next) => {
 const createOperatingExpense = async (req, res, next) => {
   try {
     const {
-      building,
       category,
       title,
       amount,
@@ -142,11 +122,9 @@ const createOperatingExpense = async (req, res, next) => {
       note,
     } = req.body;
 
-    validateExpensePayload({ building, category, title, amount, month, year, status }, true);
-    await ensureBuildingExists(building);
+    validateExpensePayload({ category, title, amount, month, year, status }, true);
 
     const expense = await OperatingExpense.create({
-      building,
       category,
       title,
       amount,
@@ -172,7 +150,6 @@ const createOperatingExpense = async (req, res, next) => {
 const createOperatingExpensesBulk = async (req, res, next) => {
   try {
     const {
-      building,
       expenseDate = new Date(),
       items = [],
       month,
@@ -182,7 +159,6 @@ const createOperatingExpensesBulk = async (req, res, next) => {
 
     validateExpensePayload(
       {
-        building,
         category: "other",
         title: "bulk",
         amount: 0,
@@ -192,7 +168,6 @@ const createOperatingExpensesBulk = async (req, res, next) => {
       },
       true
     );
-    await ensureBuildingExists(building);
 
     if (!Array.isArray(items)) {
       res.status(400);
@@ -211,7 +186,6 @@ const createOperatingExpensesBulk = async (req, res, next) => {
     validItems.forEach((item) => {
       validateExpensePayload(
         {
-          building,
           category: item.category,
           title: item.title,
           amount: item.amount,
@@ -225,7 +199,6 @@ const createOperatingExpensesBulk = async (req, res, next) => {
 
     const expenses = await OperatingExpense.insertMany(
       validItems.map((item) => ({
-        building,
         category: item.category,
         title: item.title,
         amount: item.amount,
@@ -261,15 +234,10 @@ const updateOperatingExpense = async (req, res, next) => {
       throw new Error("Operating expense not found");
     }
 
-    const { building, category, title, amount, expenseDate, month, year, status, note } = req.body;
+    const { category, title, amount, expenseDate, month, year, status, note } = req.body;
 
-    validateExpensePayload({ building, category, title, amount, month, year, status }, false);
+    validateExpensePayload({ category, title, amount, month, year, status }, false);
 
-    if (building) {
-      await ensureBuildingExists(building);
-    }
-
-    expense.building = building ?? expense.building;
     expense.category = category ?? expense.category;
     expense.title = title ?? expense.title;
     expense.amount = amount ?? expense.amount;

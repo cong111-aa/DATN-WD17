@@ -1,4 +1,3 @@
-const Building = require("../models/Building");
 const Room = require("../models/Room");
 const Tenant = require("../models/Tenant");
 
@@ -6,9 +5,6 @@ const roomStatuses = ["available", "occupied", "maintenance"];
 
 const toRoomResponse = (room) => ({
   id: room._id,
-  building: room.building?._id || room.building,
-  buildingName: room.building?.name,
-  buildingCode: room.building?.code,
   roomNumber: room.roomNumber,
   name: room.name,
   floor: room.floor,
@@ -34,7 +30,6 @@ const validateNonNegativeNumber = (value, fieldName) => {
 
 const validateRoomPayload = (
   {
-    building,
     roomNumber,
     name,
     floor,
@@ -49,8 +44,8 @@ const validateRoomPayload = (
   },
   isCreate
 ) => {
-  if (isCreate && (!building || !roomNumber || !name || price === undefined)) {
-    throw new Error("Building, room number, name and price are required");
+  if (isCreate && (!roomNumber || !name || price === undefined)) {
+    throw new Error("Room number, name and price are required");
   }
 
   validateNonNegativeNumber(floor, "Floor");
@@ -68,16 +63,6 @@ const validateRoomPayload = (
   if (status && !roomStatuses.includes(status)) {
     throw new Error("Invalid status");
   }
-};
-
-const ensureBuildingExists = async (buildingId) => {
-  const building = await Building.findById(buildingId);
-
-  if (!building) {
-    throw new Error("Building not found");
-  }
-
-  return building;
 };
 
 const ensureRoomCanBeMarkedAvailable = async (room, res) => {
@@ -99,10 +84,7 @@ const ensureRoomCanBeMarkedAvailable = async (room, res) => {
 
 const getRooms = async (req, res, next) => {
   try {
-    const filter = req.query.building ? { building: req.query.building } : {};
-    const rooms = await Room.find(filter)
-      .populate("building", "name code")
-      .sort({ createdAt: -1 });
+    const rooms = await Room.find().sort({ createdAt: -1 });
 
     res.json(rooms.map(toRoomResponse));
   } catch (error) {
@@ -112,7 +94,7 @@ const getRooms = async (req, res, next) => {
 
 const getRoomById = async (req, res, next) => {
   try {
-    const room = await Room.findById(req.params.id).populate("building", "name code");
+    const room = await Room.findById(req.params.id);
 
     if (!room) {
       res.status(404);
@@ -128,7 +110,6 @@ const getRoomById = async (req, res, next) => {
 const createRoom = async (req, res, next) => {
   try {
     const {
-      building,
       roomNumber,
       name,
       floor = 1,
@@ -146,7 +127,6 @@ const createRoom = async (req, res, next) => {
 
     validateRoomPayload(
       {
-        building,
         roomNumber,
         name,
         floor,
@@ -162,17 +142,14 @@ const createRoom = async (req, res, next) => {
       true
     );
 
-    await ensureBuildingExists(building);
-
-    const existingRoom = await Room.findOne({ building, roomNumber });
+    const existingRoom = await Room.findOne({ roomNumber });
 
     if (existingRoom) {
       res.status(400);
-      throw new Error("Room number already exists in this building");
+      throw new Error("Room number already exists");
     }
 
     const room = await Room.create({
-      building,
       roomNumber,
       name,
       floor,
@@ -188,8 +165,7 @@ const createRoom = async (req, res, next) => {
       status,
     });
 
-    const populatedRoom = await room.populate("building", "name code");
-    res.status(201).json(toRoomResponse(populatedRoom));
+    res.status(201).json(toRoomResponse(room));
   } catch (error) {
     if (!res.statusCode || res.statusCode < 400) {
       res.status(400);
@@ -209,7 +185,6 @@ const updateRoom = async (req, res, next) => {
     }
 
     const {
-      building,
       roomNumber,
       name,
       floor,
@@ -227,7 +202,6 @@ const updateRoom = async (req, res, next) => {
 
     validateRoomPayload(
       {
-        building,
         roomNumber,
         name,
         floor,
@@ -243,23 +217,17 @@ const updateRoom = async (req, res, next) => {
       false
     );
 
-    const nextBuilding = building ?? room.building;
     const nextRoomNumber = roomNumber ?? room.roomNumber;
 
-    if (building) {
-      await ensureBuildingExists(building);
-    }
-
-    if (String(nextBuilding) !== String(room.building) || nextRoomNumber !== room.roomNumber) {
+    if (nextRoomNumber !== room.roomNumber) {
       const existingRoom = await Room.findOne({
         _id: { $ne: room._id },
-        building: nextBuilding,
         roomNumber: nextRoomNumber,
       });
 
       if (existingRoom) {
         res.status(400);
-        throw new Error("Room number already exists in this building");
+        throw new Error("Room number already exists");
       }
     }
 
@@ -267,7 +235,6 @@ const updateRoom = async (req, res, next) => {
       await ensureRoomCanBeMarkedAvailable(room, res);
     }
 
-    room.building = nextBuilding;
     room.roomNumber = nextRoomNumber;
     room.name = name ?? room.name;
     room.floor = floor ?? room.floor;
@@ -283,7 +250,6 @@ const updateRoom = async (req, res, next) => {
     room.status = status ?? room.status;
 
     const updatedRoom = await room.save();
-    await updatedRoom.populate("building", "name code");
     res.json(toRoomResponse(updatedRoom));
   } catch (error) {
     if (!res.statusCode || res.statusCode < 400) {
@@ -316,7 +282,6 @@ const updateRoomStatus = async (req, res, next) => {
 
     room.status = status;
     const updatedRoom = await room.save();
-    await updatedRoom.populate("building", "name code");
     res.json(toRoomResponse(updatedRoom));
   } catch (error) {
     next(error);

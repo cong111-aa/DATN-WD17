@@ -53,7 +53,6 @@ const getPreviousPeriod = (month, year) => {
 const MeterReadingManagementPage = () => {
   const [form] = Form.useForm();
   const [filterForm] = Form.useForm();
-  const [buildings, setBuildings] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [readings, setReadings] = useState([]);
   const [filters, setFilters] = useState({});
@@ -62,47 +61,25 @@ const MeterReadingManagementPage = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingReading, setEditingReading] = useState(null);
 
-  const selectedFormBuilding = Form.useWatch("building", form);
   const selectedFormRoom = Form.useWatch("room", form);
   const selectedFormMonth = Form.useWatch("month", form);
   const selectedFormYear = Form.useWatch("year", form);
-  const selectedFilterBuilding = Form.useWatch("building", filterForm);
 
-  const buildingOptions = useMemo(
+  const roomOptions = useMemo(
     () =>
-      buildings.map((building) => ({
-        label: `${building.code} - ${building.name}`,
-        value: building.id,
-      })),
-    [buildings]
-  );
-
-  const getRoomOptions = (buildingId) =>
-    rooms
-      .filter((room) => !buildingId || String(room.building) === String(buildingId))
-      .map((room) => ({
-        label: `${room.buildingCode || "Toa nha"} - ${room.roomNumber} - ${room.name}`,
+      rooms.map((room) => ({
+        label: `${room.roomNumber} - ${room.name}`,
         value: room.id,
-      }));
-
-  const formRoomOptions = useMemo(
-    () => getRoomOptions(selectedFormBuilding),
-    [rooms, selectedFormBuilding]
+      })),
+    [rooms]
   );
 
-  const filterRoomOptions = useMemo(
-    () => getRoomOptions(selectedFilterBuilding),
-    [rooms, selectedFilterBuilding]
-  );
+  const formRoomOptions = roomOptions;
+  const filterRoomOptions = roomOptions;
 
   const fetchOptions = async () => {
     try {
-      const [{ data: buildingData }, { data: roomData }] = await Promise.all([
-        http.get("/buildings"),
-        http.get("/rooms"),
-      ]);
-
-      setBuildings(buildingData);
+      const { data: roomData } = await http.get("/rooms");
       setRooms(roomData);
     } catch (error) {
       message.error(error.response?.data?.message || "Khong tai duoc du lieu lua chon");
@@ -172,10 +149,7 @@ const MeterReadingManagementPage = () => {
   const openEditModal = (record) => {
     setEditingReading(record);
     form.resetFields();
-    form.setFieldsValue({
-      ...record,
-      building: record.building,
-    });
+    form.setFieldsValue(record);
     setModalOpen(true);
   };
 
@@ -204,13 +178,11 @@ const MeterReadingManagementPage = () => {
     setSubmitting(true);
 
     try {
-      const { building, ...payload } = values;
-
       if (editingReading) {
-        await http.put(`/meter-readings/${editingReading.id}`, payload);
+        await http.put(`/meter-readings/${editingReading.id}`, values);
         message.success("Da cap nhat chi so dien nuoc");
       } else {
-        await http.post("/meter-readings", payload);
+        await http.post("/meter-readings", values);
         message.success("Da tao chi so dien nuoc");
       }
 
@@ -245,13 +217,6 @@ const MeterReadingManagementPage = () => {
             <Typography.Text type="secondary">{record.roomName || "-"}</Typography.Text>
           </Space>
         ),
-      },
-      {
-        title: "Toa nha",
-        dataIndex: "buildingName",
-        key: "buildingName",
-        render: (value, record) =>
-          record.buildingCode ? `${record.buildingCode} - ${value}` : value || "-",
       },
       {
         title: "Ky",
@@ -350,16 +315,6 @@ const MeterReadingManagementPage = () => {
       <Card>
         <Form form={filterForm} layout="vertical" onFinish={handleFilter}>
           <div className="form-grid">
-            <Form.Item name="building" label="Toa nha">
-              <Select
-                allowClear
-                options={buildingOptions}
-                onChange={() => filterForm.setFieldValue("room", undefined)}
-                placeholder="Tat ca toa nha"
-                showSearch
-                optionFilterProp="label"
-              />
-            </Form.Item>
             <Form.Item name="room" label="Phong">
               <Select
                 allowClear
@@ -412,15 +367,6 @@ const MeterReadingManagementPage = () => {
         width={760}
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
-          <Form.Item name="building" label="Toa nha" rules={[{ required: true }]}>
-            <Select
-              options={buildingOptions}
-              onChange={() => form.setFieldValue("room", undefined)}
-              placeholder="Chon toa nha"
-              showSearch
-              optionFilterProp="label"
-            />
-          </Form.Item>
           <Form.Item name="room" label="Phong" rules={[{ required: true }]}>
             <Select
               options={formRoomOptions}

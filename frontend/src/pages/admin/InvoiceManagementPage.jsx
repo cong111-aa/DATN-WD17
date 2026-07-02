@@ -88,7 +88,7 @@ const InvoiceManagementPage = () => {
   const roomOptions = useMemo(
     () =>
       rooms.map((room) => ({
-        label: `${room.buildingCode || "Toa nha"} - ${room.roomNumber} - ${room.name}`,
+        label: `${room.roomNumber} - ${room.name}`,
         value: room.id,
       })),
     [rooms]
@@ -317,7 +317,7 @@ const InvoiceManagementPage = () => {
         title: "Phong",
         dataIndex: "roomNumber",
         key: "roomNumber",
-        render: (value, record) => `${record.buildingCode || "-"} - ${value || "-"} - ${record.roomName || "-"}`,
+        render: (value, record) => `${value || "-"} - ${record.roomName || "-"}`,
       },
       {
         title: "Ky",
@@ -532,7 +532,7 @@ const InvoiceManagementPage = () => {
                 {detailInvoice.tenantPhone || detailInvoice.tenantEmail || "-"}
               </Descriptions.Item>
               <Descriptions.Item label="Phong">
-                {detailInvoice.buildingCode} - {detailInvoice.roomNumber} - {detailInvoice.roomName}
+                {detailInvoice.roomNumber} - {detailInvoice.roomName}
               </Descriptions.Item>
               <Descriptions.Item label="Ky hoa don">
                 {detailInvoice.month}/{detailInvoice.year}
