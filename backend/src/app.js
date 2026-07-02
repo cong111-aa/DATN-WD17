@@ -5,6 +5,7 @@ const path = require("path");
 
 const env = require("./config/env");
 const authRoutes = require("./routes/authRoutes");
+const contractRoutes = require("./routes/contractRoutes");
 const invoiceRoutes = require("./routes/invoiceRoutes");
 const meterReadingRoutes = require("./routes/meterReadingRoutes");
 const operatingExpenseRoutes = require("./routes/operatingExpenseRoutes");
@@ -39,6 +40,7 @@ app.get("/api/health", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/contracts", contractRoutes);
 app.use("/api/invoices", invoiceRoutes);
 app.use("/api/meter-readings", meterReadingRoutes);
 app.use("/api/operating-expenses", operatingExpenseRoutes);

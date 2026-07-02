@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminLayout from "./pages/admin/AdminLayout";
+import ContractManagementPage from "./pages/admin/ContractManagementPage";
 import InvoiceManagementPage from "./pages/admin/InvoiceManagementPage";
 import MeterReadingManagementPage from "./pages/admin/MeterReadingManagementPage";
 import OperatingExpenseManagementPage from "./pages/admin/OperatingExpenseManagementPage";
@@ -26,6 +27,7 @@ const App = () => (
         }
       >
         <Route index element={<AdminDashboardPage />} />
+        <Route path="contracts" element={<ContractManagementPage />} />
         <Route path="invoices" element={<InvoiceManagementPage />} />
         <Route path="meter-readings" element={<MeterReadingManagementPage />} />
         <Route path="operating-expenses" element={<OperatingExpenseManagementPage />} />
