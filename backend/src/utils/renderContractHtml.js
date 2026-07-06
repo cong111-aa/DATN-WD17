@@ -19,7 +19,7 @@ const formatCurrency = (value) => `${Number(value || 0).toLocaleString("vi-VN")}
 const renderContractHtml = ({ contract, members = [] }) => {
   const representative = contract.tenant || {};
   const room = contract.room || {};
-  const today = new Date();
+  const contractCreatedDate = new Date(contract.createdAt || Date.now());
 
   return `<!doctype html>
 <html lang="vi">
@@ -63,7 +63,7 @@ const renderContractHtml = ({ contract, members = [] }) => {
 
     <h1>Hop dong thue phong tro</h1>
     <p class="center">Ma hop dong: <strong>${escapeHtml(contract.contractCode)}</strong></p>
-    <p>Hom nay, ngay ${today.getDate()} thang ${today.getMonth() + 1} nam ${today.getFullYear()}, chung toi gom:</p>
+    <p>Hom nay, ngay ${contractCreatedDate.getDate()} thang ${contractCreatedDate.getMonth() + 1} nam ${contractCreatedDate.getFullYear()}, chung toi gom:</p>
 
     <h2>Ben cho thue</h2>
     <p>Chu nha/Don vi quan ly: <strong>TRO PLUS</strong></p>
