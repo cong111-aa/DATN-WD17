@@ -2,6 +2,7 @@ import {
   DeleteOutlined,
   EditOutlined,
   EyeOutlined,
+  FileTextOutlined,
   PlusOutlined,
   UploadOutlined,
 } from "@ant-design/icons";
@@ -206,6 +207,32 @@ const RoomManagementPage = () => {
     }
   };
 
+  const handleViewContract = async (record) => {
+    try {
+      const { data: contracts } = await http.get("/contracts", {
+        params: {
+          room: record.id,
+          status: "active",
+        },
+      });
+      const contract = contracts?.[0];
+
+      if (!contract) {
+        message.info("Phong nay chua co hop dong dang hieu luc");
+        return;
+      }
+
+      const { data } = await http.get(`/contracts/${contract.id}/file`, {
+        responseType: "text",
+      });
+      const blob = new Blob([data], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      message.error(error.response?.data?.message || "Khong mo duoc hop dong cua phong");
+    }
+  };
+
   const handleImageUpload = async ({ file, onError, onSuccess }) => {
     const formData = new FormData();
     formData.append("images", file);
@@ -285,6 +312,9 @@ const RoomManagementPage = () => {
             <Space wrap>
               <Button icon={<EyeOutlined />} onClick={() => openDetailModal(record)}>
                 Chi tiet
+              </Button>
+              <Button icon={<FileTextOutlined />} onClick={() => handleViewContract(record)}>
+                Xem hop dong
               </Button>
               <Button icon={<EditOutlined />} onClick={() => openEditModal(record)}>
                 Sua
