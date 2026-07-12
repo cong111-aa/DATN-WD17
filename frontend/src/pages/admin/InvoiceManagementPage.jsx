@@ -346,10 +346,24 @@ const InvoiceManagementPage = () => {
         title: "Trang thai",
         dataIndex: "status",
         key: "status",
-        render: (status) => {
+        render: (status, record) => {
           const meta = statusMeta[status] || statusMeta.unpaid;
 
-          return <Tag color={meta.color}>{meta.label}</Tag>;
+          return (
+            <Select
+              value={status}
+              size="small"
+              style={{ minWidth: 150 }}
+              options={statusOptions}
+              onChange={(value) => handleStatusChange(record, value)}
+              popupMatchSelectWidth={false}
+              optionRender={(option) => {
+                const optionMeta = statusMeta[option.value] || statusMeta.unpaid;
+                return <Tag color={optionMeta.color}>{optionMeta.label}</Tag>;
+              }}
+              labelRender={() => <Tag color={meta.color}>{meta.label}</Tag>}
+            />
+          );
         },
       },
       {

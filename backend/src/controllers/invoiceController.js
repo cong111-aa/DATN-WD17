@@ -303,7 +303,7 @@ const createInvoice = async (req, res, next) => {
     await applyMeterReadingAmounts(payload);
 
     const totalAmount = calculateTotalAmount(payload);
-    const paidAmount = toNumber(payload.paidAmount);
+    const paidAmount = payload.status === "paid" ? totalAmount : toNumber(payload.paidAmount);
 
     validatePaidAmount(paidAmount, totalAmount);
 
@@ -387,17 +387,25 @@ const updateInvoice = async (req, res, next) => {
     invoice.serviceAmount = payload.serviceAmount ?? invoice.serviceAmount;
     invoice.otherAmount = payload.otherAmount ?? invoice.otherAmount;
     invoice.discountAmount = payload.discountAmount ?? invoice.discountAmount;
-    invoice.paidAmount = payload.paidAmount ?? invoice.paidAmount;
     invoice.dueDate = payload.dueDate ?? invoice.dueDate;
     invoice.note = payload.note ?? invoice.note;
 
     await applyMeterReadingAmounts(invoice);
 
     const totalAmount = calculateTotalAmount(invoice);
+    const nextPaidAmount =
+      payload.status === "paid"
+        ? totalAmount
+        : payload.paidAmount ?? invoice.paidAmount;
+
+    invoice.paidAmount = nextPaidAmount;
     validatePaidAmount(invoice.paidAmount, totalAmount);
 
     invoice.totalAmount = totalAmount;
-    invoice.status = deriveStatus(invoice.paidAmount, totalAmount, payload.status ?? invoice.status);
+    invoice.status =
+      payload.status === "paid"
+        ? "paid"
+        : deriveStatus(invoice.paidAmount, totalAmount, payload.status ?? invoice.status);
 
     const updatedInvoice = await invoice.save();
     const populatedInvoice = await populateInvoice(Invoice.findById(updatedInvoice._id));
@@ -427,7 +435,15 @@ const updateInvoiceStatus = async (req, res, next) => {
       throw new Error("Invoice not found");
     }
 
-    invoice.status = deriveStatus(invoice.paidAmount, invoice.totalAmount, status);
+    if (status === "paid") {
+      invoice.paidAmount = invoice.totalAmount;
+      invoice.status = "paid";
+    } else if (status === "unpaid") {
+      invoice.paidAmount = 0;
+      invoice.status = "unpaid";
+    } else {
+      invoice.status = deriveStatus(invoice.paidAmount, invoice.totalAmount, status);
+    }
     const updatedInvoice = await invoice.save();
     const populatedInvoice = await populateInvoice(Invoice.findById(updatedInvoice._id));
     res.json(toInvoiceResponse(populatedInvoice));
