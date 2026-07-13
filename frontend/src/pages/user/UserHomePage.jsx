@@ -1,14 +1,19 @@
 import {
+  DeleteOutlined,
+  EditOutlined,
   FileProtectOutlined,
   FileTextOutlined,
   HomeOutlined,
   LogoutOutlined,
   ReloadOutlined,
+  ToolOutlined,
+  UploadOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import {
   Button,
   Card,
+  DatePicker,
   Descriptions,
   Empty,
   Form,
@@ -16,13 +21,17 @@ import {
   Input,
   Layout,
   Modal,
+  Popconfirm,
+  Select,
   Space,
   Table,
   Tabs,
   Tag,
   Typography,
+  Upload,
   message,
 } from "antd";
+import dayjs from "dayjs";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import http from "../../api/http";
@@ -34,6 +43,7 @@ const apiOrigin = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").
 
 const formatCurrency = (value) => `${Number(value || 0).toLocaleString("vi-VN")} VND`;
 const formatDate = (value) => (value ? new Date(value).toLocaleDateString("vi-VN") : "-");
+const formatResolvedDate = (value) => (value ? formatDate(value) : "Chua xu ly");
 
 const roomRoleMeta = {
   member: { color: "green", label: "Thanh vien" },
@@ -58,23 +68,72 @@ const invoiceStatusMeta = {
   overdue: { color: "error", label: "Qua han" },
 };
 
+const repairPriorityOptions = [
+  { label: "Thap", value: "low" },
+  { label: "Trung binh", value: "medium" },
+  { label: "Cao", value: "high" },
+  { label: "Khan cap", value: "urgent" },
+];
+
+const repairPriorityMeta = {
+  low: { color: "default", label: "Thap" },
+  medium: { color: "blue", label: "Trung binh" },
+  high: { color: "orange", label: "Cao" },
+  urgent: { color: "error", label: "Khan cap" },
+};
+
+const repairStatusMeta = {
+  pending: { color: "warning", label: "Cho xu ly" },
+  processing: { color: "processing", label: "Dang xu ly" },
+  resolved: { color: "success", label: "Da xu ly" },
+  cancelled: { color: "default", label: "Da huy" },
+};
+
 const toImageUrl = (url) => (url?.startsWith("http") ? url : `${apiOrigin}${url}`);
+
+const toUploadedImageUrls = (fileList = []) =>
+  fileList.flatMap((file) => file.response?.urls || (file.rawUrl ? [file.rawUrl] : file.url ? [file.url] : []));
+
+const toRepairImageFileList = (images = []) =>
+  images.map((url, index) => ({
+    uid: `${url}-${index}`,
+    name: url.split("/").pop() || `image-${index + 1}`,
+    rawUrl: url,
+    status: "done",
+    url: toImageUrl(url),
+  }));
 
 const UserHomePage = () => {
   const [form] = Form.useForm();
+  const [repairForm] = Form.useForm();
   const { logout, refreshProfile, user } = useAuth();
   const navigate = useNavigate();
   const [tenancies, setTenancies] = useState([]);
   const [contracts, setContracts] = useState([]);
   const [invoices, setInvoices] = useState([]);
+  const [repairRequests, setRepairRequests] = useState([]);
+  const [repairImageFileList, setRepairImageFileList] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [repairSubmitting, setRepairSubmitting] = useState(false);
   const [detailTenancy, setDetailTenancy] = useState(null);
   const [detailContract, setDetailContract] = useState(null);
   const [detailInvoice, setDetailInvoice] = useState(null);
+  const [detailRepairRequest, setDetailRepairRequest] = useState(null);
+  const [editingRepairRequest, setEditingRepairRequest] = useState(null);
+  const [repairModalOpen, setRepairModalOpen] = useState(false);
 
   const activeTenancies = useMemo(
     () => tenancies.filter((tenancy) => tenancy.status === "active"),
     [tenancies]
+  );
+
+  const activeRoomOptions = useMemo(
+    () =>
+      activeTenancies.map((tenancy) => ({
+        label: `${tenancy.roomNumber} - ${tenancy.roomName}`,
+        value: tenancy.room,
+      })),
+    [activeTenancies]
   );
 
   useEffect(() => {
@@ -85,15 +144,22 @@ const UserHomePage = () => {
     setLoading(true);
 
     try {
-      const [{ data: tenancyData }, { data: contractData }, { data: invoiceData }] = await Promise.all([
+      const [
+        { data: tenancyData },
+        { data: contractData },
+        { data: invoiceData },
+        { data: repairRequestData },
+      ] = await Promise.all([
         http.get("/me/tenancies"),
         http.get("/me/contracts"),
         http.get("/me/invoices"),
+        http.get("/me/repair-requests"),
       ]);
 
       setTenancies(tenancyData);
       setContracts(contractData);
       setInvoices(invoiceData);
+      setRepairRequests(repairRequestData);
     } catch (error) {
       message.error(error.response?.data?.message || "Khong tai duoc du lieu nguoi dung");
     } finally {
@@ -140,6 +206,103 @@ const UserHomePage = () => {
       setDetailInvoice(data);
     } catch (error) {
       message.error(error.response?.data?.message || "Khong tai duoc chi tiet hoa don");
+    }
+  };
+
+  const openRepairModal = () => {
+    setEditingRepairRequest(null);
+    repairForm.resetFields();
+    repairForm.setFieldsValue({
+      priority: "medium",
+      room: activeRoomOptions[0]?.value,
+    });
+    setRepairImageFileList([]);
+    setRepairModalOpen(true);
+  };
+
+  const openEditRepairModal = (request) => {
+    setEditingRepairRequest(request);
+    repairForm.resetFields();
+    repairForm.setFieldsValue({
+      description: request.description,
+      priority: request.priority,
+      requestedResolveDate: request.requestedResolveDate
+        ? dayjs(request.requestedResolveDate)
+        : undefined,
+      room: request.room,
+      title: request.title,
+    });
+    setRepairImageFileList(toRepairImageFileList(request.images));
+    setRepairModalOpen(true);
+  };
+
+  const closeRepairModal = () => {
+    setRepairModalOpen(false);
+    setEditingRepairRequest(null);
+    setRepairImageFileList([]);
+    repairForm.resetFields();
+  };
+
+  const handleRepairImageUpload = async ({ file, onError, onSuccess }) => {
+    const formData = new FormData();
+    formData.append("images", file);
+
+    try {
+      const { data } = await http.post("/uploads/repair-requests", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      onSuccess(data);
+    } catch (error) {
+      message.error(error.response?.data?.message || "Upload anh su co that bai");
+      onError(error);
+    }
+  };
+
+  const handleCreateRepairRequest = async (values) => {
+    setRepairSubmitting(true);
+
+    try {
+      const payload = {
+        ...values,
+        images: toUploadedImageUrls(repairImageFileList),
+        requestedResolveDate: values.requestedResolveDate
+          ? values.requestedResolveDate.toISOString()
+          : null,
+      };
+
+      if (editingRepairRequest) {
+        await http.put(`/me/repair-requests/${editingRepairRequest.id}`, payload);
+        message.success("Da cap nhat su co");
+      } else {
+        await http.post("/me/repair-requests", payload);
+        message.success("Da gui bao cao su co");
+      }
+
+      closeRepairModal();
+      fetchUserData();
+    } catch (error) {
+      message.error(error.response?.data?.message || "Gui bao cao su co that bai");
+    } finally {
+      setRepairSubmitting(false);
+    }
+  };
+
+  const handleViewRepairRequest = async (request) => {
+    try {
+      const { data } = await http.get(`/me/repair-requests/${request.id}`);
+      setDetailRepairRequest(data);
+    } catch (error) {
+      message.error(error.response?.data?.message || "Khong tai duoc chi tiet su co");
+    }
+  };
+
+  const handleDeleteRepairRequest = async (request) => {
+    try {
+      await http.delete(`/me/repair-requests/${request.id}`);
+      message.success("Da xoa su co");
+      fetchUserData();
+    } catch (error) {
+      message.error(error.response?.data?.message || "Xoa su co that bai");
     }
   };
 
@@ -322,6 +485,87 @@ const UserHomePage = () => {
     },
   ];
 
+  const repairRequestColumns = [
+    {
+      title: "Su co",
+      dataIndex: "title",
+      key: "title",
+      render: (value, record) => (
+        <Space direction="vertical" size={0}>
+          <Typography.Text strong>{value}</Typography.Text>
+          <Typography.Text type="secondary">
+            {record.roomNumber || "-"} - {record.roomName || "-"}
+          </Typography.Text>
+        </Space>
+      ),
+    },
+    {
+      title: "Muc do",
+      dataIndex: "priority",
+      key: "priority",
+      render: (priority) => {
+        const meta = repairPriorityMeta[priority] || repairPriorityMeta.medium;
+        return <Tag color={meta.color}>{meta.label}</Tag>;
+      },
+    },
+    {
+      title: "Trang thai",
+      dataIndex: "status",
+      key: "status",
+      render: (status) => {
+        const meta = repairStatusMeta[status] || repairStatusMeta.pending;
+        return <Tag color={meta.color}>{meta.label}</Tag>;
+      },
+    },
+    {
+      title: "Ngay bao",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      render: formatDate,
+    },
+    {
+      title: "Ngay muon xu ly",
+      dataIndex: "requestedResolveDate",
+      key: "requestedResolveDate",
+      render: formatDate,
+    },
+    {
+      title: "Ngay xu ly",
+      dataIndex: "resolvedAt",
+      key: "resolvedAt",
+      render: formatResolvedDate,
+    },
+    {
+      title: "Thao tac",
+      key: "actions",
+      render: (_, record) => (
+        <Space wrap>
+          <Button onClick={() => handleViewRepairRequest(record)}>
+            Chi tiet
+          </Button>
+          <Button
+            icon={<EditOutlined />}
+            onClick={() => openEditRepairModal(record)}
+            disabled={record.status !== "pending"}
+          >
+            Sua
+          </Button>
+          <Popconfirm
+            title="Xoa su co nay?"
+            okText="Xoa"
+            cancelText="Huy"
+            onConfirm={() => handleDeleteRepairRequest(record)}
+            disabled={record.status !== "pending"}
+          >
+            <Button danger icon={<DeleteOutlined />} disabled={record.status !== "pending"}>
+              Xoa
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
   return (
     <Layout className="app-shell">
       <Header className="app-header">
@@ -409,6 +653,34 @@ const UserHomePage = () => {
                       locale={{ emptyText: "Chua co hoa don" }}
                     />
                   </Card>
+                ),
+              },
+              {
+                key: "repair-requests",
+                icon: <ToolOutlined />,
+                label: "Su co",
+                children: (
+                  <Space direction="vertical" size={16} className="page-stack">
+                    <div className="page-toolbar">
+                      <Typography.Text type="secondary">
+                        Bao cao su co phong dang thue va theo doi trang thai xu ly.
+                      </Typography.Text>
+                      <Button type="primary" onClick={openRepairModal} disabled={activeRoomOptions.length === 0}>
+                        Bao su co
+                      </Button>
+                    </div>
+                    <Card>
+                      <Table
+                        rowKey="id"
+                        columns={repairRequestColumns}
+                        dataSource={repairRequests}
+                        loading={loading}
+                        pagination={{ pageSize: 6 }}
+                        scroll={{ x: 900 }}
+                        locale={{ emptyText: "Chua co su co" }}
+                      />
+                    </Card>
+                  </Space>
                 ),
               },
               {
@@ -623,6 +895,118 @@ const UserHomePage = () => {
                 <Descriptions.Item label="Ghi chu">{detailInvoice.note || "-"}</Descriptions.Item>
               </Descriptions>
             </Space>
+          )}
+        </Modal>
+
+        <Modal
+          title={editingRepairRequest ? "Sua su co" : "Bao cao su co"}
+          open={repairModalOpen}
+          onCancel={closeRepairModal}
+          onOk={() => repairForm.submit()}
+          confirmLoading={repairSubmitting}
+          okText={editingRepairRequest ? "Luu" : "Gui bao cao"}
+          cancelText="Huy"
+          width={720}
+        >
+          <Form form={repairForm} layout="vertical" onFinish={handleCreateRepairRequest}>
+            <div className="form-grid">
+              <Form.Item name="room" label="Phong" rules={[{ required: true }]}>
+                <Select options={activeRoomOptions} placeholder="Chon phong dang thue" />
+              </Form.Item>
+              <Form.Item name="priority" label="Muc do" rules={[{ required: true }]}>
+                <Select options={repairPriorityOptions} />
+              </Form.Item>
+              <Form.Item name="requestedResolveDate" label="Ngay mong muon xu ly">
+                <DatePicker className="full-width-input" format="DD/MM/YYYY" />
+              </Form.Item>
+            </div>
+            <Form.Item name="title" label="Tieu de" rules={[{ required: true }]}>
+              <Input placeholder="VD: Dieu hoa khong lanh" />
+            </Form.Item>
+            <Form.Item name="description" label="Mo ta su co" rules={[{ required: true }]}>
+              <Input.TextArea rows={4} />
+            </Form.Item>
+            <Form.Item label="Anh su co">
+              <Upload
+                accept="image/png,image/jpeg,image/webp"
+                customRequest={handleRepairImageUpload}
+                fileList={repairImageFileList}
+                listType="picture-card"
+                multiple
+                onChange={({ fileList }) => setRepairImageFileList(fileList)}
+              >
+                {repairImageFileList.length >= 10 ? null : (
+                  <button type="button" className="upload-card-button">
+                    <UploadOutlined />
+                    <span>Tai anh</span>
+                  </button>
+                )}
+              </Upload>
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        <Modal
+          title="Chi tiet su co"
+          open={Boolean(detailRepairRequest)}
+          onCancel={() => setDetailRepairRequest(null)}
+          footer={[
+            <Button key="close" onClick={() => setDetailRepairRequest(null)}>
+              Dong
+            </Button>,
+          ]}
+          width={820}
+        >
+          {detailRepairRequest && (
+            <Descriptions bordered size="small" column={2}>
+              <Descriptions.Item label="Tieu de" span={2}>
+                {detailRepairRequest.title}
+              </Descriptions.Item>
+              <Descriptions.Item label="Phong">
+                {detailRepairRequest.roomNumber} - {detailRepairRequest.roomName}
+              </Descriptions.Item>
+              <Descriptions.Item label="Nguoi tao">{detailRepairRequest.createdByName || "-"}</Descriptions.Item>
+              <Descriptions.Item label="Muc do">
+                <Tag color={repairPriorityMeta[detailRepairRequest.priority]?.color}>
+                  {repairPriorityMeta[detailRepairRequest.priority]?.label}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Trang thai">
+                <Tag color={repairStatusMeta[detailRepairRequest.status]?.color}>
+                  {repairStatusMeta[detailRepairRequest.status]?.label}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Ngay bao">{formatDate(detailRepairRequest.createdAt)}</Descriptions.Item>
+              <Descriptions.Item label="Ngay mong muon xu ly">
+                {formatDate(detailRepairRequest.requestedResolveDate)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Ngay xu ly">{formatResolvedDate(detailRepairRequest.resolvedAt)}</Descriptions.Item>
+              <Descriptions.Item label="Mo ta" span={2}>
+                {detailRepairRequest.description}
+              </Descriptions.Item>
+              <Descriptions.Item label="Ghi chu admin" span={2}>
+                {detailRepairRequest.adminNote || "-"}
+              </Descriptions.Item>
+              <Descriptions.Item label="Anh su co" span={2}>
+                {(detailRepairRequest.images || []).length > 0 ? (
+                  <Image.PreviewGroup>
+                    <Space wrap>
+                      {detailRepairRequest.images.map((image) => (
+                        <Image
+                          key={image}
+                          src={toImageUrl(image)}
+                          width={120}
+                          height={86}
+                          style={{ objectFit: "cover", borderRadius: 8 }}
+                        />
+                      ))}
+                    </Space>
+                  </Image.PreviewGroup>
+                ) : (
+                  "-"
+                )}
+              </Descriptions.Item>
+            </Descriptions>
           )}
         </Modal>
       </Content>
