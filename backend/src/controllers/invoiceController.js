@@ -20,7 +20,7 @@ const populateInvoice = (query) =>
     .populate("tenant", "name email phone identityNumber")
     .populate({
       path: "room",
-      select: "name roomNumber electricityPrice waterPrice",
+      select: "name roomNumber price serviceFee electricityPrice waterPrice",
     })
     .populate("meterReading", "electricityOld electricityNew waterOld waterNew");
 
@@ -30,6 +30,10 @@ const toInvoiceResponse = (invoice) => ({
   room: invoice.room?._id || invoice.room,
   roomName: invoice.room?.name,
   roomNumber: invoice.room?.roomNumber,
+  roomPrice: invoice.room?.price,
+  roomServiceFee: invoice.room?.serviceFee,
+  electricityPrice: invoice.room?.electricityPrice,
+  waterPrice: invoice.room?.waterPrice,
   tenant: invoice.tenant?._id || invoice.tenant,
   tenantName: invoice.tenant?.name,
   tenantEmail: invoice.tenant?.email,
@@ -41,13 +45,13 @@ const toInvoiceResponse = (invoice) => ({
   electricityNew: invoice.meterReading?.electricityNew,
   electricityUsage:
     invoice.meterReading?.electricityNew !== undefined
-      ? invoice.meterReading.electricityNew - invoice.meterReading.electricityOld
+      ? Math.max(invoice.meterReading.electricityNew - invoice.meterReading.electricityOld, 0)
       : undefined,
   waterOld: invoice.meterReading?.waterOld,
   waterNew: invoice.meterReading?.waterNew,
   waterUsage:
     invoice.meterReading?.waterNew !== undefined
-      ? invoice.meterReading.waterNew - invoice.meterReading.waterOld
+      ? Math.max(invoice.meterReading.waterNew - invoice.meterReading.waterOld, 0)
       : undefined,
   month: invoice.month,
   year: invoice.year,
@@ -68,6 +72,8 @@ const toInvoiceResponse = (invoice) => ({
 });
 
 const toNumber = (value, fallback = 0) => Number(value ?? fallback);
+
+const meterReadingFields = ["electricityOld", "electricityNew", "waterOld", "waterNew"];
 
 const calculateTotalAmount = (payload) => {
   const subtotal =
@@ -109,7 +115,7 @@ const applyMeterReadingAmounts = async (payload) => {
     return payload;
   }
 
-  const [room, meterReading] = await Promise.all([
+  const [room, existingMeterReading] = await Promise.all([
     Room.findById(payload.room).select("electricityPrice waterPrice"),
     MeterReading.findOne({
       room: payload.room,
@@ -118,15 +124,46 @@ const applyMeterReadingAmounts = async (payload) => {
     }),
   ]);
 
-  if (!room || !meterReading) {
+  if (!room) {
     payload.meterReading = undefined;
     return payload;
   }
 
-  const electricityUsage = Math.max(
-    meterReading.electricityNew - meterReading.electricityOld,
-    0
-  );
+  const hasInlineReading = meterReadingFields.some((field) => payload[field] !== undefined);
+  let meterReading = existingMeterReading;
+
+  if (hasInlineReading) {
+    const electricityOld = toNumber(payload.electricityOld, existingMeterReading?.electricityOld ?? 0);
+    const electricityNew = toNumber(payload.electricityNew, existingMeterReading?.electricityNew ?? electricityOld);
+    const waterOld = toNumber(payload.waterOld, existingMeterReading?.waterOld ?? 0);
+    const waterNew = toNumber(payload.waterNew, existingMeterReading?.waterNew ?? waterOld);
+
+    if (electricityNew < electricityOld) {
+      throw new Error("Electricity new reading must be greater than or equal to old reading");
+    }
+
+    if (waterNew < waterOld) {
+      throw new Error("Water new reading must be greater than or equal to old reading");
+    }
+
+    meterReading = existingMeterReading || new MeterReading({ room: payload.room, month: payload.month, year: payload.year });
+    meterReading.room = payload.room;
+    meterReading.month = payload.month;
+    meterReading.year = payload.year;
+    meterReading.electricityOld = electricityOld;
+    meterReading.electricityNew = electricityNew;
+    meterReading.waterOld = waterOld;
+    meterReading.waterNew = waterNew;
+    meterReading.note = payload.note ?? meterReading.note;
+    await meterReading.save();
+  }
+
+  if (!meterReading) {
+    payload.meterReading = undefined;
+    return payload;
+  }
+
+  const electricityUsage = Math.max(meterReading.electricityNew - meterReading.electricityOld, 0);
   const waterUsage = Math.max(meterReading.waterNew - meterReading.waterOld, 0);
 
   payload.meterReading = meterReading._id;
@@ -177,6 +214,12 @@ const validateInvoicePayload = async (payload, isCreate) => {
   if (payload.paidAmount !== undefined && Number(payload.paidAmount) < 0) {
     throw new Error("Paid amount must be greater than or equal to 0");
   }
+
+  meterReadingFields.forEach((field) => {
+    if (payload[field] !== undefined && Number(payload[field]) < 0) {
+      throw new Error(`${field} must be greater than or equal to 0`);
+    }
+  });
 
   moneyFields.forEach((field) => {
     if (payload[field] !== undefined && Number(payload[field]) < 0) {

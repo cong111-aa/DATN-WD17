@@ -7,6 +7,7 @@ import {
   ReloadOutlined,
 } from "@ant-design/icons";
 import {
+  Alert,
   Button,
   Card,
   DatePicker,
@@ -45,6 +46,8 @@ const statusMeta = {
 const defaultFormValues = {
   discountAmount: 0,
   electricityAmount: 0,
+  electricityNew: 0,
+  electricityOld: 0,
   month: new Date().getMonth() + 1,
   otherAmount: 0,
   paidAmount: 0,
@@ -52,21 +55,36 @@ const defaultFormValues = {
   serviceAmount: 0,
   status: "unpaid",
   waterAmount: 0,
+  waterNew: 0,
+  waterOld: 0,
   year: new Date().getFullYear(),
 };
 
 const currencyFormatter = (value) => `${Number(value || 0).toLocaleString("vi-VN")} VND`;
 const formatDate = (value) => (value ? new Date(value).toLocaleDateString("vi-VN") : "-");
+const toNumber = (value) => Number(value || 0);
 
 const toFormValues = (record) => ({
   ...record,
   dueDate: record.dueDate ? dayjs(record.dueDate) : undefined,
+  electricityNew: record.electricityNew ?? 0,
+  electricityOld: record.electricityOld ?? 0,
+  waterNew: record.waterNew ?? 0,
+  waterOld: record.waterOld ?? 0,
 });
 
 const toPayload = (values) => ({
   ...values,
   dueDate: values.dueDate ? values.dueDate.toISOString() : undefined,
 });
+
+const SummaryItem = ({ label, value, strong, danger }) => (
+  <Descriptions.Item label={label}>
+    <Typography.Text strong={strong} type={danger ? "danger" : undefined}>
+      {currencyFormatter(value)}
+    </Typography.Text>
+  </Descriptions.Item>
+);
 
 const InvoiceManagementPage = () => {
   const [form] = Form.useForm();
@@ -79,11 +97,8 @@ const InvoiceManagementPage = () => {
   const [detailOpen, setDetailOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState(null);
   const [detailInvoice, setDetailInvoice] = useState(null);
-  const [meterReadingInfo, setMeterReadingInfo] = useState(null);
-  const [calculatingUtilities, setCalculatingUtilities] = useState(false);
-  const watchedRoom = Form.useWatch("room", form);
-  const watchedMonth = Form.useWatch("month", form);
-  const watchedYear = Form.useWatch("year", form);
+
+  const watchedValues = Form.useWatch([], form) || {};
 
   const roomOptions = useMemo(
     () =>
@@ -106,6 +121,25 @@ const InvoiceManagementPage = () => {
         })),
     [tenants]
   );
+
+  const selectedRoom = useMemo(
+    () => rooms.find((room) => room.id === watchedValues.room),
+    [rooms, watchedValues.room]
+  );
+
+  const electricityUsage = Math.max(toNumber(watchedValues.electricityNew) - toNumber(watchedValues.electricityOld), 0);
+  const waterUsage = Math.max(toNumber(watchedValues.waterNew) - toNumber(watchedValues.waterOld), 0);
+  const electricityAmount = electricityUsage * toNumber(selectedRoom?.electricityPrice);
+  const waterAmount = waterUsage * toNumber(selectedRoom?.waterPrice);
+  const subtotal =
+    toNumber(watchedValues.rentAmount) +
+    electricityAmount +
+    waterAmount +
+    toNumber(watchedValues.serviceAmount) +
+    toNumber(watchedValues.otherAmount);
+  const totalAmount = Math.max(subtotal - toNumber(watchedValues.discountAmount), 0);
+  const effectivePaidAmount = watchedValues.status === "paid" ? totalAmount : toNumber(watchedValues.paidAmount);
+  const remainingAmount = Math.max(totalAmount - effectivePaidAmount, 0);
 
   const fetchOptions = async () => {
     try {
@@ -139,9 +173,48 @@ const InvoiceManagementPage = () => {
     fetchInvoices();
   }, []);
 
+  useEffect(() => {
+    if (!modalOpen) {
+      return;
+    }
+
+    form.setFieldsValue({ electricityAmount, waterAmount });
+  }, [electricityAmount, form, modalOpen, waterAmount]);
+
   const refreshAll = () => {
     fetchOptions();
     fetchInvoices();
+  };
+
+  const loadExistingMeterReading = async (room, month, year) => {
+    if (!room || !month || !year) {
+      return;
+    }
+
+    try {
+      const { data } = await http.get("/meter-readings", {
+        params: { room, month, year },
+      });
+      const reading = data?.[0];
+
+      if (reading) {
+        form.setFieldsValue({
+          electricityOld: reading.electricityOld,
+          electricityNew: reading.electricityNew,
+          waterOld: reading.waterOld,
+          waterNew: reading.waterNew,
+        });
+      } else {
+        form.setFieldsValue({
+          electricityOld: 0,
+          electricityNew: 0,
+          waterOld: 0,
+          waterNew: 0,
+        });
+      }
+    } catch (error) {
+      message.error(error.response?.data?.message || "Khong tai duoc chi so dien nuoc");
+    }
   };
 
   const openCreateModal = () => {
@@ -161,91 +234,53 @@ const InvoiceManagementPage = () => {
   const closeModal = () => {
     setModalOpen(false);
     setEditingInvoice(null);
-    setMeterReadingInfo(null);
     form.resetFields();
   };
 
-  const calculateUtilities = async ({ silent = false } = {}) => {
-    const room = form.getFieldValue("room");
-    const month = form.getFieldValue("month");
-    const year = form.getFieldValue("year");
-
-    if (!room || !month || !year) {
-      if (!silent) {
-        message.warning("Chon phong, thang va nam truoc khi tinh dien nuoc");
-      }
-      return;
-    }
-
-    setCalculatingUtilities(true);
-
-    try {
-      const { data } = await http.get("/meter-readings", {
-        params: { room, month, year },
-      });
-      const reading = data?.[0];
-
-      if (!reading) {
-        setMeterReadingInfo(null);
-        if (!silent) {
-          message.info("Chua co chi so dien nuoc cho phong trong ky nay");
-        }
-        return;
-      }
-
-      const selectedRoom = rooms.find((item) => item.id === room);
-      const electricityPrice = Number(selectedRoom?.electricityPrice || 0);
-      const waterPrice = Number(selectedRoom?.waterPrice || 0);
-      const electricityAmount = Number(reading.electricityUsage || 0) * electricityPrice;
-      const waterAmount = Number(reading.waterUsage || 0) * waterPrice;
-
-      form.setFieldsValue({
-        electricityAmount,
-        waterAmount,
-      });
-      setMeterReadingInfo({
-        ...reading,
-        electricityAmount,
-        electricityPrice,
-        waterAmount,
-        waterPrice,
-      });
-      if (!silent) {
-        message.success("Da tu tinh tien dien nuoc");
-      }
-    } catch (error) {
-      message.error(error.response?.data?.message || "Khong tinh duoc tien dien nuoc");
-    } finally {
-      setCalculatingUtilities(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!modalOpen || !watchedRoom || !watchedMonth || !watchedYear) {
-      return;
-    }
-
-    calculateUtilities({ silent: true });
-  }, [modalOpen, watchedMonth, watchedRoom, watchedYear]);
-
   const handleTenantChange = (value) => {
     const selectedTenant = tenantOptions.find((item) => item.value === value);
-    const selectedRoom = rooms.find((room) => room.id === selectedTenant?.room);
+    const nextRoom = rooms.find((room) => room.id === selectedTenant?.room);
 
     form.setFieldsValue({
       room: selectedTenant?.room,
       tenant: selectedTenant?.user,
-      rentAmount: selectedRoom?.price ?? form.getFieldValue("rentAmount"),
-      serviceAmount: selectedRoom?.serviceFee ?? form.getFieldValue("serviceAmount"),
+      rentAmount: nextRoom?.price ?? form.getFieldValue("rentAmount"),
+      serviceAmount: nextRoom?.serviceFee ?? form.getFieldValue("serviceAmount"),
     });
-    setMeterReadingInfo(null);
+    loadExistingMeterReading(
+      selectedTenant?.room,
+      form.getFieldValue("month"),
+      form.getFieldValue("year")
+    );
+  };
+
+  const handleRoomChange = (roomId) => {
+    const nextRoom = rooms.find((room) => room.id === roomId);
+
+    form.setFieldsValue({
+      rentAmount: nextRoom?.price ?? form.getFieldValue("rentAmount"),
+      serviceAmount: nextRoom?.serviceFee ?? form.getFieldValue("serviceAmount"),
+    });
+    loadExistingMeterReading(roomId, form.getFieldValue("month"), form.getFieldValue("year"));
+  };
+
+  const handlePeriodChange = () => {
+    loadExistingMeterReading(
+      form.getFieldValue("room"),
+      form.getFieldValue("month"),
+      form.getFieldValue("year")
+    );
   };
 
   const handleSubmit = async (values) => {
     setSubmitting(true);
 
     try {
-      const payload = toPayload(values);
+      const payload = toPayload({
+        ...values,
+        electricityAmount,
+        waterAmount,
+      });
 
       if (editingInvoice) {
         await http.put(`/invoices/${editingInvoice.id}`, payload);
@@ -271,16 +306,6 @@ const InvoiceManagementPage = () => {
       setDetailOpen(true);
     } catch (error) {
       message.error(error.response?.data?.message || "Khong tai duoc chi tiet hoa don");
-    }
-  };
-
-  const handleStatusChange = async (record, status) => {
-    try {
-      await http.patch(`/invoices/${record.id}/status`, { status });
-      message.success("Da cap nhat trang thai hoa don");
-      fetchInvoices();
-    } catch (error) {
-      message.error(error.response?.data?.message || "Cap nhat trang thai that bai");
     }
   };
 
@@ -325,6 +350,11 @@ const InvoiceManagementPage = () => {
         render: (_, record) => `${record.month}/${record.year}`,
       },
       {
+        title: "Dien/Nuoc",
+        key: "utilities",
+        render: (_, record) => `${record.electricityUsage ?? 0} so / ${record.waterUsage ?? 0} khoi`,
+      },
+      {
         title: "Tong tien",
         dataIndex: "totalAmount",
         key: "totalAmount",
@@ -337,33 +367,12 @@ const InvoiceManagementPage = () => {
         render: currencyFormatter,
       },
       {
-        title: "Han TT",
-        dataIndex: "dueDate",
-        key: "dueDate",
-        render: formatDate,
-      },
-      {
         title: "Trang thai",
         dataIndex: "status",
         key: "status",
-        render: (status, record) => {
+        render: (status) => {
           const meta = statusMeta[status] || statusMeta.unpaid;
-
-          return (
-            <Select
-              value={status}
-              size="small"
-              style={{ minWidth: 150 }}
-              options={statusOptions}
-              onChange={(value) => handleStatusChange(record, value)}
-              popupMatchSelectWidth={false}
-              optionRender={(option) => {
-                const optionMeta = statusMeta[option.value] || statusMeta.unpaid;
-                return <Tag color={optionMeta.color}>{optionMeta.label}</Tag>;
-              }}
-              labelRender={() => <Tag color={meta.color}>{meta.label}</Tag>}
-            />
-          );
+          return <Tag color={meta.color}>{meta.label}</Tag>;
         },
       },
       {
@@ -394,7 +403,7 @@ const InvoiceManagementPage = () => {
         ),
       },
     ],
-    [tenantOptions]
+    []
   );
 
   return (
@@ -403,7 +412,7 @@ const InvoiceManagementPage = () => {
         <div className="page-title">
           <Typography.Title level={3}>Quan ly hoa don</Typography.Title>
           <Typography.Text type="secondary">
-            Tao, cap nhat va xem chi tiet hoa don theo khach thue.
+            Tao hoa don kem nhap chi so dien nuoc, chi phi dich vu va tong ket thanh toan.
           </Typography.Text>
         </div>
         <Space wrap>
@@ -440,13 +449,14 @@ const InvoiceManagementPage = () => {
         confirmLoading={submitting}
         okText={editingInvoice ? "Luu" : "Tao hoa don"}
         cancelText="Huy"
-        width={860}
+        width={980}
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
-          <Form.Item name="tenantPicker" label="Chon khach thue">
+          <Divider orientation="left">Thong tin hoa don</Divider>
+          <Form.Item name="tenantPicker" label="Chon nguoi dai dien phong">
             <Select
               options={tenantOptions}
-              placeholder="Chon nguoi dai dien phong de tu dien phong"
+              placeholder="Chon nguoi dai dien de tu dien phong"
               showSearch
               optionFilterProp="label"
               onChange={handleTenantChange}
@@ -455,37 +465,59 @@ const InvoiceManagementPage = () => {
           <Form.Item name="tenant" hidden rules={[{ required: true }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="room" label="Phong" rules={[{ required: true }]}>
-            <Select
-              options={roomOptions}
-              placeholder="Chon phong"
-              showSearch
-              optionFilterProp="label"
-              onChange={() => setMeterReadingInfo(null)}
-            />
-          </Form.Item>
-
           <div className="form-grid">
+            <Form.Item name="room" label="Phong" rules={[{ required: true }]}>
+              <Select options={roomOptions} placeholder="Chon phong" showSearch optionFilterProp="label" onChange={handleRoomChange} />
+            </Form.Item>
             <Form.Item name="invoiceCode" label="Ma hoa don" rules={[{ required: true }]}>
               <Input placeholder="VD: HD-2026-001" />
+            </Form.Item>
+            <Form.Item name="month" label="Thang" rules={[{ required: true }]}>
+              <InputNumber min={1} max={12} className="full-width-input" onChange={handlePeriodChange} />
+            </Form.Item>
+            <Form.Item name="year" label="Nam" rules={[{ required: true }]}>
+              <InputNumber min={2000} className="full-width-input" onChange={handlePeriodChange} />
             </Form.Item>
             <Form.Item name="dueDate" label="Han thanh toan">
               <DatePicker className="full-width-input" format="DD/MM/YYYY" />
             </Form.Item>
-            <Form.Item name="month" label="Thang" rules={[{ required: true }]}>
-              <InputNumber min={1} max={12} className="full-width-input" onChange={() => setMeterReadingInfo(null)} />
+            <Form.Item name="status" label="Trang thai">
+              <Select options={statusOptions} />
             </Form.Item>
-            <Form.Item name="year" label="Nam" rules={[{ required: true }]}>
-              <InputNumber min={2000} className="full-width-input" onChange={() => setMeterReadingInfo(null)} />
+          </div>
+
+          <Divider orientation="left">Chi so dien nuoc</Divider>
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+            message={`Don gia hien tai: dien ${currencyFormatter(selectedRoom?.electricityPrice)} / so, nuoc ${currencyFormatter(selectedRoom?.waterPrice)} / khoi`}
+          />
+          <div className="form-grid">
+            <Form.Item name="electricityOld" label="Chi so dien cu" rules={[{ required: true }]}>
+              <InputNumber min={0} className="full-width-input" />
             </Form.Item>
+            <Form.Item name="electricityNew" label="Chi so dien moi" rules={[{ required: true }]}>
+              <InputNumber min={0} className="full-width-input" />
+            </Form.Item>
+            <Form.Item name="waterOld" label="Chi so nuoc cu" rules={[{ required: true }]}>
+              <InputNumber min={0} className="full-width-input" />
+            </Form.Item>
+            <Form.Item name="waterNew" label="Chi so nuoc moi" rules={[{ required: true }]}>
+              <InputNumber min={0} className="full-width-input" />
+            </Form.Item>
+          </div>
+
+          <Divider orientation="left">Chi phi</Divider>
+          <div className="form-grid">
             <Form.Item name="rentAmount" label="Tien phong">
               <InputNumber min={0} className="full-width-input" addonAfter="VND" />
             </Form.Item>
-            <Form.Item name="electricityAmount" label="Tien dien">
-              <InputNumber min={0} className="full-width-input" addonAfter="VND" />
+            <Form.Item label="Tien dien">
+              <InputNumber value={electricityAmount} min={0} disabled className="full-width-input" addonAfter="VND" />
             </Form.Item>
-            <Form.Item name="waterAmount" label="Tien nuoc">
-              <InputNumber min={0} className="full-width-input" addonAfter="VND" />
+            <Form.Item label="Tien nuoc">
+              <InputNumber value={waterAmount} min={0} disabled className="full-width-input" addonAfter="VND" />
             </Form.Item>
             <Form.Item name="serviceAmount" label="Phi dich vu">
               <InputNumber min={0} className="full-width-input" addonAfter="VND" />
@@ -499,25 +531,25 @@ const InvoiceManagementPage = () => {
             <Form.Item name="paidAmount" label="Da thanh toan">
               <InputNumber min={0} className="full-width-input" addonAfter="VND" />
             </Form.Item>
-            <Form.Item name="status" label="Trang thai">
-              <Select options={statusOptions} />
-            </Form.Item>
           </div>
-          <Space direction="vertical" size={8} className="page-stack">
-            <Button loading={calculatingUtilities} onClick={calculateUtilities}>
-              Tu tinh tien dien nuoc
-            </Button>
-            {meterReadingInfo && (
-              <Typography.Text type="secondary">
-                Dien: {meterReadingInfo.electricityUsage} x {currencyFormatter(meterReadingInfo.electricityPrice)} ={" "}
-                {currencyFormatter(meterReadingInfo.electricityAmount)}. Nuoc: {meterReadingInfo.waterUsage} x{" "}
-                {currencyFormatter(meterReadingInfo.waterPrice)} = {currencyFormatter(meterReadingInfo.waterAmount)}.
-              </Typography.Text>
-            )}
-          </Space>
           <Form.Item name="note" label="Ghi chu">
             <Input.TextArea rows={3} />
           </Form.Item>
+
+          <Divider orientation="left">Tong ket</Divider>
+          <Descriptions bordered size="small" column={2}>
+            <Descriptions.Item label="Dien tieu thu">{electricityUsage} so</Descriptions.Item>
+            <Descriptions.Item label="Nuoc tieu thu">{waterUsage} khoi</Descriptions.Item>
+            <SummaryItem label="Tien phong" value={watchedValues.rentAmount} />
+            <SummaryItem label="Tien dien" value={electricityAmount} />
+            <SummaryItem label="Tien nuoc" value={waterAmount} />
+            <SummaryItem label="Phi dich vu" value={watchedValues.serviceAmount} />
+            <SummaryItem label="Chi phi khac" value={watchedValues.otherAmount} />
+            <SummaryItem label="Giam tru" value={watchedValues.discountAmount} />
+            <SummaryItem label="Tong tien" value={totalAmount} strong />
+            <SummaryItem label="Da thanh toan" value={effectivePaidAmount} />
+            <SummaryItem label="Con lai" value={remainingAmount} strong danger={remainingAmount > 0} />
+          </Descriptions>
         </Form>
       </Modal>
 
@@ -530,7 +562,7 @@ const InvoiceManagementPage = () => {
             Dong
           </Button>,
         ]}
-        width={820}
+        width={860}
       >
         {detailInvoice && (
           <Space direction="vertical" size={16} className="page-stack">
@@ -541,7 +573,7 @@ const InvoiceManagementPage = () => {
                   {statusMeta[detailInvoice.status]?.label}
                 </Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="Khach thue">{detailInvoice.tenantName}</Descriptions.Item>
+              <Descriptions.Item label="Nguoi dai dien">{detailInvoice.tenantName}</Descriptions.Item>
               <Descriptions.Item label="Lien he">
                 {detailInvoice.tenantPhone || detailInvoice.tenantEmail || "-"}
               </Descriptions.Item>
@@ -555,11 +587,21 @@ const InvoiceManagementPage = () => {
               <Descriptions.Item label="Ngay tao">{formatDate(detailInvoice.createdAt)}</Descriptions.Item>
             </Descriptions>
 
-            <Divider orientation="left">Chi tiet tien</Divider>
+            <Divider orientation="left">Chi so dien nuoc</Divider>
+            <Descriptions bordered size="small" column={2}>
+              <Descriptions.Item label="Dien cu">{detailInvoice.electricityOld ?? "-"}</Descriptions.Item>
+              <Descriptions.Item label="Dien moi">{detailInvoice.electricityNew ?? "-"}</Descriptions.Item>
+              <Descriptions.Item label="Dien tieu thu">{detailInvoice.electricityUsage ?? 0} so</Descriptions.Item>
+              <Descriptions.Item label="Tien dien">{currencyFormatter(detailInvoice.electricityAmount)}</Descriptions.Item>
+              <Descriptions.Item label="Nuoc cu">{detailInvoice.waterOld ?? "-"}</Descriptions.Item>
+              <Descriptions.Item label="Nuoc moi">{detailInvoice.waterNew ?? "-"}</Descriptions.Item>
+              <Descriptions.Item label="Nuoc tieu thu">{detailInvoice.waterUsage ?? 0} khoi</Descriptions.Item>
+              <Descriptions.Item label="Tien nuoc">{currencyFormatter(detailInvoice.waterAmount)}</Descriptions.Item>
+            </Descriptions>
+
+            <Divider orientation="left">Tong ket chi phi</Divider>
             <Descriptions bordered size="small" column={2}>
               <Descriptions.Item label="Tien phong">{currencyFormatter(detailInvoice.rentAmount)}</Descriptions.Item>
-              <Descriptions.Item label="Tien dien">{currencyFormatter(detailInvoice.electricityAmount)}</Descriptions.Item>
-              <Descriptions.Item label="Tien nuoc">{currencyFormatter(detailInvoice.waterAmount)}</Descriptions.Item>
               <Descriptions.Item label="Phi dich vu">{currencyFormatter(detailInvoice.serviceAmount)}</Descriptions.Item>
               <Descriptions.Item label="Chi phi khac">{currencyFormatter(detailInvoice.otherAmount)}</Descriptions.Item>
               <Descriptions.Item label="Giam tru">{currencyFormatter(detailInvoice.discountAmount)}</Descriptions.Item>
@@ -573,22 +615,6 @@ const InvoiceManagementPage = () => {
                 </Typography.Text>
               </Descriptions.Item>
             </Descriptions>
-
-            {detailInvoice.electricityUsage !== undefined && (
-              <>
-                <Divider orientation="left">Chi so dien nuoc</Divider>
-                <Descriptions bordered size="small" column={2}>
-                  <Descriptions.Item label="Dien cu">{detailInvoice.electricityOld}</Descriptions.Item>
-                  <Descriptions.Item label="Dien moi">{detailInvoice.electricityNew}</Descriptions.Item>
-                  <Descriptions.Item label="Dien tieu thu">{detailInvoice.electricityUsage}</Descriptions.Item>
-                  <Descriptions.Item label="Tien dien">{currencyFormatter(detailInvoice.electricityAmount)}</Descriptions.Item>
-                  <Descriptions.Item label="Nuoc cu">{detailInvoice.waterOld}</Descriptions.Item>
-                  <Descriptions.Item label="Nuoc moi">{detailInvoice.waterNew}</Descriptions.Item>
-                  <Descriptions.Item label="Nuoc tieu thu">{detailInvoice.waterUsage}</Descriptions.Item>
-                  <Descriptions.Item label="Tien nuoc">{currencyFormatter(detailInvoice.waterAmount)}</Descriptions.Item>
-                </Descriptions>
-              </>
-            )}
 
             <Descriptions bordered size="small" column={1}>
               <Descriptions.Item label="Ghi chu">{detailInvoice.note || "-"}</Descriptions.Item>

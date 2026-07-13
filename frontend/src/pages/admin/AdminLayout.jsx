@@ -6,7 +6,6 @@ import {
   HomeOutlined,
   LogoutOutlined,
   TeamOutlined,
-  ThunderboltOutlined,
   UserSwitchOutlined,
 } from "@ant-design/icons";
 import { Button, Layout, Menu, Space, Typography } from "antd";
@@ -29,10 +28,8 @@ const AdminLayout = () => {
     ? "/admin/users"
     : location.pathname.startsWith("/admin/rooms")
       ? "/admin/rooms"
-      : location.pathname.startsWith("/admin/meter-readings")
-        ? "/admin/meter-readings"
-          : location.pathname.startsWith("/admin/invoices")
-            ? "/admin/invoices"
+      : location.pathname.startsWith("/admin/invoices")
+        ? "/admin/invoices"
           : location.pathname.startsWith("/admin/contracts")
             ? "/admin/contracts"
           : location.pathname.startsWith("/admin/operating-expenses")
@@ -67,12 +64,6 @@ const AdminLayout = () => {
               icon: <HomeOutlined />,
               label: "Quan ly phong",
               onClick: () => navigate("/admin/rooms"),
-            },
-            {
-              key: "/admin/meter-readings",
-              icon: <ThunderboltOutlined />,
-              label: "Quan ly dien nuoc",
-              onClick: () => navigate("/admin/meter-readings"),
             },
             {
               key: "/admin/invoices",
