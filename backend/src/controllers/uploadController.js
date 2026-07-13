@@ -3,4 +3,9 @@ const uploadRoomImages = (req, res) => {
   res.status(201).json({ urls });
 };
 
-module.exports = { uploadRoomImages };
+const uploadRepairRequestImages = (req, res) => {
+  const urls = (req.files || []).map((file) => `/uploads/repair-requests/${file.filename}`);
+  res.status(201).json({ urls });
+};
+
+module.exports = { uploadRepairRequestImages, uploadRoomImages };

@@ -1,7 +1,9 @@
 const Contract = require("../models/Contract");
 const Invoice = require("../models/Invoice");
+const RepairRequest = require("../models/RepairRequest");
 const Tenant = require("../models/Tenant");
 const renderContractHtml = require("../utils/renderContractHtml");
+const { toRepairRequestResponse } = require("./repairRequestController");
 
 const tenantPopulate = [
   { path: "user", select: "name email phone identityNumber" },
@@ -19,6 +21,12 @@ const invoicePopulate = [
   { path: "room", select: "roomNumber name price serviceFee electricityPrice waterPrice" },
   { path: "meterReading", select: "electricityOld electricityNew waterOld waterNew" },
   { path: "contract", select: "contractCode status startDate endDate" },
+];
+
+const repairRequestPopulate = [
+  { path: "room", select: "roomNumber name floor" },
+  { path: "tenant", select: "name email phone" },
+  { path: "createdBy", select: "name email phone role" },
 ];
 
 const toTenantResponse = (tenant) => ({
@@ -173,6 +181,171 @@ const getMyInvoiceById = async (req, res, next) => {
   }
 };
 
+const ensureMyActiveRoom = async (userId, roomId) => {
+  const tenancy = await Tenant.findOne({
+    user: userId,
+    room: roomId,
+    status: "active",
+  }).select("_id");
+
+  if (!tenancy) {
+    throw new Error("Room must be one of your active tenancies");
+  }
+};
+
+const getMyRepairRequests = async (req, res, next) => {
+  try {
+    const requests = await RepairRequest.find({ createdBy: req.user._id })
+      .populate(repairRequestPopulate)
+      .sort({ createdAt: -1 });
+
+    res.json(requests.map(toRepairRequestResponse));
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getMyRepairRequestById = async (req, res, next) => {
+  try {
+    const request = await RepairRequest.findOne({
+      _id: req.params.id,
+      createdBy: req.user._id,
+    }).populate(repairRequestPopulate);
+
+    if (!request) {
+      res.status(404);
+      throw new Error("Repair request not found");
+    }
+
+    res.json(toRepairRequestResponse(request));
+  } catch (error) {
+    next(error);
+  }
+};
+
+const createMyRepairRequest = async (req, res, next) => {
+  try {
+    const { description, images = [], priority = "medium", requestedResolveDate, room, title } = req.body;
+
+    if (!room || !title || !description) {
+      throw new Error("Room, title and description are required");
+    }
+
+    if (!["low", "medium", "high", "urgent"].includes(priority)) {
+      throw new Error("Invalid priority");
+    }
+
+    if (!Array.isArray(images)) {
+      throw new Error("Images must be an array");
+    }
+
+    await ensureMyActiveRoom(req.user._id, room);
+
+    const request = await RepairRequest.create({
+      createdBy: req.user._id,
+      createdByRole: "user",
+      description,
+      images,
+      priority,
+      requestedResolveDate,
+      room,
+      status: "pending",
+      tenant: req.user._id,
+      title,
+    });
+
+    const populatedRequest = await RepairRequest.findById(request._id).populate(repairRequestPopulate);
+    res.status(201).json(toRepairRequestResponse(populatedRequest));
+  } catch (error) {
+    if (!res.statusCode || res.statusCode < 400) {
+      res.status(400);
+    }
+
+    next(error);
+  }
+};
+
+const updateMyRepairRequest = async (req, res, next) => {
+  try {
+    const request = await RepairRequest.findOne({
+      _id: req.params.id,
+      createdBy: req.user._id,
+    });
+
+    if (!request) {
+      res.status(404);
+      throw new Error("Repair request not found");
+    }
+
+    if (request.status !== "pending") {
+      res.status(400);
+      throw new Error("Only pending repair requests can be updated");
+    }
+
+    const { description, images, priority, requestedResolveDate, room, title } = req.body;
+
+    if (priority && !["low", "medium", "high", "urgent"].includes(priority)) {
+      throw new Error("Invalid priority");
+    }
+
+    if (images !== undefined && !Array.isArray(images)) {
+      throw new Error("Images must be an array");
+    }
+
+    if (room) {
+      await ensureMyActiveRoom(req.user._id, room);
+    }
+
+    request.description = description ?? request.description;
+    request.images = images ?? request.images;
+    request.priority = priority ?? request.priority;
+    request.requestedResolveDate =
+      requestedResolveDate === null
+        ? undefined
+        : requestedResolveDate ?? request.requestedResolveDate;
+    request.room = room ?? request.room;
+    request.title = title ?? request.title;
+
+    const updatedRequest = await request.save();
+    const populatedRequest = await RepairRequest.findById(updatedRequest._id).populate(repairRequestPopulate);
+    res.json(toRepairRequestResponse(populatedRequest));
+  } catch (error) {
+    if (!res.statusCode || res.statusCode < 400) {
+      res.status(400);
+    }
+
+    next(error);
+  }
+};
+
+const deleteMyRepairRequest = async (req, res, next) => {
+  try {
+    const request = await RepairRequest.findOne({
+      _id: req.params.id,
+      createdBy: req.user._id,
+    });
+
+    if (!request) {
+      res.status(404);
+      throw new Error("Repair request not found");
+    }
+
+    if (request.status !== "pending") {
+      res.status(400);
+      throw new Error("Only pending repair requests can be deleted");
+    }
+
+    await request.deleteOne();
+    res.json({ message: "Repair request deleted" });
+  } catch (error) {
+    if (!res.statusCode || res.statusCode < 400) {
+      res.status(400);
+    }
+
+    next(error);
+  }
+};
+
 const getMyContractFile = async (req, res, next) => {
   try {
     const contract = await Contract.findOne({
@@ -196,9 +369,14 @@ const getMyContractFile = async (req, res, next) => {
 };
 
 module.exports = {
+  deleteMyRepairRequest,
   getMyContractFile,
   getMyContracts,
   getMyInvoiceById,
   getMyInvoices,
+  createMyRepairRequest,
+  getMyRepairRequestById,
+  getMyRepairRequests,
   getMyTenancies,
+  updateMyRepairRequest,
 };

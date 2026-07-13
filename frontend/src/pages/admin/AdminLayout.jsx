@@ -6,6 +6,7 @@ import {
   HomeOutlined,
   LogoutOutlined,
   TeamOutlined,
+  ToolOutlined,
   UserSwitchOutlined,
 } from "@ant-design/icons";
 import { Button, Layout, Menu, Space, Typography } from "antd";
@@ -34,6 +35,8 @@ const AdminLayout = () => {
             ? "/admin/contracts"
           : location.pathname.startsWith("/admin/operating-expenses")
             ? "/admin/operating-expenses"
+          : location.pathname.startsWith("/admin/repair-requests")
+            ? "/admin/repair-requests"
             : location.pathname.startsWith("/admin/tenants")
               ? "/admin/tenants"
       : "/admin";
@@ -82,6 +85,12 @@ const AdminLayout = () => {
               icon: <DollarOutlined />,
               label: "Quan ly chi phi",
               onClick: () => navigate("/admin/operating-expenses"),
+            },
+            {
+              key: "/admin/repair-requests",
+              icon: <ToolOutlined />,
+              label: "Quan ly su co",
+              onClick: () => navigate("/admin/repair-requests"),
             },
             {
               key: "/admin/tenants",
