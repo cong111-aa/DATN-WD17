@@ -1,5 +1,6 @@
 import {
   FileProtectOutlined,
+  FileTextOutlined,
   HomeOutlined,
   LogoutOutlined,
   ReloadOutlined,
@@ -50,6 +51,13 @@ const contractStatusMeta = {
   terminated: { color: "error", label: "Da cham dut" },
 };
 
+const invoiceStatusMeta = {
+  unpaid: { color: "default", label: "Chua thanh toan" },
+  partial: { color: "warning", label: "Thanh toan mot phan" },
+  paid: { color: "success", label: "Da thanh toan" },
+  overdue: { color: "error", label: "Qua han" },
+};
+
 const toImageUrl = (url) => (url?.startsWith("http") ? url : `${apiOrigin}${url}`);
 
 const UserHomePage = () => {
@@ -58,9 +66,11 @@ const UserHomePage = () => {
   const navigate = useNavigate();
   const [tenancies, setTenancies] = useState([]);
   const [contracts, setContracts] = useState([]);
+  const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(false);
   const [detailTenancy, setDetailTenancy] = useState(null);
   const [detailContract, setDetailContract] = useState(null);
+  const [detailInvoice, setDetailInvoice] = useState(null);
 
   const activeTenancies = useMemo(
     () => tenancies.filter((tenancy) => tenancy.status === "active"),
@@ -75,13 +85,15 @@ const UserHomePage = () => {
     setLoading(true);
 
     try {
-      const [{ data: tenancyData }, { data: contractData }] = await Promise.all([
+      const [{ data: tenancyData }, { data: contractData }, { data: invoiceData }] = await Promise.all([
         http.get("/me/tenancies"),
         http.get("/me/contracts"),
+        http.get("/me/invoices"),
       ]);
 
       setTenancies(tenancyData);
       setContracts(contractData);
+      setInvoices(invoiceData);
     } catch (error) {
       message.error(error.response?.data?.message || "Khong tai duoc du lieu nguoi dung");
     } finally {
@@ -119,6 +131,15 @@ const UserHomePage = () => {
       setTimeout(() => URL.revokeObjectURL(url), 30000);
     } catch (error) {
       message.error(error.response?.data?.message || "Khong mo duoc hop dong");
+    }
+  };
+
+  const handleViewInvoice = async (invoice) => {
+    try {
+      const { data } = await http.get(`/me/invoices/${invoice.id}`);
+      setDetailInvoice(data);
+    } catch (error) {
+      message.error(error.response?.data?.message || "Khong tai duoc chi tiet hoa don");
     }
   };
 
@@ -229,6 +250,78 @@ const UserHomePage = () => {
     },
   ];
 
+  const invoiceColumns = [
+    {
+      title: "Ma hoa don",
+      dataIndex: "invoiceCode",
+      key: "invoiceCode",
+      render: (value, record) => (
+        <Space direction="vertical" size={0}>
+          <Typography.Text strong>{value}</Typography.Text>
+          <Typography.Text type="secondary">
+            {record.roomNumber || "-"} - {record.roomName || "-"}
+          </Typography.Text>
+        </Space>
+      ),
+    },
+    {
+      title: "Ky hoa don",
+      key: "period",
+      render: (_, record) => `${record.month}/${record.year}`,
+    },
+    {
+      title: "Dien/Nuoc",
+      key: "utilities",
+      render: (_, record) => `${record.electricityUsage ?? 0} so / ${record.waterUsage ?? 0} khoi`,
+    },
+    {
+      title: "Tong tien",
+      dataIndex: "totalAmount",
+      key: "totalAmount",
+      render: (value) => <Typography.Text strong>{formatCurrency(value)}</Typography.Text>,
+    },
+    {
+      title: "Da thanh toan",
+      dataIndex: "paidAmount",
+      key: "paidAmount",
+      render: formatCurrency,
+    },
+    {
+      title: "Con lai",
+      dataIndex: "remainingAmount",
+      key: "remainingAmount",
+      render: (value) => (
+        <Typography.Text type={Number(value || 0) > 0 ? "danger" : "success"} strong>
+          {formatCurrency(value)}
+        </Typography.Text>
+      ),
+    },
+    {
+      title: "Han TT",
+      dataIndex: "dueDate",
+      key: "dueDate",
+      render: formatDate,
+    },
+    {
+      title: "Trang thai",
+      dataIndex: "status",
+      key: "status",
+      render: (status) => {
+        const meta = invoiceStatusMeta[status] || invoiceStatusMeta.unpaid;
+        return <Tag color={meta.color}>{meta.label}</Tag>;
+      },
+    },
+    {
+      title: "Thao tac",
+      key: "actions",
+      render: (_, record) => (
+        <Button onClick={() => handleViewInvoice(record)}>
+          Chi tiet
+        </Button>
+      ),
+    },
+  ];
+
   return (
     <Layout className="app-shell">
       <Header className="app-header">
@@ -246,7 +339,7 @@ const UserHomePage = () => {
             <div className="page-title">
               <Typography.Title level={3}>Trang cua toi</Typography.Title>
               <Typography.Text type="secondary">
-                Theo doi phong dang thue, hop dong va thong tin tai khoan.
+                Theo doi phong dang thue, hop dong, hoa don va thong tin tai khoan.
               </Typography.Text>
             </div>
             <Button icon={<ReloadOutlined />} onClick={fetchUserData} loading={loading}>
@@ -296,6 +389,24 @@ const UserHomePage = () => {
                       pagination={{ pageSize: 6 }}
                       scroll={{ x: 1000 }}
                       locale={{ emptyText: "Chua co hop dong" }}
+                    />
+                  </Card>
+                ),
+              },
+              {
+                key: "invoices",
+                icon: <FileTextOutlined />,
+                label: "Hoa don",
+                children: (
+                  <Card>
+                    <Table
+                      rowKey="id"
+                      columns={invoiceColumns}
+                      dataSource={invoices}
+                      loading={loading}
+                      pagination={{ pageSize: 6 }}
+                      scroll={{ x: 1200 }}
+                      locale={{ emptyText: "Chua co hoa don" }}
                     />
                   </Card>
                 ),
@@ -443,6 +554,75 @@ const UserHomePage = () => {
                 {detailContract.terms || "-"}
               </Descriptions.Item>
             </Descriptions>
+          )}
+        </Modal>
+
+        <Modal
+          title="Chi tiet hoa don"
+          open={Boolean(detailInvoice)}
+          onCancel={() => setDetailInvoice(null)}
+          footer={[
+            <Button key="close" onClick={() => setDetailInvoice(null)}>
+              Dong
+            </Button>,
+          ]}
+          width={860}
+        >
+          {detailInvoice && (
+            <Space direction="vertical" size={16} className="page-stack">
+              <Descriptions bordered size="small" column={2}>
+                <Descriptions.Item label="Ma hoa don">{detailInvoice.invoiceCode}</Descriptions.Item>
+                <Descriptions.Item label="Trang thai">
+                  <Tag color={invoiceStatusMeta[detailInvoice.status]?.color}>
+                    {invoiceStatusMeta[detailInvoice.status]?.label}
+                  </Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="Phong">
+                  {detailInvoice.roomNumber} - {detailInvoice.roomName}
+                </Descriptions.Item>
+                <Descriptions.Item label="Ky hoa don">
+                  {detailInvoice.month}/{detailInvoice.year}
+                </Descriptions.Item>
+                <Descriptions.Item label="Nguoi thanh toan">{detailInvoice.tenantName}</Descriptions.Item>
+                <Descriptions.Item label="Lien he">
+                  {detailInvoice.tenantPhone || detailInvoice.tenantEmail || "-"}
+                </Descriptions.Item>
+                <Descriptions.Item label="Hop dong">{detailInvoice.contractCode || "-"}</Descriptions.Item>
+                <Descriptions.Item label="Han thanh toan">{formatDate(detailInvoice.dueDate)}</Descriptions.Item>
+                <Descriptions.Item label="Ngay tao">{formatDate(detailInvoice.createdAt)}</Descriptions.Item>
+              </Descriptions>
+
+              <Descriptions title="Chi so dien nuoc" bordered size="small" column={2}>
+                <Descriptions.Item label="Dien cu">{detailInvoice.electricityOld ?? "-"}</Descriptions.Item>
+                <Descriptions.Item label="Dien moi">{detailInvoice.electricityNew ?? "-"}</Descriptions.Item>
+                <Descriptions.Item label="Dien tieu thu">{detailInvoice.electricityUsage ?? 0} so</Descriptions.Item>
+                <Descriptions.Item label="Tien dien">{formatCurrency(detailInvoice.electricityAmount)}</Descriptions.Item>
+                <Descriptions.Item label="Nuoc cu">{detailInvoice.waterOld ?? "-"}</Descriptions.Item>
+                <Descriptions.Item label="Nuoc moi">{detailInvoice.waterNew ?? "-"}</Descriptions.Item>
+                <Descriptions.Item label="Nuoc tieu thu">{detailInvoice.waterUsage ?? 0} khoi</Descriptions.Item>
+                <Descriptions.Item label="Tien nuoc">{formatCurrency(detailInvoice.waterAmount)}</Descriptions.Item>
+              </Descriptions>
+
+              <Descriptions title="Tong ket chi phi" bordered size="small" column={2}>
+                <Descriptions.Item label="Tien phong">{formatCurrency(detailInvoice.rentAmount)}</Descriptions.Item>
+                <Descriptions.Item label="Phi dich vu">{formatCurrency(detailInvoice.serviceAmount)}</Descriptions.Item>
+                <Descriptions.Item label="Chi phi khac">{formatCurrency(detailInvoice.otherAmount)}</Descriptions.Item>
+                <Descriptions.Item label="Giam tru">{formatCurrency(detailInvoice.discountAmount)}</Descriptions.Item>
+                <Descriptions.Item label="Tong tien">
+                  <Typography.Text strong>{formatCurrency(detailInvoice.totalAmount)}</Typography.Text>
+                </Descriptions.Item>
+                <Descriptions.Item label="Da thanh toan">{formatCurrency(detailInvoice.paidAmount)}</Descriptions.Item>
+                <Descriptions.Item label="Con lai">
+                  <Typography.Text type={detailInvoice.remainingAmount > 0 ? "danger" : "success"} strong>
+                    {formatCurrency(detailInvoice.remainingAmount)}
+                  </Typography.Text>
+                </Descriptions.Item>
+              </Descriptions>
+
+              <Descriptions bordered size="small" column={1}>
+                <Descriptions.Item label="Ghi chu">{detailInvoice.note || "-"}</Descriptions.Item>
+              </Descriptions>
+            </Space>
           )}
         </Modal>
       </Content>

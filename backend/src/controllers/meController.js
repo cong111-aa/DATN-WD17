@@ -1,4 +1,5 @@
 const Contract = require("../models/Contract");
+const Invoice = require("../models/Invoice");
 const Tenant = require("../models/Tenant");
 const renderContractHtml = require("../utils/renderContractHtml");
 
@@ -11,6 +12,13 @@ const contractPopulate = [
   { path: "tenant", select: "name email phone identityNumber address" },
   { path: "tenantRecord", select: "moveInDate moveOutDate roomRole status" },
   { path: "room", select: "roomNumber name floor area capacity price deposit electricityPrice waterPrice serviceFee status" },
+];
+
+const invoicePopulate = [
+  { path: "tenant", select: "name email phone identityNumber" },
+  { path: "room", select: "roomNumber name price serviceFee electricityPrice waterPrice" },
+  { path: "meterReading", select: "electricityOld electricityNew waterOld waterNew" },
+  { path: "contract", select: "contractCode status startDate endDate" },
 ];
 
 const toTenantResponse = (tenant) => ({
@@ -61,6 +69,53 @@ const toContractResponse = (contract) => ({
   updatedAt: contract.updatedAt,
 });
 
+const toInvoiceResponse = (invoice) => ({
+  id: invoice._id,
+  invoiceCode: invoice.invoiceCode,
+  room: invoice.room?._id || invoice.room,
+  roomNumber: invoice.room?.roomNumber,
+  roomName: invoice.room?.name,
+  roomPrice: invoice.room?.price,
+  roomServiceFee: invoice.room?.serviceFee,
+  electricityPrice: invoice.room?.electricityPrice,
+  waterPrice: invoice.room?.waterPrice,
+  tenant: invoice.tenant?._id || invoice.tenant,
+  tenantName: invoice.tenant?.name,
+  tenantEmail: invoice.tenant?.email,
+  tenantPhone: invoice.tenant?.phone,
+  contract: invoice.contract?._id || invoice.contract,
+  contractCode: invoice.contract?.contractCode,
+  meterReading: invoice.meterReading?._id || invoice.meterReading,
+  electricityOld: invoice.meterReading?.electricityOld,
+  electricityNew: invoice.meterReading?.electricityNew,
+  electricityUsage:
+    invoice.meterReading?.electricityNew !== undefined
+      ? Math.max(invoice.meterReading.electricityNew - invoice.meterReading.electricityOld, 0)
+      : undefined,
+  waterOld: invoice.meterReading?.waterOld,
+  waterNew: invoice.meterReading?.waterNew,
+  waterUsage:
+    invoice.meterReading?.waterNew !== undefined
+      ? Math.max(invoice.meterReading.waterNew - invoice.meterReading.waterOld, 0)
+      : undefined,
+  month: invoice.month,
+  year: invoice.year,
+  rentAmount: invoice.rentAmount,
+  electricityAmount: invoice.electricityAmount,
+  waterAmount: invoice.waterAmount,
+  serviceAmount: invoice.serviceAmount,
+  otherAmount: invoice.otherAmount,
+  discountAmount: invoice.discountAmount,
+  totalAmount: invoice.totalAmount,
+  paidAmount: invoice.paidAmount,
+  remainingAmount: Math.max(Number(invoice.totalAmount || 0) - Number(invoice.paidAmount || 0), 0),
+  dueDate: invoice.dueDate,
+  status: invoice.status,
+  note: invoice.note,
+  createdAt: invoice.createdAt,
+  updatedAt: invoice.updatedAt,
+});
+
 const getActiveMembers = (roomId) =>
   Tenant.find({ room: roomId, status: "active" }).populate("user", "name email phone identityNumber");
 
@@ -83,6 +138,36 @@ const getMyContracts = async (req, res, next) => {
       .sort({ status: 1, endDate: -1, createdAt: -1 });
 
     res.json(contracts.map(toContractResponse));
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getMyInvoices = async (req, res, next) => {
+  try {
+    const invoices = await Invoice.find({ tenant: req.user._id })
+      .populate(invoicePopulate)
+      .sort({ year: -1, month: -1, createdAt: -1 });
+
+    res.json(invoices.map(toInvoiceResponse));
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getMyInvoiceById = async (req, res, next) => {
+  try {
+    const invoice = await Invoice.findOne({
+      _id: req.params.id,
+      tenant: req.user._id,
+    }).populate(invoicePopulate);
+
+    if (!invoice) {
+      res.status(404);
+      throw new Error("Invoice not found");
+    }
+
+    res.json(toInvoiceResponse(invoice));
   } catch (error) {
     next(error);
   }
@@ -113,5 +198,7 @@ const getMyContractFile = async (req, res, next) => {
 module.exports = {
   getMyContractFile,
   getMyContracts,
+  getMyInvoiceById,
+  getMyInvoices,
   getMyTenancies,
 };
