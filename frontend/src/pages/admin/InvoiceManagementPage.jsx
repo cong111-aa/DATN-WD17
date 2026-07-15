@@ -1,27 +1,34 @@
 import {
+  CalculatorOutlined,
   DeleteOutlined,
   EditOutlined,
   EyeOutlined,
   FileTextOutlined,
+  FilterOutlined,
   PlusOutlined,
   ReloadOutlined,
+  SearchOutlined,
 } from "@ant-design/icons";
 import {
   Alert,
   Button,
   Card,
+  Col,
   DatePicker,
   Descriptions,
   Divider,
+  Empty,
   Form,
   Input,
   InputNumber,
   Modal,
   Popconfirm,
+  Row,
   Select,
   Space,
   Table,
   Tag,
+  Tooltip,
   Typography,
   message,
 } from "antd";
@@ -37,10 +44,10 @@ const statusOptions = [
 ];
 
 const statusMeta = {
-  unpaid: { color: "default", label: "Chua thanh toan" },
-  partial: { color: "warning", label: "Thanh toan mot phan" },
-  paid: { color: "success", label: "Da thanh toan" },
-  overdue: { color: "error", label: "Qua han" },
+  unpaid: { bg: "#f1f5f9", color: "#64748b", label: "Chua thanh toan" },
+  partial: { bg: "#fef3c7", color: "#b45309", label: "Thanh toan mot phan" },
+  paid: { bg: "#dcfce7", color: "#15803d", label: "Da thanh toan" },
+  overdue: { bg: "#fee2e2", color: "#b91c1c", label: "Qua han" },
 };
 
 const defaultFormValues = {
@@ -60,9 +67,51 @@ const defaultFormValues = {
   year: new Date().getFullYear(),
 };
 
+const panelStyle = {
+  border: "1px solid #eef1f7",
+  borderRadius: 8,
+  boxShadow: "0 8px 24px rgba(15, 23, 42, 0.05)",
+};
+
+const heroStyle = {
+  ...panelStyle,
+  overflow: "hidden",
+  background:
+    "radial-gradient(circle at 18% 22%, rgba(255,255,255,0.12) 0 1px, transparent 1px), radial-gradient(circle at 32% 64%, rgba(255,255,255,0.12) 0 1px, transparent 1px), radial-gradient(circle at 70% 28%, rgba(255,255,255,0.10) 0 1px, transparent 1px), linear-gradient(115deg, #5b21b6 0%, #7c2dff 46%, #2563eb 100%)",
+  backgroundSize: "88px 88px, 120px 120px, 96px 96px, auto",
+};
+
+const statIconStyle = {
+  alignItems: "center",
+  borderRadius: 8,
+  display: "flex",
+  height: 42,
+  justifyContent: "center",
+  width: 42,
+};
+
+const toolbarInputStyle = {
+  borderRadius: 8,
+  height: 40,
+};
+
+const mutedTextStyle = {
+  color: "#64748b",
+};
+
+const sectionTitleStyle = {
+  color: "#0f172a",
+  fontSize: 16,
+};
+
 const currencyFormatter = (value) => `${Number(value || 0).toLocaleString("vi-VN")} VND`;
 const formatDate = (value) => (value ? new Date(value).toLocaleDateString("vi-VN") : "-");
 const toNumber = (value) => Number(value || 0);
+
+const monthOptions = Array.from({ length: 12 }, (_, index) => ({
+  label: `Thang ${index + 1}`,
+  value: index + 1,
+}));
 
 const toFormValues = (record) => ({
   ...record,
@@ -97,6 +146,10 @@ const InvoiceManagementPage = () => {
   const [detailOpen, setDetailOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState(null);
   const [detailInvoice, setDetailInvoice] = useState(null);
+  const [searchText, setSearchText] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [monthFilter, setMonthFilter] = useState("all");
+  const [yearFilter, setYearFilter] = useState("");
 
   const watchedValues = Form.useWatch([], form) || {};
 
@@ -141,6 +194,39 @@ const InvoiceManagementPage = () => {
   const effectivePaidAmount = watchedValues.status === "paid" ? totalAmount : toNumber(watchedValues.paidAmount);
   const remainingAmount = Math.max(totalAmount - effectivePaidAmount, 0);
 
+  const invoiceStats = useMemo(() => {
+    const paid = invoices.filter((item) => item.status === "paid").length;
+    const unpaid = invoices.filter((item) => item.status === "unpaid").length;
+    const overdue = invoices.filter((item) => item.status === "overdue").length;
+    const totalAmountValue = invoices.reduce((sum, item) => sum + Number(item.totalAmount || 0), 0);
+
+    return {
+      overdue,
+      paid,
+      total: invoices.length,
+      totalAmountValue,
+      unpaid,
+    };
+  }, [invoices]);
+
+  const filteredInvoices = useMemo(() => {
+    const normalizedSearch = searchText.trim().toLowerCase();
+    const normalizedYear = String(yearFilter || "").trim();
+
+    return invoices.filter((item) => {
+      const matchSearch =
+        !normalizedSearch ||
+        [item.invoiceCode, item.tenantName, item.tenantPhone, item.tenantEmail, item.roomNumber, item.roomName]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(normalizedSearch));
+      const matchStatus = statusFilter === "all" || item.status === statusFilter;
+      const matchMonth = monthFilter === "all" || Number(item.month) === Number(monthFilter);
+      const matchYear = !normalizedYear || String(item.year) === normalizedYear;
+
+      return matchSearch && matchStatus && matchMonth && matchYear;
+    });
+  }, [invoices, monthFilter, searchText, statusFilter, yearFilter]);
+
   const fetchOptions = async () => {
     try {
       const [{ data: tenantData }, { data: roomData }] = await Promise.all([
@@ -184,6 +270,13 @@ const InvoiceManagementPage = () => {
   const refreshAll = () => {
     fetchOptions();
     fetchInvoices();
+  };
+
+  const resetFilters = () => {
+    setSearchText("");
+    setStatusFilter("all");
+    setMonthFilter("all");
+    setYearFilter("");
   };
 
   const loadExistingMeterReading = async (room, month, year) => {
@@ -318,75 +411,149 @@ const InvoiceManagementPage = () => {
       message.error(error.response?.data?.message || "Xoa hoa don that bai");
     }
   };
-
   const columns = useMemo(
     () => [
       {
-        title: "Ma hoa don",
+        title: "MA HOA DON",
         dataIndex: "invoiceCode",
         key: "invoiceCode",
-        render: (value) => <Typography.Text strong>{value}</Typography.Text>,
-      },
-      {
-        title: "Khach thue",
-        dataIndex: "tenantName",
-        key: "tenantName",
+        width: 180,
         render: (value, record) => (
-          <Space direction="vertical" size={0}>
-            <Typography.Text>{value || "-"}</Typography.Text>
-            <Typography.Text type="secondary">{record.tenantPhone || record.tenantEmail || "-"}</Typography.Text>
+          <Space size={12}>
+            <div style={{ ...statIconStyle, background: "#eef2ff", color: "#4f46e5" }}>
+              <FileTextOutlined />
+            </div>
+            <div>
+              <Typography.Text strong style={{ color: "#334155" }}>
+                {value}
+              </Typography.Text>
+              <br />
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                Ky {record.month}/{record.year}
+              </Typography.Text>
+            </div>
           </Space>
         ),
       },
       {
-        title: "Phong",
+        title: "KHACH THUE",
+        dataIndex: "tenantName",
+        key: "tenantName",
+        width: 230,
+        render: (value, record) => (
+          <div>
+            <Typography.Text strong style={{ color: "#334155" }}>
+              {value || "-"}
+            </Typography.Text>
+            <br />
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              {record.tenantPhone || record.tenantEmail || "-"}
+            </Typography.Text>
+          </div>
+        ),
+      },
+      {
+        title: "PHONG",
         dataIndex: "roomNumber",
         key: "roomNumber",
-        render: (value, record) => `${value || "-"} - ${record.roomName || "-"}`,
+        width: 150,
+        render: (value, record) => (
+          <Typography.Text style={{ color: "#475569" }}>
+            {value || "-"} - {record.roomName || "-"}
+          </Typography.Text>
+        ),
       },
       {
-        title: "Ky",
-        key: "period",
-        render: (_, record) => `${record.month}/${record.year}`,
-      },
-      {
-        title: "Dien/Nuoc",
+        title: "DIEN/NUOC",
         key: "utilities",
-        render: (_, record) => `${record.electricityUsage ?? 0} so / ${record.waterUsage ?? 0} khoi`,
+        width: 150,
+        render: (_, record) => (
+          <Typography.Text style={{ color: "#475569" }}>
+            {record.electricityUsage ?? 0} so / {record.waterUsage ?? 0} khoi
+          </Typography.Text>
+        ),
       },
       {
-        title: "Tong tien",
+        title: "TONG TIEN",
         dataIndex: "totalAmount",
         key: "totalAmount",
-        render: (value) => <Typography.Text strong>{currencyFormatter(value)}</Typography.Text>,
+        width: 170,
+        render: (value) => (
+          <Typography.Text strong style={{ color: "#0f172a" }}>
+            {currencyFormatter(value)}
+          </Typography.Text>
+        ),
       },
       {
-        title: "Da thanh toan",
+        title: "DA THANH TOAN",
         dataIndex: "paidAmount",
         key: "paidAmount",
-        render: currencyFormatter,
+        width: 170,
+        render: (value) => (
+          <Typography.Text style={{ color: "#475569" }}>
+            {currencyFormatter(value)}
+          </Typography.Text>
+        ),
       },
       {
-        title: "Trang thai",
+        title: "TRANG THAI",
         dataIndex: "status",
         key: "status",
+        width: 170,
         render: (status) => {
           const meta = statusMeta[status] || statusMeta.unpaid;
-          return <Tag color={meta.color}>{meta.label}</Tag>;
+
+          return (
+            <Tag
+              bordered={false}
+              style={{
+                background: meta.bg,
+                borderRadius: 5,
+                color: meta.color,
+                fontWeight: 700,
+                padding: "3px 10px",
+              }}
+            >
+              {meta.label}
+            </Tag>
+          );
         },
       },
       {
-        title: "Thao tac",
+        title: "NGAY TAO",
+        dataIndex: "createdAt",
+        key: "createdAt",
+        width: 140,
+        render: (value) => (
+          <Typography.Text style={{ color: "#475569" }}>
+            {formatDate(value)}
+          </Typography.Text>
+        ),
+      },
+      {
+        title: "THAO TAC",
         key: "actions",
         fixed: "right",
+        align: "center",
+        width: 150,
         render: (_, record) => (
-          <Space wrap>
-            <Button icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
-              Chi tiet
-            </Button>
-            <Button icon={<EditOutlined />} onClick={() => openEditModal(record)}>
-              Sua
-            </Button>
+          <Space size={8}>
+            <Tooltip title="Chi tiet hoa don">
+              <Button
+                size="small"
+                icon={<EyeOutlined />}
+                onClick={() => handleViewDetail(record)}
+                style={{ borderRadius: 8, height: 32, width: 32 }}
+              />
+            </Tooltip>
+            <Tooltip title="Sua hoa don">
+              <Button
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => openEditModal(record)}
+                style={{ borderRadius: 8, height: 32, width: 32 }}
+              />
+            </Tooltip>
             <Popconfirm
               title="Xoa hoa don nay?"
               description="Chi xoa duoc hoa don chua co thanh toan."
@@ -395,9 +562,15 @@ const InvoiceManagementPage = () => {
               onConfirm={() => handleDelete(record)}
               disabled={Number(record.paidAmount || 0) > 0}
             >
-              <Button danger icon={<DeleteOutlined />} disabled={Number(record.paidAmount || 0) > 0}>
-                Xoa
-              </Button>
+              <Tooltip title="Xoa hoa don">
+                <Button
+                  danger
+                  size="small"
+                  icon={<DeleteOutlined />}
+                  disabled={Number(record.paidAmount || 0) > 0}
+                  style={{ borderRadius: 8, height: 32, width: 32 }}
+                />
+              </Tooltip>
             </Popconfirm>
           </Space>
         ),
@@ -407,40 +580,181 @@ const InvoiceManagementPage = () => {
   );
 
   return (
-    <Space direction="vertical" size={16} className="page-stack">
-      <div className="page-toolbar">
-        <div className="page-title">
-          <Typography.Title level={3}>Quan ly hoa don</Typography.Title>
-          <Typography.Text type="secondary">
-            Tao hoa don kem nhap chi so dien nuoc, chi phi dich vu va tong ket thanh toan.
-          </Typography.Text>
-        </div>
-        <Space wrap>
-          <Button icon={<ReloadOutlined />} onClick={refreshAll}>
-            Tai lai
-          </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
-            Them hoa don
-          </Button>
-        </Space>
-      </div>
+    <Space direction="vertical" size={18} className="page-stack" style={{ maxWidth: "100%", margin: "0 auto" }}>
+      <Card styles={{ body: { minHeight: 230, padding: 28 } }} style={heroStyle}>
+        <Row gutter={[18, 18]} align="middle" justify="space-between">
+          <Col xs={24} lg={15}>
+            <Typography.Text style={{ color: "rgba(255,255,255,0.78)", fontSize: 12, fontWeight: 800 }}>
+              TRO PLUS ADMIN
+            </Typography.Text>
+            <Typography.Title level={2} style={{ color: "#ffffff", margin: "6px 0 8px", fontSize: 30 }}>
+              Quan ly hoa don
+            </Typography.Title>
+            <Typography.Paragraph style={{ color: "rgba(255,255,255,0.86)", marginBottom: 16, maxWidth: 680 }}>
+              Tao, cap nhat, xem chi tiet va xoa hoa don kem chi so dien nuoc, phi dich vu va tong ket thanh toan.
+            </Typography.Paragraph>
+            <Space wrap>
+              <Tag bordered={false} style={{ background: "rgba(255,255,255,0.18)", borderRadius: 999, color: "#ffffff", fontWeight: 800, padding: "4px 14px" }}>
+                {invoiceStats.total} hoa don
+              </Tag>
+              <Tag bordered={false} style={{ background: "rgba(255,255,255,0.18)", borderRadius: 999, color: "#ffffff", fontWeight: 800, padding: "4px 14px" }}>
+                {invoiceStats.paid} da thanh toan
+              </Tag>
+              <Tag bordered={false} style={{ background: "rgba(255,255,255,0.18)", borderRadius: 999, color: "#ffffff", fontWeight: 800, padding: "4px 14px" }}>
+                {currencyFormatter(invoiceStats.totalAmountValue)}
+              </Tag>
+            </Space>
+          </Col>
+          <Col xs={24} lg={9}>
+            <Space wrap style={{ marginTop: 8, width: "100%", justifyContent: "flex-start" }}>
+              <Button icon={<ReloadOutlined />} onClick={refreshAll} style={{ borderRadius: 8, fontWeight: 700, height: 40 }}>
+                Tai lai
+              </Button>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={openCreateModal}
+                style={{
+                  background: "rgba(255,255,255,0.16)",
+                  borderColor: "rgba(255,255,255,0.18)",
+                  borderRadius: 8,
+                  boxShadow: "none",
+                  fontWeight: 800,
+                  height: 40,
+                }}
+              >
+                Them hoa don
+              </Button>
+            </Space>
+          </Col>
+        </Row>
+      </Card>
 
-      <Card>
+      <Card style={{ ...panelStyle, background: "#ffffff" }} styles={{ body: { padding: "18px 20px" } }}>
+        <Row gutter={[12, 12]} align="middle" justify="space-between">
+          <Col xs={24} lg={7}>
+            <Space>
+              <div style={{ ...statIconStyle, background: "#f5edff", color: "#7c3aed", height: 36, width: 36 }}>
+                <FilterOutlined />
+              </div>
+              <div>
+                <Typography.Text strong style={sectionTitleStyle}>
+                  Bo loc hoa don
+                </Typography.Text>
+                <br />
+                <Typography.Text style={mutedTextStyle}>
+                  Tim nhanh theo ma, khach thue, phong va ky hoa don
+                </Typography.Text>
+              </div>
+            </Space>
+          </Col>
+          <Col xs={24} lg={17}>
+            <Row gutter={[10, 10]} justify="end">
+              <Col xs={24} md={8}>
+                <Input
+                  allowClear
+                  prefix={<SearchOutlined />}
+                  placeholder="Tim ma, khach thue, phong"
+                  style={toolbarInputStyle}
+                  value={searchText}
+                  onChange={(event) => setSearchText(event.target.value)}
+                />
+              </Col>
+              <Col xs={12} md={5}>
+                <Select
+                  value={statusFilter}
+                  style={{ ...toolbarInputStyle, width: "100%" }}
+                  onChange={setStatusFilter}
+                  options={[{ label: "Tat ca trang thai", value: "all" }, ...statusOptions]}
+                />
+              </Col>
+              <Col xs={12} md={4}>
+                <Select
+                  value={monthFilter}
+                  style={{ ...toolbarInputStyle, width: "100%" }}
+                  onChange={setMonthFilter}
+                  options={[{ label: "Tat ca thang", value: "all" }, ...monthOptions]}
+                />
+              </Col>
+              <Col xs={12} md={3}>
+                <Input
+                  allowClear
+                  placeholder="Nam"
+                  style={toolbarInputStyle}
+                  value={yearFilter}
+                  onChange={(event) => setYearFilter(event.target.value)}
+                />
+              </Col>
+              <Col xs={12} md={4}>
+                <Button block icon={<ReloadOutlined />} onClick={resetFilters} style={{ ...toolbarInputStyle, background: "#f3f6fb", borderColor: "#f3f6fb", fontWeight: 700 }}>
+                  Dat lai
+                </Button>
+              </Col>
+            </Row>
+          </Col>
+        </Row>
+      </Card>
+
+      <Card
+        title={
+          <Space>
+            <div style={{ ...statIconStyle, background: "#f5edff", color: "#7c3aed", height: 34, width: 34 }}>
+              <CalculatorOutlined />
+            </div>
+            <div>
+              <Typography.Text strong style={sectionTitleStyle}>
+                Danh sach hoa don
+              </Typography.Text>
+              <br />
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                Quan ly thong tin thanh toan theo phong va nguoi dai dien
+              </Typography.Text>
+            </div>
+          </Space>
+        }
+        extra={
+          <Tag bordered={false} style={{ background: "#f5edff", borderRadius: 999, color: "#7c3aed", fontWeight: 800, padding: "5px 12px" }}>
+            Hien thi {filteredInvoices.length}/{invoices.length}
+          </Tag>
+        }
+        style={{ ...panelStyle, overflow: "hidden" }}
+        styles={{
+          body: { padding: 0 },
+          header: { borderBottom: "1px solid #f1f5f9", minHeight: 74, padding: "12px 20px" },
+        }}
+      >
         <Table
           rowKey="id"
           columns={columns}
-          dataSource={invoices}
+          dataSource={filteredInvoices}
           loading={loading}
+          size="middle"
+          rowClassName={() => "user-management-row"}
+          locale={{
+            emptyText: <Empty description="Khong co hoa don phu hop" />,
+          }}
           scroll={{ x: 1400 }}
-          pagination={{ pageSize: 8 }}
+          pagination={{
+            pageSize: 8,
+            showSizeChanger: false,
+            showTotal: (total) => `${total} hoa don`,
+          }}
         />
       </Card>
 
       <Modal
         title={
           <Space>
-            <FileTextOutlined />
-            <span>{editingInvoice ? "Sua hoa don" : "Them hoa don"}</span>
+            <div style={{ ...statIconStyle, background: "#eef2ff", color: "#4f46e5", height: 36, width: 36 }}>
+              <FileTextOutlined />
+            </div>
+            <div>
+              <Typography.Text strong>{editingInvoice ? "Sua hoa don" : "Them hoa don"}</Typography.Text>
+              <br />
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                {editingInvoice ? editingInvoice.invoiceCode : "Tao hoa don moi cho phong"}
+              </Typography.Text>
+            </div>
           </Space>
         }
         open={modalOpen}
@@ -451,8 +765,18 @@ const InvoiceManagementPage = () => {
         cancelText="Huy"
         width={980}
       >
+        <Alert
+          showIcon
+          type="info"
+          message={editingInvoice ? "Cap nhat thong tin hoa don" : "Nhap thong tin de tao hoa don moi"}
+          style={{ marginBottom: 18, borderRadius: 8 }}
+        />
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
-          <Divider orientation="left">Thong tin hoa don</Divider>
+          <Space>
+            <FileTextOutlined style={{ color: "#1677ff" }} />
+            <Typography.Text strong>Thong tin hoa don</Typography.Text>
+          </Space>
+          <Divider style={{ margin: "12px 0 16px" }} />
           <Form.Item name="tenantPicker" label="Chon nguoi dai dien phong">
             <Select
               options={tenantOptions}
@@ -465,78 +789,119 @@ const InvoiceManagementPage = () => {
           <Form.Item name="tenant" hidden rules={[{ required: true }]}>
             <Input />
           </Form.Item>
-          <div className="form-grid">
-            <Form.Item name="room" label="Phong" rules={[{ required: true }]}>
-              <Select options={roomOptions} placeholder="Chon phong" showSearch optionFilterProp="label" onChange={handleRoomChange} />
-            </Form.Item>
-            <Form.Item name="invoiceCode" label="Ma hoa don" rules={[{ required: true }]}>
-              <Input placeholder="VD: HD-2026-001" />
-            </Form.Item>
-            <Form.Item name="month" label="Thang" rules={[{ required: true }]}>
-              <InputNumber min={1} max={12} className="full-width-input" onChange={handlePeriodChange} />
-            </Form.Item>
-            <Form.Item name="year" label="Nam" rules={[{ required: true }]}>
-              <InputNumber min={2000} className="full-width-input" onChange={handlePeriodChange} />
-            </Form.Item>
-            <Form.Item name="dueDate" label="Han thanh toan">
-              <DatePicker className="full-width-input" format="DD/MM/YYYY" />
-            </Form.Item>
-            <Form.Item name="status" label="Trang thai">
-              <Select options={statusOptions} />
-            </Form.Item>
-          </div>
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item name="room" label="Phong" rules={[{ required: true }]}>
+                <Select options={roomOptions} placeholder="Chon phong" showSearch optionFilterProp="label" onChange={handleRoomChange} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="invoiceCode" label="Ma hoa don" rules={[{ required: true }]}>
+                <Input placeholder="VD: HD-2026-001" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={6}>
+              <Form.Item name="month" label="Thang" rules={[{ required: true }]}>
+                <InputNumber min={1} max={12} className="full-width-input" onChange={handlePeriodChange} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={6}>
+              <Form.Item name="year" label="Nam" rules={[{ required: true }]}>
+                <InputNumber min={2000} className="full-width-input" onChange={handlePeriodChange} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={6}>
+              <Form.Item name="dueDate" label="Han thanh toan">
+                <DatePicker className="full-width-input" format="DD/MM/YYYY" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={6}>
+              <Form.Item name="status" label="Trang thai">
+                <Select options={statusOptions} />
+              </Form.Item>
+            </Col>
+          </Row>
 
-          <Divider orientation="left">Chi so dien nuoc</Divider>
+          <Space>
+            <CalculatorOutlined style={{ color: "#0f766e" }} />
+            <Typography.Text strong>Chi so dien nuoc</Typography.Text>
+          </Space>
+          <Divider style={{ margin: "12px 0 16px" }} />
           <Alert
             type="info"
             showIcon
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: 16, borderRadius: 8 }}
             message={`Don gia hien tai: dien ${currencyFormatter(selectedRoom?.electricityPrice)} / so, nuoc ${currencyFormatter(selectedRoom?.waterPrice)} / khoi`}
           />
-          <div className="form-grid">
-            <Form.Item name="electricityOld" label="Chi so dien cu" rules={[{ required: true }]}>
-              <InputNumber min={0} className="full-width-input" />
-            </Form.Item>
-            <Form.Item name="electricityNew" label="Chi so dien moi" rules={[{ required: true }]}>
-              <InputNumber min={0} className="full-width-input" />
-            </Form.Item>
-            <Form.Item name="waterOld" label="Chi so nuoc cu" rules={[{ required: true }]}>
-              <InputNumber min={0} className="full-width-input" />
-            </Form.Item>
-            <Form.Item name="waterNew" label="Chi so nuoc moi" rules={[{ required: true }]}>
-              <InputNumber min={0} className="full-width-input" />
-            </Form.Item>
-          </div>
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item name="electricityOld" label="Chi so dien cu" rules={[{ required: true }]}>
+                <InputNumber min={0} className="full-width-input" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="electricityNew" label="Chi so dien moi" rules={[{ required: true }]}>
+                <InputNumber min={0} className="full-width-input" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="waterOld" label="Chi so nuoc cu" rules={[{ required: true }]}>
+                <InputNumber min={0} className="full-width-input" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="waterNew" label="Chi so nuoc moi" rules={[{ required: true }]}>
+                <InputNumber min={0} className="full-width-input" />
+              </Form.Item>
+            </Col>
+          </Row>
 
-          <Divider orientation="left">Chi phi</Divider>
-          <div className="form-grid">
-            <Form.Item name="rentAmount" label="Tien phong">
-              <InputNumber min={0} className="full-width-input" addonAfter="VND" />
-            </Form.Item>
-            <Form.Item label="Tien dien">
-              <InputNumber value={electricityAmount} min={0} disabled className="full-width-input" addonAfter="VND" />
-            </Form.Item>
-            <Form.Item label="Tien nuoc">
-              <InputNumber value={waterAmount} min={0} disabled className="full-width-input" addonAfter="VND" />
-            </Form.Item>
-            <Form.Item name="serviceAmount" label="Phi dich vu">
-              <InputNumber min={0} className="full-width-input" addonAfter="VND" />
-            </Form.Item>
-            <Form.Item name="otherAmount" label="Chi phi khac">
-              <InputNumber min={0} className="full-width-input" addonAfter="VND" />
-            </Form.Item>
-            <Form.Item name="discountAmount" label="Giam tru">
-              <InputNumber min={0} className="full-width-input" addonAfter="VND" />
-            </Form.Item>
-            <Form.Item name="paidAmount" label="Da thanh toan">
-              <InputNumber min={0} className="full-width-input" addonAfter="VND" />
-            </Form.Item>
-          </div>
+          <Space>
+            <CalculatorOutlined style={{ color: "#7c3aed" }} />
+            <Typography.Text strong>Chi phi va tong ket</Typography.Text>
+          </Space>
+          <Divider style={{ margin: "12px 0 16px" }} />
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item name="rentAmount" label="Tien phong">
+                <InputNumber min={0} className="full-width-input" addonAfter="VND" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item label="Tien dien">
+                <InputNumber value={electricityAmount} min={0} disabled className="full-width-input" addonAfter="VND" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item label="Tien nuoc">
+                <InputNumber value={waterAmount} min={0} disabled className="full-width-input" addonAfter="VND" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="serviceAmount" label="Phi dich vu">
+                <InputNumber min={0} className="full-width-input" addonAfter="VND" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="otherAmount" label="Chi phi khac">
+                <InputNumber min={0} className="full-width-input" addonAfter="VND" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="discountAmount" label="Giam tru">
+                <InputNumber min={0} className="full-width-input" addonAfter="VND" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="paidAmount" label="Da thanh toan">
+                <InputNumber min={0} className="full-width-input" addonAfter="VND" />
+              </Form.Item>
+            </Col>
+          </Row>
           <Form.Item name="note" label="Ghi chu">
             <Input.TextArea rows={3} />
           </Form.Item>
 
-          <Divider orientation="left">Tong ket</Divider>
           <Descriptions bordered size="small" column={2}>
             <Descriptions.Item label="Dien tieu thu">{electricityUsage} so</Descriptions.Item>
             <Descriptions.Item label="Nuoc tieu thu">{waterUsage} khoi</Descriptions.Item>
@@ -569,7 +934,16 @@ const InvoiceManagementPage = () => {
             <Descriptions bordered size="small" column={2}>
               <Descriptions.Item label="Ma hoa don">{detailInvoice.invoiceCode}</Descriptions.Item>
               <Descriptions.Item label="Trang thai">
-                <Tag color={statusMeta[detailInvoice.status]?.color}>
+                <Tag
+                  bordered={false}
+                  style={{
+                    background: statusMeta[detailInvoice.status]?.bg,
+                    borderRadius: 5,
+                    color: statusMeta[detailInvoice.status]?.color,
+                    fontWeight: 700,
+                    padding: "3px 10px",
+                  }}
+                >
                   {statusMeta[detailInvoice.status]?.label}
                 </Tag>
               </Descriptions.Item>
