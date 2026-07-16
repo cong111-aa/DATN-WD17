@@ -8,4 +8,9 @@ const uploadRepairRequestImages = (req, res) => {
   res.status(201).json({ urls });
 };
 
-module.exports = { uploadRepairRequestImages, uploadRoomImages };
+const uploadIdentityImages = (req, res) => {
+  const urls = (req.files || []).map((file) => `/uploads/identity/${file.filename}`);
+  res.status(201).json({ urls });
+};
+
+module.exports = { uploadIdentityImages, uploadRepairRequestImages, uploadRoomImages };

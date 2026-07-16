@@ -10,6 +10,7 @@ import {
   SafetyCertificateOutlined,
   SearchOutlined,
   StopOutlined,
+  UploadOutlined,
   UnlockOutlined,
   UserOutlined,
 } from "@ant-design/icons";
@@ -32,6 +33,7 @@ import {
   Tag,
   Tooltip,
   Typography,
+  Upload,
   message,
 } from "antd";
 import { useEffect, useMemo, useState } from "react";
@@ -42,6 +44,23 @@ const defaultFormValues = {
   role: "user",
   status: "active",
 };
+
+const apiOrigin = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/api\/?$/, "");
+const toImageUrl = (url) => (url?.startsWith("http") ? url : `${apiOrigin}${url}`);
+const toUploadedImageUrl = (fileList = []) =>
+  fileList[0]?.response?.urls?.[0] || fileList[0]?.rawUrl || fileList[0]?.url || "";
+const toIdentityFileList = (url) =>
+  url
+    ? [
+        {
+          uid: url,
+          name: url.split("/").pop() || "identity-image",
+          rawUrl: url,
+          status: "done",
+          url: toImageUrl(url),
+        },
+      ]
+    : [];
 
 const roleOptions = [
   { label: "Admin", value: "admin" },
@@ -98,6 +117,8 @@ const UserManagementPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [identityBackFileList, setIdentityBackFileList] = useState([]);
+  const [identityFrontFileList, setIdentityFrontFileList] = useState([]);
   const [searchText, setSearchText] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -153,6 +174,8 @@ const UserManagementPage = () => {
 
   const openCreateModal = () => {
     setEditingUser(null);
+    setIdentityBackFileList([]);
+    setIdentityFrontFileList([]);
     form.resetFields();
     form.setFieldsValue(defaultFormValues);
     setModalOpen(true);
@@ -160,6 +183,8 @@ const UserManagementPage = () => {
 
   const openEditModal = (record) => {
     setEditingUser(record);
+    setIdentityBackFileList(toIdentityFileList(record.identityBackImage));
+    setIdentityFrontFileList(toIdentityFileList(record.identityFrontImage));
     form.resetFields();
     form.setFieldsValue({
       ...record,
@@ -171,7 +196,30 @@ const UserManagementPage = () => {
   const closeModal = () => {
     setModalOpen(false);
     setEditingUser(null);
+    setIdentityBackFileList([]);
+    setIdentityFrontFileList([]);
     form.resetFields();
+  };
+
+  const handleIdentityImageUpload = async ({ file, onError, onSuccess }) => {
+    const formData = new FormData();
+    formData.append("images", file);
+
+    try {
+      const { data } = await http.post("/uploads/identity", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      onSuccess(data);
+    } catch (error) {
+      message.error(error.response?.data?.message || "Upload anh CCCD that bai");
+      onError(error);
+    }
+  };
+
+  const handleIdentityFileChange = (fieldName, setFileList) => ({ fileList }) => {
+    const nextFileList = fileList.slice(-1);
+    setFileList(nextFileList);
+    form.setFieldValue(fieldName, toUploadedImageUrl(nextFileList));
   };
 
   const handleSubmit = async (values) => {
@@ -625,12 +673,42 @@ const UserManagementPage = () => {
               <Input placeholder="Nhap so dinh danh" />
             </Form.Item>
           </div>
-          <Form.Item name="identityFrontImage" label="Anh mat truoc CCCD">
-            <Input placeholder="URL hoac duong dan anh" />
-          </Form.Item>
-          <Form.Item name="identityBackImage" label="Anh mat sau CCCD">
-            <Input placeholder="URL hoac duong dan anh" />
-          </Form.Item>
+          <div className="form-grid">
+            <Form.Item name="identityFrontImage" label="Anh mat truoc CCCD">
+              <Upload
+                accept="image/png,image/jpeg,image/webp"
+                customRequest={handleIdentityImageUpload}
+                fileList={identityFrontFileList}
+                listType="picture-card"
+                maxCount={1}
+                onChange={handleIdentityFileChange("identityFrontImage", setIdentityFrontFileList)}
+              >
+                {identityFrontFileList.length ? null : (
+                  <button type="button" className="upload-card-button">
+                    <UploadOutlined />
+                    <span>Tai anh</span>
+                  </button>
+                )}
+              </Upload>
+            </Form.Item>
+            <Form.Item name="identityBackImage" label="Anh mat sau CCCD">
+              <Upload
+                accept="image/png,image/jpeg,image/webp"
+                customRequest={handleIdentityImageUpload}
+                fileList={identityBackFileList}
+                listType="picture-card"
+                maxCount={1}
+                onChange={handleIdentityFileChange("identityBackImage", setIdentityBackFileList)}
+              >
+                {identityBackFileList.length ? null : (
+                  <button type="button" className="upload-card-button">
+                    <UploadOutlined />
+                    <span>Tai anh</span>
+                  </button>
+                )}
+              </Upload>
+            </Form.Item>
+          </div>
           <Form.Item name="address" label="Dia chi">
             <Input.TextArea rows={3} />
           </Form.Item>
