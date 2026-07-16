@@ -89,10 +89,20 @@ const repairStatusMeta = {
   cancelled: { color: "default", label: "Da huy" },
 };
 
+const repairStatusOptions = [
+  { label: "Cho xu ly", value: "pending" },
+  { label: "Dang xu ly", value: "processing" },
+  { label: "Da xu ly", value: "resolved" },
+  { label: "Da huy", value: "cancelled" },
+];
+
 const toImageUrl = (url) => (url?.startsWith("http") ? url : `${apiOrigin}${url}`);
 
 const toUploadedImageUrls = (fileList = []) =>
   fileList.flatMap((file) => file.response?.urls || (file.rawUrl ? [file.rawUrl] : file.url ? [file.url] : []));
+
+const toUploadedImageUrl = (fileList = []) =>
+  fileList[0]?.response?.urls?.[0] || fileList[0]?.rawUrl || fileList[0]?.url || "";
 
 const toRepairImageFileList = (images = []) =>
   images.map((url, index) => ({
@@ -103,6 +113,19 @@ const toRepairImageFileList = (images = []) =>
     url: toImageUrl(url),
   }));
 
+const toIdentityFileList = (url) =>
+  url
+    ? [
+        {
+          uid: url,
+          name: url.split("/").pop() || "identity-image",
+          rawUrl: url,
+          status: "done",
+          url: toImageUrl(url),
+        },
+      ]
+    : [];
+
 const UserHomePage = () => {
   const [form] = Form.useForm();
   const [repairForm] = Form.useForm();
@@ -112,6 +135,8 @@ const UserHomePage = () => {
   const [contracts, setContracts] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [repairRequests, setRepairRequests] = useState([]);
+  const [identityBackFileList, setIdentityBackFileList] = useState([]);
+  const [identityFrontFileList, setIdentityFrontFileList] = useState([]);
   const [repairImageFileList, setRepairImageFileList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [repairSubmitting, setRepairSubmitting] = useState(false);
@@ -138,6 +163,8 @@ const UserHomePage = () => {
 
   useEffect(() => {
     form.setFieldsValue(user);
+    setIdentityBackFileList(toIdentityFileList(user?.identityBackImage));
+    setIdentityFrontFileList(toIdentityFileList(user?.identityFrontImage));
   }, [form, user]);
 
   const fetchUserData = async () => {
@@ -179,6 +206,27 @@ const UserHomePage = () => {
     } catch (error) {
       message.error(error.response?.data?.message || "Cap nhat that bai");
     }
+  };
+
+  const handleIdentityImageUpload = async ({ file, onError, onSuccess }) => {
+    const formData = new FormData();
+    formData.append("images", file);
+
+    try {
+      const { data } = await http.post("/uploads/identity", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      onSuccess(data);
+    } catch (error) {
+      message.error(error.response?.data?.message || "Upload anh CCCD that bai");
+      onError(error);
+    }
+  };
+
+  const handleIdentityFileChange = (fieldName, setFileList) => ({ fileList }) => {
+    const nextFileList = fileList.slice(-1);
+    setFileList(nextFileList);
+    form.setFieldValue(fieldName, toUploadedImageUrl(nextFileList));
   };
 
   const handleLogout = () => {
@@ -230,6 +278,7 @@ const UserHomePage = () => {
         ? dayjs(request.requestedResolveDate)
         : undefined,
       room: request.room,
+      status: request.status,
       title: request.title,
     });
     setRepairImageFileList(toRepairImageFileList(request.images));
@@ -708,10 +757,38 @@ const UserHomePage = () => {
                           <Input />
                         </Form.Item>
                         <Form.Item name="identityFrontImage" label="Anh mat truoc CCCD">
-                          <Input placeholder="URL hoac duong dan anh" />
+                          <Upload
+                            accept="image/png,image/jpeg,image/webp"
+                            customRequest={handleIdentityImageUpload}
+                            fileList={identityFrontFileList}
+                            listType="picture-card"
+                            maxCount={1}
+                            onChange={handleIdentityFileChange("identityFrontImage", setIdentityFrontFileList)}
+                          >
+                            {identityFrontFileList.length ? null : (
+                              <button type="button" className="upload-card-button">
+                                <UploadOutlined />
+                                <span>Tai anh</span>
+                              </button>
+                            )}
+                          </Upload>
                         </Form.Item>
                         <Form.Item name="identityBackImage" label="Anh mat sau CCCD">
-                          <Input placeholder="URL hoac duong dan anh" />
+                          <Upload
+                            accept="image/png,image/jpeg,image/webp"
+                            customRequest={handleIdentityImageUpload}
+                            fileList={identityBackFileList}
+                            listType="picture-card"
+                            maxCount={1}
+                            onChange={handleIdentityFileChange("identityBackImage", setIdentityBackFileList)}
+                          >
+                            {identityBackFileList.length ? null : (
+                              <button type="button" className="upload-card-button">
+                                <UploadOutlined />
+                                <span>Tai anh</span>
+                              </button>
+                            )}
+                          </Upload>
                         </Form.Item>
                       </div>
                       <Form.Item name="address" label="Dia chi">
@@ -919,6 +996,11 @@ const UserHomePage = () => {
               <Form.Item name="requestedResolveDate" label="Ngay mong muon xu ly">
                 <DatePicker className="full-width-input" format="DD/MM/YYYY" />
               </Form.Item>
+              {editingRepairRequest ? (
+                <Form.Item name="status" label="Trang thai" rules={[{ required: true }]}>
+                  <Select options={repairStatusOptions} />
+                </Form.Item>
+              ) : null}
             </div>
             <Form.Item name="title" label="Tieu de" rules={[{ required: true }]}>
               <Input placeholder="VD: Dieu hoa khong lanh" />
