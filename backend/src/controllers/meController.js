@@ -1,6 +1,7 @@
 const Contract = require("../models/Contract");
 const Invoice = require("../models/Invoice");
 const RepairRequest = require("../models/RepairRequest");
+const Room = require("../models/Room");
 const Tenant = require("../models/Tenant");
 const renderContractHtml = require("../utils/renderContractHtml");
 const { toRepairRequestResponse } = require("./repairRequestController");
@@ -50,6 +51,24 @@ const toTenantResponse = (tenant) => ({
   roomDescription: tenant.room?.description,
   roomStatus: tenant.room?.status,
   roomImages: tenant.room?.images || [],
+});
+
+const toAvailableRoomResponse = (room) => ({
+  id: room._id,
+  roomNumber: room.roomNumber,
+  name: room.name,
+  floor: room.floor,
+  area: room.area,
+  capacity: room.capacity,
+  price: room.price,
+  deposit: room.deposit,
+  electricityPrice: room.electricityPrice,
+  waterPrice: room.waterPrice,
+  serviceFee: room.serviceFee,
+  description: room.description,
+  images: room.images || [],
+  status: room.status,
+  createdAt: room.createdAt,
 });
 
 const toContractResponse = (contract) => ({
@@ -134,6 +153,15 @@ const getMyTenancies = async (req, res, next) => {
       .sort({ status: 1, moveInDate: -1, createdAt: -1 });
 
     res.json(tenancies.map(toTenantResponse));
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getAvailableRooms = async (req, res, next) => {
+  try {
+    const rooms = await Room.find({ status: "available" }).sort({ createdAt: -1 });
+    res.json(rooms.map(toAvailableRoomResponse));
   } catch (error) {
     next(error);
   }
@@ -370,6 +398,7 @@ const getMyContractFile = async (req, res, next) => {
 
 module.exports = {
   deleteMyRepairRequest,
+  getAvailableRooms,
   getMyContractFile,
   getMyContracts,
   getMyInvoiceById,
