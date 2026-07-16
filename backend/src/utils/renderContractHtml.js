@@ -48,6 +48,36 @@ const renderContractHtml = ({ contract, members = [] }) => {
       .toolbar { display: none; }
       .page { box-shadow: none; margin: 0; padding: 18mm; width: auto; }
     }
+      .contract-info {
+    margin: 18px 0 28px;
+    padding: 18px 22px;
+    border: 1px solid #999;
+    border-radius: 6px;
+    background: #fcfcfc;
+}
+
+.info-row {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 12px;
+    line-height: 1.8;
+}
+
+.info-row:last-child {
+    margin-bottom: 0;
+}
+
+.label {
+    width: 220px;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.value {
+    flex: 1;
+    border-bottom: 1px dotted #666;
+    padding-bottom: 2px;
+}
   </style>
 </head>
 <body>
@@ -61,31 +91,73 @@ const renderContractHtml = ({ contract, members = [] }) => {
       <p>-------------------------</p>
     </div>
 
-    <h1>Hop dong thue phong tro</h1>
+    <h1>HỢP ĐỒNG THUÊ PHÒNG</h1>
     <p class="center">Ma hop dong: <strong>${escapeHtml(contract.contractCode)}</strong></p>
-    <p>Hom nay, ngay ${contractCreatedDate.getDate()} thang ${contractCreatedDate.getMonth() + 1} nam ${contractCreatedDate.getFullYear()}, chung toi gom:</p>
+    <p>Hôm nay, ngày ${contractCreatedDate.getDate()} tháng ${contractCreatedDate.getMonth() + 1} năm ${contractCreatedDate.getFullYear()}, chúng tôi gồm:</p>
 
-    <h2>Ben cho thue</h2>
-    <p>Chu nha/Don vi quan ly: <strong>TRO PLUS</strong></p>
-    <p>Dia chi lien he: ........................................................................................................</p>
-    <p>Dien thoai: ...............................................................................................................</p>
+    <h2>Bên cho thuê </h2>
+    <p>Chủ nhà /Đơn vị : <strong>TRO PLUS</strong></p>
+    <p>Địa chỉ liên hệ : Số nhà 123, đường 422b, Hoài Đức Hà Nội</p>
+    <p>Điện thoại: 0985 316 789</p>
 
-    <h2>Ben thue phong</h2>
-    <p>Ho va ten nguoi dai dien: <strong>${escapeHtml(representative.name || "")}</strong></p>
-    <p>So CCCD/CMND: ${escapeHtml(representative.identityNumber || "")}</p>
-    <p>So dien thoai: ${escapeHtml(representative.phone || "")}</p>
+    <h2>Bên thuê phòng</h2>
+    <p>Họ và tên người đại diện: <strong>${escapeHtml(representative.name || "")}</strong></p>
+    <p>Số CCCD/CMND: ${escapeHtml(representative.identityNumber || "")}</p>
+    <p>Số điện thoại: ${escapeHtml(representative.phone || "")}</p>
     <p>Email: ${escapeHtml(representative.email || "")}</p>
 
-    <h2>Thong tin phong va thoi han</h2>
-    <table>
-      <tr><th>Phong</th><td>${escapeHtml(room.roomNumber || "")} - ${escapeHtml(room.name || "")}</td></tr>
-      <tr><th>Tang</th><td>${escapeHtml(room.floor ?? "")}</td></tr>
-      <tr><th>Dien tich</th><td>${escapeHtml(room.area ?? 0)} m2</td></tr>
-      <tr><th>Tong thanh vien</th><td>${escapeHtml(contract.memberCount || members.length || 1)}</td></tr>
-      <tr><th>Ngay vao o</th><td>${formatDate(contract.moveInDate)}</td></tr>
-      <tr><th>Thoi han hop dong</th><td>${escapeHtml(contract.durationMonths)} thang</td></tr>
-      <tr><th>Ngay het han</th><td>${formatDate(contract.endDate)}</td></tr>
-    </table>
+    <h2> THÔNG TIN PHÒNG THUÊ VÀ THỜI HẠN HỢP ĐỒNG</h2>
+
+<div class="contract-info">
+  <div class="info-row">
+    <span class="label">1. Phòng thuê:</span>
+    <span class="value">
+      ${escapeHtml(room.roomNumber || "")} - ${escapeHtml(room.name || "")}
+    </span>
+  </div>
+
+  <div class="info-row">
+    <span class="label">2. Tầng:</span>
+    <span class="value">
+      ${escapeHtml(room.floor ?? "")}
+    </span>
+  </div>
+
+  <div class="info-row">
+    <span class="label">3. Diện tích:</span>
+    <span class="value">
+      ${escapeHtml(room.area ?? 0)} m²
+    </span>
+  </div>
+
+  <div class="info-row">
+    <span class="label">4. Số người ở:</span>
+    <span class="value">
+      ${escapeHtml(contract.memberCount || members.length || 1)} người
+    </span>
+  </div>
+
+  <div class="info-row">
+    <span class="label">5. Ngày bắt đầu thuê:</span>
+    <span class="value">
+      ${formatDate(contract.moveInDate)}
+    </span>
+  </div>
+
+  <div class="info-row">
+    <span class="label">6. Thời hạn hợp đồng:</span>
+    <span class="value">
+      ${escapeHtml(contract.durationMonths)} tháng
+    </span>
+  </div>
+
+  <div class="info-row">
+    <span class="label">7. Ngày hết hạn:</span>
+    <span class="value">
+      ${formatDate(contract.endDate)}
+    </span>
+  </div>
+</div>
 
     <h2>Gia thue va cac khoan phi</h2>
     <table>
@@ -108,21 +180,20 @@ const renderContractHtml = ({ contract, members = [] }) => {
         </tr>
       </thead>
       <tbody>
-        ${
-          members.length
-            ? members
-                .map(
-                  (member, index) => `<tr>
+        ${members.length
+      ? members
+        .map(
+          (member, index) => `<tr>
             <td>${index + 1}</td>
             <td>${escapeHtml(member.user?.name || "")}</td>
             <td>${escapeHtml(member.user?.identityNumber || "")}</td>
             <td>${escapeHtml(member.user?.phone || "")}</td>
             <td>${member.roomRole === "representative" ? "Nguoi dai dien" : "Thanh vien"}</td>
           </tr>`
-                )
-                .join("")
-            : `<tr><td colspan="5">Chua co danh sach thanh vien</td></tr>`
-        }
+        )
+        .join("")
+      : `<tr><td colspan="5">Chua co danh sach thanh vien</td></tr>`
+    }
       </tbody>
     </table>
 
