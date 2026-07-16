@@ -2,6 +2,7 @@ const express = require("express");
 const {
   createMyRepairRequest,
   deleteMyRepairRequest,
+  getAvailableRooms,
   getMyContractFile,
   getMyContracts,
   getMyInvoiceById,
@@ -16,6 +17,7 @@ const { protect } = require("../middlewares/authMiddleware");
 const router = express.Router();
 
 router.get("/tenancies", protect, getMyTenancies);
+router.get("/available-rooms", protect, getAvailableRooms);
 router.get("/contracts", protect, getMyContracts);
 router.get("/contracts/:id/file", protect, getMyContractFile);
 router.get("/invoices", protect, getMyInvoices);

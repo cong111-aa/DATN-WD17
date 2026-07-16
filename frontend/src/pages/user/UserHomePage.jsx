@@ -132,6 +132,7 @@ const UserHomePage = () => {
   const { logout, refreshProfile, user } = useAuth();
   const navigate = useNavigate();
   const [tenancies, setTenancies] = useState([]);
+  const [availableRooms, setAvailableRooms] = useState([]);
   const [contracts, setContracts] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [repairRequests, setRepairRequests] = useState([]);
@@ -140,6 +141,7 @@ const UserHomePage = () => {
   const [repairImageFileList, setRepairImageFileList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [repairSubmitting, setRepairSubmitting] = useState(false);
+  const [detailAvailableRoom, setDetailAvailableRoom] = useState(null);
   const [detailTenancy, setDetailTenancy] = useState(null);
   const [detailContract, setDetailContract] = useState(null);
   const [detailInvoice, setDetailInvoice] = useState(null);
@@ -176,14 +178,17 @@ const UserHomePage = () => {
         { data: contractData },
         { data: invoiceData },
         { data: repairRequestData },
+        { data: availableRoomData },
       ] = await Promise.all([
         http.get("/me/tenancies"),
         http.get("/me/contracts"),
         http.get("/me/invoices"),
         http.get("/me/repair-requests"),
+        http.get("/me/available-rooms"),
       ]);
 
       setTenancies(tenancyData);
+      setAvailableRooms(availableRoomData);
       setContracts(contractData);
       setInvoices(invoiceData);
       setRepairRequests(repairRequestData);
@@ -255,6 +260,10 @@ const UserHomePage = () => {
     } catch (error) {
       message.error(error.response?.data?.message || "Khong tai duoc chi tiet hoa don");
     }
+  };
+
+  const handleInterestedRoom = (room) => {
+    message.info(`Ban quan tam phong ${room.roomNumber}. Vui long lien he admin de duoc ho tro doi phong.`);
   };
 
   const openRepairModal = () => {
@@ -669,6 +678,74 @@ const UserHomePage = () => {
                 ),
               },
               {
+                key: "available-rooms",
+                icon: <HomeOutlined />,
+                label: "Phong con trong",
+                children: (
+                  <Space direction="vertical" size={16} className="page-stack">
+                    <Typography.Text type="secondary">
+                      Cac phong dang o trang thai con trong do admin quan ly.
+                    </Typography.Text>
+                    {availableRooms.length === 0 ? (
+                      <Card>
+                        <Empty description="Hien chua co phong con trong" />
+                      </Card>
+                    ) : (
+                      <div
+                        style={{
+                          display: "grid",
+                          gap: 16,
+                          gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+                        }}
+                      >
+                        {availableRooms.map((room) => (
+                          <Card
+                            key={room.id}
+                            cover={
+                              room.images?.[0] ? (
+                                <img
+                                  alt={`${room.roomNumber} - ${room.name}`}
+                                  src={toImageUrl(room.images[0])}
+                                  style={{ height: 170, objectFit: "cover", width: "100%" }}
+                                />
+                              ) : null
+                            }
+                            actions={[
+                              <Button type="link" onClick={() => setDetailAvailableRoom(room)}>
+                                Chi tiet
+                              </Button>,
+                              <Button type="link" onClick={() => handleInterestedRoom(room)}>
+                                Quan tam
+                              </Button>,
+                            ]}
+                          >
+                            <Space direction="vertical" size={8} className="page-stack">
+                              <Space style={{ justifyContent: "space-between", width: "100%" }}>
+                                <Typography.Text strong>
+                                  {room.roomNumber} - {room.name}
+                                </Typography.Text>
+                                <Tag color="success">Con trong</Tag>
+                              </Space>
+                              <Typography.Title level={4} style={{ margin: 0 }}>
+                                {formatCurrency(room.price)}
+                              </Typography.Title>
+                              <Space wrap>
+                                <Tag>{room.area || 0} m2</Tag>
+                                <Tag>{room.capacity || 0} nguoi</Tag>
+                                <Tag>Tang {room.floor ?? "-"}</Tag>
+                              </Space>
+                              <Typography.Text type="secondary">
+                                Coc {formatCurrency(room.deposit)} - Phi dich vu {formatCurrency(room.serviceFee)}
+                              </Typography.Text>
+                            </Space>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </Space>
+                ),
+              },
+              {
                 key: "contracts",
                 icon: <FileProtectOutlined />,
                 label: "Hop dong",
@@ -807,6 +884,60 @@ const UserHomePage = () => {
             ]}
           />
         </Space>
+
+        <Modal
+          title="Chi tiet phong con trong"
+          open={Boolean(detailAvailableRoom)}
+          onCancel={() => setDetailAvailableRoom(null)}
+          footer={[
+            <Button key="interest" type="primary" onClick={() => handleInterestedRoom(detailAvailableRoom)}>
+              Quan tam phong nay
+            </Button>,
+            <Button key="close" onClick={() => setDetailAvailableRoom(null)}>
+              Dong
+            </Button>,
+          ]}
+          width={840}
+        >
+          {detailAvailableRoom && (
+            <Space direction="vertical" size={16} className="page-stack">
+              {(detailAvailableRoom.images || []).length > 0 && (
+                <Image.PreviewGroup>
+                  <Space wrap>
+                    {detailAvailableRoom.images.map((image) => (
+                      <Image
+                        key={image}
+                        src={toImageUrl(image)}
+                        width={120}
+                        height={86}
+                        style={{ objectFit: "cover", borderRadius: 8 }}
+                      />
+                    ))}
+                  </Space>
+                </Image.PreviewGroup>
+              )}
+              <Descriptions bordered size="small" column={2}>
+                <Descriptions.Item label="Phong">
+                  {detailAvailableRoom.roomNumber} - {detailAvailableRoom.name}
+                </Descriptions.Item>
+                <Descriptions.Item label="Trang thai">
+                  <Tag color="success">Con trong</Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="Tang">{detailAvailableRoom.floor ?? "-"}</Descriptions.Item>
+                <Descriptions.Item label="Dien tich">{detailAvailableRoom.area || 0} m2</Descriptions.Item>
+                <Descriptions.Item label="Suc chua">{detailAvailableRoom.capacity || 0}</Descriptions.Item>
+                <Descriptions.Item label="Gia thue">{formatCurrency(detailAvailableRoom.price)}</Descriptions.Item>
+                <Descriptions.Item label="Tien coc">{formatCurrency(detailAvailableRoom.deposit)}</Descriptions.Item>
+                <Descriptions.Item label="Phi dich vu">{formatCurrency(detailAvailableRoom.serviceFee)}</Descriptions.Item>
+                <Descriptions.Item label="Gia dien">{formatCurrency(detailAvailableRoom.electricityPrice)}</Descriptions.Item>
+                <Descriptions.Item label="Gia nuoc">{formatCurrency(detailAvailableRoom.waterPrice)}</Descriptions.Item>
+                <Descriptions.Item label="Mo ta" span={2}>
+                  {detailAvailableRoom.description || "-"}
+                </Descriptions.Item>
+              </Descriptions>
+            </Space>
+          )}
+        </Modal>
 
         <Modal
           title="Chi tiet phong cua toi"
