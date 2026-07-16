@@ -277,15 +277,14 @@ const updateMyRepairRequest = async (req, res, next) => {
       throw new Error("Repair request not found");
     }
 
-    if (request.status !== "pending") {
-      res.status(400);
-      throw new Error("Only pending repair requests can be updated");
-    }
-
-    const { description, images, priority, requestedResolveDate, room, title } = req.body;
+    const { description, images, priority, requestedResolveDate, room, status, title } = req.body;
 
     if (priority && !["low", "medium", "high", "urgent"].includes(priority)) {
       throw new Error("Invalid priority");
+    }
+
+    if (status && !["pending", "processing", "resolved", "cancelled"].includes(status)) {
+      throw new Error("Invalid status");
     }
 
     if (images !== undefined && !Array.isArray(images)) {
@@ -304,6 +303,7 @@ const updateMyRepairRequest = async (req, res, next) => {
         ? undefined
         : requestedResolveDate ?? request.requestedResolveDate;
     request.room = room ?? request.room;
+    request.status = status ?? request.status;
     request.title = title ?? request.title;
 
     const updatedRequest = await request.save();

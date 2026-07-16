@@ -89,6 +89,13 @@ const repairStatusMeta = {
   cancelled: { color: "default", label: "Da huy" },
 };
 
+const repairStatusOptions = [
+  { label: "Cho xu ly", value: "pending" },
+  { label: "Dang xu ly", value: "processing" },
+  { label: "Da xu ly", value: "resolved" },
+  { label: "Da huy", value: "cancelled" },
+];
+
 const toImageUrl = (url) => (url?.startsWith("http") ? url : `${apiOrigin}${url}`);
 
 const toUploadedImageUrls = (fileList = []) =>
@@ -230,6 +237,7 @@ const UserHomePage = () => {
         ? dayjs(request.requestedResolveDate)
         : undefined,
       room: request.room,
+      status: request.status,
       title: request.title,
     });
     setRepairImageFileList(toRepairImageFileList(request.images));
@@ -919,6 +927,11 @@ const UserHomePage = () => {
               <Form.Item name="requestedResolveDate" label="Ngay mong muon xu ly">
                 <DatePicker className="full-width-input" format="DD/MM/YYYY" />
               </Form.Item>
+              {editingRepairRequest ? (
+                <Form.Item name="status" label="Trang thai" rules={[{ required: true }]}>
+                  <Select options={repairStatusOptions} />
+                </Form.Item>
+              ) : null}
             </div>
             <Form.Item name="title" label="Tieu de" rules={[{ required: true }]}>
               <Input placeholder="VD: Dieu hoa khong lanh" />
