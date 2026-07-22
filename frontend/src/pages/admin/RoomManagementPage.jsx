@@ -44,28 +44,28 @@ const defaultFormValues = {
 };
 
 const statusOptions = [
-  { label: "Con trong", value: "available" },
-  { label: "Dang thue", value: "occupied" },
-  { label: "Bao tri", value: "maintenance" },
+  { label: "Còn trống", value: "available" },
+  { label: "Đang thuê", value: "occupied" },
+  { label: "Bảo trì", value: "maintenance" },
 ];
 
 const statusMeta = {
-  available: { color: "success", label: "Con trong" },
-  occupied: { color: "blue", label: "Dang thue" },
-  maintenance: { color: "warning", label: "Bao tri" },
+  available: { color: "success", label: "Còn trống" },
+  occupied: { color: "blue", label: "Đang thuê" },
+  maintenance: { color: "warning", label: "Bảo trì" },
 };
 
 const tenantStatusMeta = {
-  active: { color: "blue", label: "Dang thue" },
-  inactive: { color: "default", label: "Da ket thuc" },
+  active: { color: "blue", label: "Đang thuê" },
+  inactive: { color: "default", label: "Đã kết thúc" },
 };
 
 const roomRoleMeta = {
-  representative: { color: "gold", label: "Dai dien phong" },
-  member: { color: "green", label: "Nguoi thue phong" },
+  representative: { color: "gold", label: "Đại diện phòng" },
+  member: { color: "green", label: "Người thuê phòng" },
 };
 
-const formatCurrency = (value) => `${Number(value || 0).toLocaleString("vi-VN")} VND`;
+const formatCurrency = (value) => `${Number(value || 0).toLocaleString("vi-VN")} VNĐ`;
 const formatDate = (value) => (value ? new Date(value).toLocaleDateString("vi-VN") : "-");
 
 const apiOrigin = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/api\/?$/, "");
@@ -126,7 +126,7 @@ const RoomManagementPage = () => {
       const { data } = await http.get("/rooms");
       setRooms(data);
     } catch (error) {
-      message.error(error.response?.data?.message || "Khong tai duoc danh sach phong");
+      message.error(error.response?.data?.message || "Không tải được danh sách phòng");
     } finally {
       setLoading(false);
     }
@@ -185,7 +185,7 @@ const RoomManagementPage = () => {
       const { data } = await http.get("/tenants", { params: { room: record.id } });
       setDetailTenants(data);
     } catch (error) {
-      message.error(error.response?.data?.message || "Khong tai duoc danh sach nguoi thue");
+      message.error(error.response?.data?.message || "Không tải được danh sách người thuê");
     } finally {
       setDetailTenantsLoading(false);
     }
@@ -209,16 +209,16 @@ const RoomManagementPage = () => {
 
       if (editingRoom) {
         await http.put(`/rooms/${editingRoom.id}`, payload);
-        message.success("Da cap nhat phong");
+        message.success("Đã cập nhật phòng");
       } else {
         await http.post("/rooms", payload);
-        message.success("Da tao phong");
+        message.success("Đã tạo phòng");
       }
 
       closeModal();
       fetchRooms();
     } catch (error) {
-      message.error(error.response?.data?.message || "Luu phong that bai");
+      message.error(error.response?.data?.message || "Lưu phòng thất bại");
     } finally {
       setSubmitting(false);
     }
@@ -227,10 +227,10 @@ const RoomManagementPage = () => {
   const handleDelete = async (record) => {
     try {
       await http.delete(`/rooms/${record.id}`);
-      message.success("Da xoa phong");
+      message.success("Đã xóa phòng");
       fetchRooms();
     } catch (error) {
-      message.error(error.response?.data?.message || "Xoa phong that bai");
+      message.error(error.response?.data?.message || "Xóa phòng thất bại");
     }
   };
 
@@ -245,7 +245,7 @@ const RoomManagementPage = () => {
       const contract = contracts?.[0];
 
       if (!contract) {
-        message.info("Phong nay chua co hop dong dang hieu luc");
+        message.info("Phòng này chưa có hợp đồng đang hiệu lực");
         return;
       }
 
@@ -256,7 +256,7 @@ const RoomManagementPage = () => {
       const url = URL.createObjectURL(blob);
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (error) {
-      message.error(error.response?.data?.message || "Khong mo duoc hop dong cua phong");
+      message.error(error.response?.data?.message || "Không mở được hợp đồng của phòng");
     }
   };
 
@@ -270,7 +270,7 @@ const RoomManagementPage = () => {
       });
       onSuccess(data);
     } catch (error) {
-      message.error(error.response?.data?.message || "Upload anh that bai");
+      message.error(error.response?.data?.message || "Upload ảnh thất bại");
       onError(error);
     }
   };
@@ -322,18 +322,18 @@ const RoomManagementPage = () => {
         @media (max-width: 1050px) { .room-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } } @media (max-width: 760px) { .room-overview { grid-template-columns:1fr; } .room-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .room-topbar { flex-wrap:wrap; } .room-spacer { display:none; } .room-search { width:100%; order:3; } .room-filters { flex-wrap:wrap; } .room-view { margin-left:0; } } @media (max-width: 480px) { .room-grid { grid-template-columns:1fr; } }
       `}</style>
       <div className="room-topbar">
-        <Input className="room-search" prefix={<SearchOutlined />} placeholder="Tim kiem phong, khach thue..." value={searchText} onChange={(event) => setSearchText(event.target.value)} />
+        <Input className="room-search" prefix={<SearchOutlined />} placeholder="Tìm kiếm phòng, khách thuê..." value={searchText} onChange={(event) => setSearchText(event.target.value)} />
         <div className="room-spacer" />
-        <Button className="room-add" type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>Them Phong</Button>
+        <Button className="room-add" type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>Thêm Phòng</Button>
       </div>
 
       <div className="room-overview">
-        <div className="room-count"><div className="overview-label">TONG SO PHONG</div><div className="overview-number">{roomOverview.total}</div><div className="overview-note">↗ {roomOverview.occupied} phong dang thue</div></div>
+        <div className="room-count"><div className="overview-label">TỔNG SỐ PHÒNG</div><div className="overview-number">{roomOverview.total}</div><div className="overview-note">↗ {roomOverview.occupied} phòng đang thuê</div></div>
       </div>
 
       <div className="room-filters">
-        <Select value={statusFilter} onChange={setStatusFilter} options={[{ label: "Trang thai: Tat ca trang thai", value: "all" }, ...statusOptions.map((option) => ({ ...option, label: `Trang thai: ${option.label}` }))]} />
-        <Select value={sortBy} onChange={setSortBy} options={[{ label: "Sap xep: So phong (Tang dan)", value: "roomNumber" }, { label: "Sap xep: Gia thue", value: "price" }, { label: "Sap xep: Trang thai", value: "status" }]} />
+        <Select value={statusFilter} onChange={setStatusFilter} options={[{ label: "Trạng thái: Tất cả trạng thái", value: "all" }, ...statusOptions.map((option) => ({ ...option, label: `Trạng thái: ${option.label}` }))]} />
+        <Select value={sortBy} onChange={setSortBy} options={[{ label: "Sắp xếp: Số phòng (Tăng dần)", value: "roomNumber" }, { label: "Sắp xếp: Giá thuê", value: "price" }, { label: "Sắp xếp: Trạng thái", value: "status" }]} />
         <div className="room-view"><Button className={display === "grid" ? "active" : ""} icon={<AppstoreOutlined />} onClick={() => setDisplay("grid")} /><Button className={display === "list" ? "active" : ""} icon={<BarsOutlined />} onClick={() => setDisplay("list")} /></div>
       </div>
 
@@ -342,77 +342,77 @@ const RoomManagementPage = () => {
           const meta = statusMeta[room.status] || statusMeta.available;
           const isOccupied = room.status === "occupied";
           return <article className="room-card" key={room.id}>
-            <div className="room-photo">{room.images?.[0] && <img src={toAbsoluteImageUrl(room.images[0])} alt={`Phong ${room.roomNumber}`} />}</div>
+            <div className="room-photo">{room.images?.[0] && <img src={toAbsoluteImageUrl(room.images[0])} alt={`Phòng ${room.roomNumber}`} />}</div>
             <div className="room-card-body"><div className="room-card-title"><strong>P.{room.roomNumber}</strong><Tag color={meta.color}>{meta.label}</Tag><MoreOutlined className="room-menu" /></div>
-              <div className="room-info"><span><UserOutlined />{room.name || (isOccupied ? "Dang co khach thue" : "San sang ngay lap tuc")}</span><span><FileTextOutlined />{formatCurrency(room.price)}</span></div>
+              <div className="room-info"><span><UserOutlined />{room.name || (isOccupied ? "Đang có khách thuê" : "Sẵn sàng ngay lập tức")}</span><span><FileTextOutlined />{formatCurrency(room.price)}</span></div>
               <div className="room-actions">
-                <Button onClick={() => openDetailModal(room)}>Chi tiet</Button>
-                <Button type={isOccupied ? "primary" : "default"} icon={<EditOutlined />} onClick={() => openEditModal(room)}>{isOccupied ? "Cap nhat" : "Chinh sua"}</Button>
-                <Popconfirm title="Xoa phong nay?" description="Khong the xoa phong dang co nguoi thue." okText="Xoa" cancelText="Huy" onConfirm={() => handleDelete(room)} disabled={isOccupied}>
-                  <Button className="room-delete" aria-label={`Xoa phong ${room.roomNumber}`} danger icon={<DeleteOutlined />} disabled={isOccupied} />
+                <Button onClick={() => openDetailModal(room)}>Chi tiết</Button>
+                <Button type={isOccupied ? "primary" : "default"} icon={<EditOutlined />} onClick={() => openEditModal(room)}>{isOccupied ? "Cập nhật" : "Chỉnh sửa"}</Button>
+                <Popconfirm title="Xóa phòng này?" description="Không thể xóa phòng đang có người thuê." okText="Xóa" cancelText="Hủy" onConfirm={() => handleDelete(room)} disabled={isOccupied}>
+                  <Button className="room-delete" aria-label={`Xóa phòng ${room.roomNumber}`} danger icon={<DeleteOutlined />} disabled={isOccupied} />
                 </Popconfirm>
               </div>
             </div>
           </article>;
         })}
-        {!loading && !visibleRooms.length && <div className="room-empty">Khong tim thay phong phu hop.</div>}
+        {!loading && !visibleRooms.length && <div className="room-empty">Không tìm thấy phòng phù hợp.</div>}
         <div className="room-card room-card-add"><Button icon={<PlusOutlined />} onClick={openCreateModal} /></div>
       </div>
 
       <Modal
         className="room-modal"
-        title={<div className="modal-heading"><div className="modal-heading-icon"><PlusOutlined /></div><div className="modal-heading-text"><strong>{editingRoom ? "Chinh sua phong" : "Them phong moi"}</strong><span>{editingRoom ? "Cap nhat thong tin va dich vu cua phong" : "Tao phong va thiet lap thong tin co ban"}</span></div></div>}
+        title={<div className="modal-heading"><div className="modal-heading-icon"><PlusOutlined /></div><div className="modal-heading-text"><strong>{editingRoom ? "Chỉnh sửa phòng" : "Thêm phòng mới"}</strong><span>{editingRoom ? "Cập nhật thông tin và dịch vụ của phòng" : "Tạo phòng và thiết lập thông tin cơ bản"}</span></div></div>}
         open={modalOpen}
         onCancel={closeModal}
         onOk={() => form.submit()}
         confirmLoading={submitting}
-        okText={editingRoom ? "Luu" : "Tao phong"}
-        cancelText="Huy"
+        okText={editingRoom ? "Lưu" : "Tạo phòng"}
+        cancelText="Hủy"
         width={720}
       >
         <Form className="room-form" form={form} layout="vertical" onFinish={handleSubmit}>
-          <div className="modal-section">Thong tin phong</div>
+          <div className="modal-section">Thông tin phòng</div>
           <div className="form-grid">
-            <Form.Item name="roomNumber" label="So phong" rules={[{ required: true }]}>
+            <Form.Item name="roomNumber" label="Số phòng" rules={[{ required: true, message: "Vui lòng nhập số phòng!" }]}>
               <Input placeholder="VD: 101" />
             </Form.Item>
-            <Form.Item name="name" label="Ten phong" rules={[{ required: true }]}>
-              <Input placeholder="VD: Phong 101" />
+            <Form.Item name="name" label="Tên phòng" rules={[{ required: true, message: "Vui lòng nhập tên phòng!" }]}>
+              <Input placeholder="VD: Phòng 101" />
             </Form.Item>
-            <Form.Item name="floor" label="Tang" rules={[{ required: true }]}>
+            <Form.Item name="floor" label="Tầng" rules={[{ required: true, message: "Vui lòng nhập tầng!" }]}>
               <InputNumber min={0} className="full-width-input" />
             </Form.Item>
-            <Form.Item name="area" label="Dien tich">
-              <InputNumber min={0} className="full-width-input" addonAfter="m2" />
+            <Form.Item name="area" label="Diện tích">
+              <InputNumber min={0} className="full-width-input" addonAfter="m²" />
             </Form.Item>
-            <Form.Item name="capacity" label="Suc chua" rules={[{ required: true }]}>
+            <Form.Item name="capacity" label="Sức chứa" rules={[{ required: true, message: "Vui lòng nhập sức chứa!" }]}>
               <InputNumber min={1} className="full-width-input" />
             </Form.Item>
-            <Form.Item name="price" label="Gia thue" rules={[{ required: true }]}>
-              <InputNumber min={0} className="full-width-input" addonAfter="VND" />
+            <Form.Item name="price" label="Giá thuê" rules={[{ required: true, message: "Vui lòng nhập giá thuê!" }]}>
+              <InputNumber min={0} className="full-width-input" addonAfter="VNĐ" />
             </Form.Item>
-            <Form.Item name="deposit" label="Tien coc">
-              <InputNumber min={0} className="full-width-input" addonAfter="VND" />
+            <Form.Item name="deposit" label="Tiền cọc">
+              <InputNumber min={0} className="full-width-input" addonAfter="VNĐ" />
             </Form.Item>
-            <Form.Item name="serviceFee" label="Phi dich vu">
-              <InputNumber min={0} className="full-width-input" addonAfter="VND" />
+            <Form.Item name="serviceFee" label="Phí dịch vụ">
+              <InputNumber min={0} className="full-width-input" addonAfter="VNĐ" />
             </Form.Item>
-            <Form.Item name="electricityPrice" label="Gia dien">
-              <InputNumber min={0} className="full-width-input" addonAfter="VND" />
+            <Form.Item name="electricityPrice" label="Giá điện">
+              <InputNumber min={0} className="full-width-input" addonAfter="VNĐ" />
             </Form.Item>
-            <Form.Item name="waterPrice" label="Gia nuoc">
-              <InputNumber min={0} className="full-width-input" addonAfter="VND" />
+            <Form.Item name="waterPrice" label="Giá nước">
+              <InputNumber min={0} className="full-width-input" addonAfter="VNĐ" />
             </Form.Item>
-            <Form.Item name="status" label="Trang thai" rules={[{ required: true }]}>
+            <Form.Item name="status" label="Trạng thái" rules={[{ required: true, message: "Vui lòng chọn trạng thái!" }]}>
               <Select options={roomStatusOptions} />
             </Form.Item>
           </div>
 
-          <div className="modal-section">Mo ta va hinh anh</div>
-          <Form.Item name="description" label="Mo ta">
+          <div className="modal-section">Mô tả và hình ảnh</div>
+          <Form.Item name="description" label="Mô tả">
             <Input.TextArea rows={3} />
           </Form.Item>
-          <Form.Item label="Anh phong">
+          <Form.Item label="Ảnh phòng">
             <Upload
               accept="image/png,image/jpeg,image/webp"
               customRequest={handleImageUpload}
@@ -427,7 +427,7 @@ const RoomManagementPage = () => {
               {imageFileList.length >= 10 ? null : (
                 <button type="button" className="upload-card-button">
                   <UploadOutlined />
-                  <span>Tai anh</span>
+                  <span>Tải ảnh</span>
                 </button>
               )}
             </Upload>
@@ -437,51 +437,51 @@ const RoomManagementPage = () => {
 
       <Modal
         className="room-modal"
-        title={<div className="modal-heading"><div className="modal-heading-icon"><FileTextOutlined /></div><div className="modal-heading-text"><strong>Chi tiet phong {detailRoom?.roomNumber ? `P.${detailRoom.roomNumber}` : ""}</strong><span>Thong tin phong, dich vu va nguoi thue</span></div></div>}
+        title={<div className="modal-heading"><div className="modal-heading-icon"><FileTextOutlined /></div><div className="modal-heading-text"><strong>Chi tiết phòng {detailRoom?.roomNumber ? `P.${detailRoom.roomNumber}` : ""}</strong><span>Thông tin phòng, dịch vụ và người thuê</span></div></div>}
         open={detailOpen}
         onCancel={() => setDetailOpen(false)}
         footer={[
           <Button key="close" onClick={() => setDetailOpen(false)}>
-            Dong
+            Đóng
           </Button>,
         ]}
         width={820}
       >
         {detailRoom && (
           <Space direction="vertical" size={16} className="page-stack room-detail">
-            <div className="detail-status"><UserOutlined /> {statusMeta[detailRoom.status]?.label || "San sang"} · Tang {detailRoom.floor || "-"} · {detailRoom.area || 0} m2</div>
+            <div className="detail-status"><UserOutlined /> {statusMeta[detailRoom.status]?.label || "Sẵn sàng"} · Tầng {detailRoom.floor || "-"} · {detailRoom.area || 0} m²</div>
             <Descriptions bordered size="small" column={2}>
-              <Descriptions.Item label="So phong">{detailRoom.roomNumber}</Descriptions.Item>
-              <Descriptions.Item label="Ten phong">{detailRoom.name}</Descriptions.Item>
-              <Descriptions.Item label="Tang">{detailRoom.floor}</Descriptions.Item>
-              <Descriptions.Item label="Dien tich">{detailRoom.area || 0} m2</Descriptions.Item>
-              <Descriptions.Item label="Suc chua">{detailRoom.capacity}</Descriptions.Item>
-              <Descriptions.Item label="Trang thai">
+              <Descriptions.Item label="Số phòng">{detailRoom.roomNumber}</Descriptions.Item>
+              <Descriptions.Item label="Tên phòng">{detailRoom.name}</Descriptions.Item>
+              <Descriptions.Item label="Tầng">{detailRoom.floor}</Descriptions.Item>
+              <Descriptions.Item label="Diện tích">{detailRoom.area || 0} m²</Descriptions.Item>
+              <Descriptions.Item label="Sức chứa">{detailRoom.capacity}</Descriptions.Item>
+              <Descriptions.Item label="Trạng thái">
                 <Tag color={statusMeta[detailRoom.status]?.color}>
                   {statusMeta[detailRoom.status]?.label}
                 </Tag>
               </Descriptions.Item>
             </Descriptions>
 
-            <Divider orientation="left">Gia va dich vu</Divider>
+            <Divider orientation="left">Giá và dịch vụ</Divider>
             <Descriptions bordered size="small" column={2}>
-              <Descriptions.Item label="Gia thue">{formatCurrency(detailRoom.price)}</Descriptions.Item>
-              <Descriptions.Item label="Tien coc">{formatCurrency(detailRoom.deposit)}</Descriptions.Item>
-              <Descriptions.Item label="Gia dien">{formatCurrency(detailRoom.electricityPrice)}</Descriptions.Item>
-              <Descriptions.Item label="Gia nuoc">{formatCurrency(detailRoom.waterPrice)}</Descriptions.Item>
-              <Descriptions.Item label="Phi dich vu">{formatCurrency(detailRoom.serviceFee)}</Descriptions.Item>
+              <Descriptions.Item label="Giá thuê">{formatCurrency(detailRoom.price)}</Descriptions.Item>
+              <Descriptions.Item label="Tiền cọc">{formatCurrency(detailRoom.deposit)}</Descriptions.Item>
+              <Descriptions.Item label="Giá điện">{formatCurrency(detailRoom.electricityPrice)}</Descriptions.Item>
+              <Descriptions.Item label="Giá nước">{formatCurrency(detailRoom.waterPrice)}</Descriptions.Item>
+              <Descriptions.Item label="Phí dịch vụ">{formatCurrency(detailRoom.serviceFee)}</Descriptions.Item>
             </Descriptions>
 
             <Descriptions bordered size="small" column={1}>
-              <Descriptions.Item label="Mo ta">{detailRoom.description || "-"}</Descriptions.Item>
+              <Descriptions.Item label="Mô tả">{detailRoom.description || "-"}</Descriptions.Item>
             </Descriptions>
 
-            <Divider orientation="left">Nguoi thue phong</Divider>
+            <Divider orientation="left">Người thuê phòng</Divider>
             <List
               bordered
               dataSource={detailTenants}
               loading={detailTenantsLoading}
-              locale={{ emptyText: "Chua co nguoi thue trong phong" }}
+              locale={{ emptyText: "Chưa có người thuê trong phòng" }}
               renderItem={(tenant) => {
                 const roleMeta = roomRoleMeta[tenant.roomRole] || roomRoleMeta.member;
                 const tenantMeta = tenantStatusMeta[tenant.status] || tenantStatusMeta.active;
@@ -495,7 +495,7 @@ const RoomManagementPage = () => {
                         <Tag color={tenantMeta.color}>{tenantMeta.label}</Tag>
                       </Space>
                       <Typography.Text type="secondary">
-                        {tenant.userPhone || tenant.userEmail || "-"} | Vao: {formatDate(tenant.moveInDate)} | Roi:{" "}
+                        {tenant.userPhone || tenant.userEmail || "-"} | Vào: {formatDate(tenant.moveInDate)} | Rời:{" "}
                         {formatDate(tenant.moveOutDate)}
                       </Typography.Text>
                     </Space>
@@ -504,7 +504,7 @@ const RoomManagementPage = () => {
               }}
             />
 
-            <Divider orientation="left">Anh phong</Divider>
+            <Divider orientation="left">Ảnh phòng</Divider>
             {detailRoom.images?.length ? (
               <Image.PreviewGroup>
                 <Space wrap>
@@ -520,13 +520,13 @@ const RoomManagementPage = () => {
                 </Space>
               </Image.PreviewGroup>
             ) : (
-              <Typography.Text type="secondary">Chua co anh phong</Typography.Text>
+              <Typography.Text type="secondary">Chưa có ảnh phòng</Typography.Text>
             )}
 
-            <Divider orientation="left">Thoi gian</Divider>
+            <Divider orientation="left">Thời gian</Divider>
             <Descriptions bordered size="small" column={2}>
-              <Descriptions.Item label="Ngay tao">{formatDate(detailRoom.createdAt)}</Descriptions.Item>
-              <Descriptions.Item label="Ngay cap nhat">{formatDate(detailRoom.updatedAt)}</Descriptions.Item>
+              <Descriptions.Item label="Ngày tạo">{formatDate(detailRoom.createdAt)}</Descriptions.Item>
+              <Descriptions.Item label="Ngày cập nhật">{formatDate(detailRoom.updatedAt)}</Descriptions.Item>
             </Descriptions>
           </Space>
         )}

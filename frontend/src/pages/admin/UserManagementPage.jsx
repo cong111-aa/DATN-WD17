@@ -52,24 +52,24 @@ const toUploadedImageUrl = (fileList = []) =>
 const toIdentityFileList = (url) =>
   url
     ? [
-        {
-          uid: url,
-          name: url.split("/").pop() || "identity-image",
-          rawUrl: url,
-          status: "done",
-          url: toImageUrl(url),
-        },
-      ]
+      {
+        uid: url,
+        name: url.split("/").pop() || "identity-image",
+        rawUrl: url,
+        status: "done",
+        url: toImageUrl(url),
+      },
+    ]
     : [];
 
 const roleOptions = [
   { label: "Admin", value: "admin" },
-  { label: "Nguoi dung", value: "user" },
+  { label: "Người dùng", value: "user" },
 ];
 
 const statusOptions = [
-  { label: "Hoat dong", value: "active" },
-  { label: "Da khoa", value: "inactive" },
+  { label: "Hoạt động", value: "active" },
+  { label: "Đã khóa", value: "inactive" },
 ];
 
 const panelStyle = {
@@ -162,7 +162,7 @@ const UserManagementPage = () => {
       const { data } = await http.get("/users");
       setUsers(data);
     } catch (error) {
-      message.error(error.response?.data?.message || "Khong tai duoc danh sach tai khoan");
+      message.error(error.response?.data?.message || "Không tải được danh sách tài khoản");
     } finally {
       setLoading(false);
     }
@@ -211,7 +211,7 @@ const UserManagementPage = () => {
       });
       onSuccess(data);
     } catch (error) {
-      message.error(error.response?.data?.message || "Upload anh CCCD that bai");
+      message.error(error.response?.data?.message || "Tải ảnh CCCD thất bại");
       onError(error);
     }
   };
@@ -234,16 +234,16 @@ const UserManagementPage = () => {
     try {
       if (editingUser) {
         await http.put(`/users/${editingUser.id}`, payload);
-        message.success("Da cap nhat tai khoan");
+        message.success("Đã cập nhật tài khoản");
       } else {
         await http.post("/users", payload);
-        message.success("Da tao tai khoan");
+        message.success("Đã tạo tài khoản");
       }
 
       closeModal();
       fetchUsers();
     } catch (error) {
-      message.error(error.response?.data?.message || "Luu tai khoan that bai");
+      message.error(error.response?.data?.message || "Lưu tài khoản thất bại");
     } finally {
       setSubmitting(false);
     }
@@ -254,20 +254,20 @@ const UserManagementPage = () => {
 
     try {
       await http.patch(`/users/${record.id}/status`, { status: nextStatus });
-      message.success(nextStatus === "active" ? "Da mo khoa tai khoan" : "Da khoa tai khoan");
+      message.success(nextStatus === "active" ? "Đã mở khóa tài khoản" : "Đã khóa tài khoản");
       fetchUsers();
     } catch (error) {
-      message.error(error.response?.data?.message || "Cap nhat trang thai that bai");
+      message.error(error.response?.data?.message || "Cập nhật trạng thái thất bại");
     }
   };
 
   const handleDelete = async (record) => {
     try {
       await http.delete(`/users/${record.id}`);
-      message.success("Da xoa tai khoan");
+      message.success("Đã xóa tài khoản");
       fetchUsers();
     } catch (error) {
-      message.error(error.response?.data?.message || "Xoa tai khoan that bai");
+      message.error(error.response?.data?.message || "Xóa tài khoản thất bại");
     }
   };
 
@@ -280,7 +280,7 @@ const UserManagementPage = () => {
   const columns = useMemo(
     () => [
       {
-        title: "HO TEN",
+        title: "HỌ TÊN",
         dataIndex: "name",
         key: "name",
         width: 260,
@@ -301,11 +301,11 @@ const UserManagementPage = () => {
             </Avatar>
             <div>
               <Typography.Text strong style={{ color: "#334155" }}>
-                {value || "Chua cap nhat"}
+                {value || "Chưa cập nhật"}
               </Typography.Text>
               <br />
               <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                {record.identityNumber || "Chua co CCCD/CMND"}
+                {record.identityNumber || "Chưa có CCCD/CMND"}
               </Typography.Text>
             </div>
           </Space>
@@ -319,7 +319,7 @@ const UserManagementPage = () => {
         render: (value) => <Typography.Text style={{ color: "#475569" }}>{value || "-"}</Typography.Text>,
       },
       {
-        title: "SDT",
+        title: "SĐT",
         dataIndex: "phone",
         key: "phone",
         width: 150,
@@ -331,7 +331,7 @@ const UserManagementPage = () => {
           ),
       },
       {
-        title: "VAI TRO",
+        title: "VAI TRÒ",
         dataIndex: "role",
         key: "role",
         width: 150,
@@ -346,12 +346,12 @@ const UserManagementPage = () => {
               padding: "3px 10px",
             }}
           >
-            {role === "admin" ? "Admin" : "Nguoi dung"}
+            {role === "admin" ? "Admin" : "Người dùng"}
           </Tag>
         ),
       },
       {
-        title: "TRANG THAI",
+        title: "TRẠNG THÁI",
         dataIndex: "status",
         key: "status",
         width: 160,
@@ -367,12 +367,12 @@ const UserManagementPage = () => {
               padding: "3px 10px",
             }}
           >
-            {status === "active" ? "Hoat dong" : "Da khoa"}
+            {status === "active" ? "Hoạt động" : "Đã khóa"}
           </Tag>
         ),
       },
       {
-        title: "NGAY TAO",
+        title: "NGÀY TẠO",
         dataIndex: "createdAt",
         key: "createdAt",
         width: 150,
@@ -383,7 +383,7 @@ const UserManagementPage = () => {
         ),
       },
       {
-        title: "THAO TAC",
+        title: "THAO TÁC",
         key: "actions",
         fixed: "right",
         align: "center",
@@ -394,7 +394,7 @@ const UserManagementPage = () => {
 
           return (
             <Space size={8}>
-              <Tooltip title="Sua tai khoan">
+              <Tooltip title="Sửa tài khoản">
                 <Button
                   size="small"
                   icon={<EditOutlined />}
@@ -402,7 +402,7 @@ const UserManagementPage = () => {
                   style={{ borderRadius: 8, height: 32, width: 32 }}
                 />
               </Tooltip>
-              <Tooltip title={isActive ? "Khoa tai khoan" : "Mo khoa tai khoan"}>
+              <Tooltip title={isActive ? "Khóa tài khoản" : "Mở khóa tài khoản"}>
                 <Button
                   size="small"
                   icon={isActive ? <LockOutlined /> : <UnlockOutlined />}
@@ -412,14 +412,14 @@ const UserManagementPage = () => {
                 />
               </Tooltip>
               <Popconfirm
-                title="Xoa tai khoan nay?"
-                description="Hanh dong nay khong the hoan tac."
-                okText="Xoa"
-                cancelText="Huy"
+                title="Xóa tài khoản này?"
+                description="Hành động này không thể hoàn tác."
+                okText="Xóa"
+                cancelText="Hủy"
                 onConfirm={() => handleDelete(record)}
                 disabled={isSelf}
               >
-                <Tooltip title="Xoa tai khoan">
+                <Tooltip title="Xóa tài khoản">
                   <Button
                     danger
                     size="small"
@@ -443,20 +443,20 @@ const UserManagementPage = () => {
         <Row gutter={[18, 18]} align="middle" justify="space-between">
           <Col xs={24} lg={15}>
             <Typography.Text style={{ color: "rgba(255,255,255,0.78)", fontSize: 12, fontWeight: 800 }}>
-              TRO PLUS ADMIN
+              TRỌ PLUS ADMIN
             </Typography.Text>
             <Typography.Title level={2} style={{ color: "#ffffff", margin: "6px 0 8px", fontSize: 30 }}>
-              Quan ly tai khoan
+              Quản lý tài khoản
             </Typography.Title>
             <Typography.Paragraph style={{ color: "rgba(255,255,255,0.86)", marginBottom: 16, maxWidth: 620 }}>
-              Tao, cap nhat, khoa hoac xoa tai khoan trong he thong.
+              Tạo, cập nhật, khóa hoặc xóa tài khoản trong hệ thống.
             </Typography.Paragraph>
             <Space wrap>
               <Tag bordered={false} style={{ background: "rgba(255,255,255,0.18)", borderRadius: 999, color: "#ffffff", fontWeight: 800, padding: "4px 14px" }}>
-                {userStats.total} tai khoan
+                {userStats.total} tài khoản
               </Tag>
               <Tag bordered={false} style={{ background: "rgba(255,255,255,0.18)", borderRadius: 999, color: "#ffffff", fontWeight: 800, padding: "4px 14px" }}>
-                {userStats.active} dang hoat dong
+                {userStats.active} đang hoạt động
               </Tag>
               <Tag bordered={false} style={{ background: "rgba(255,255,255,0.18)", borderRadius: 999, color: "#ffffff", fontWeight: 800, padding: "4px 14px" }}>
                 {userStats.admins} admin
@@ -466,7 +466,7 @@ const UserManagementPage = () => {
           <Col xs={24} lg={9}>
             <Space wrap style={{ marginTop: 8, width: "100%", justifyContent: "flex-start" }}>
               <Button icon={<ReloadOutlined />} onClick={fetchUsers} style={{ borderRadius: 8, fontWeight: 700, height: 40 }}>
-                Tai lai
+                Tải lại
               </Button>
               <Button
                 type="primary"
@@ -481,7 +481,7 @@ const UserManagementPage = () => {
                   height: 40,
                 }}
               >
-                Them tai khoan
+                Thêm tài khoản
               </Button>
             </Space>
           </Col>
@@ -497,11 +497,11 @@ const UserManagementPage = () => {
               </div>
               <div>
                 <Typography.Text strong style={sectionTitleStyle}>
-                  Bo loc tai khoan
+                  Bộ lọc tài khoản
                 </Typography.Text>
                 <br />
                 <Typography.Text style={mutedTextStyle}>
-                  Loc nhanh theo thong tin, vai tro va trang thai
+                  Lọc nhanh theo thông tin, vai trò và trạng thái
                 </Typography.Text>
               </div>
             </Space>
@@ -512,7 +512,7 @@ const UserManagementPage = () => {
                 <Input
                   allowClear
                   prefix={<SearchOutlined />}
-                  placeholder="Tim ten, email, SDT hoac CCCD"
+                  placeholder="Tìm tên, email, SĐT hoặc CCCD"
                   style={toolbarInputStyle}
                   value={searchText}
                   onChange={(event) => setSearchText(event.target.value)}
@@ -523,7 +523,7 @@ const UserManagementPage = () => {
                   value={roleFilter}
                   style={{ ...toolbarInputStyle, width: "100%" }}
                   onChange={setRoleFilter}
-                  options={[{ label: "Tat ca vai tro", value: "all" }, ...roleOptions]}
+                  options={[{ label: "Tất cả vai trò", value: "all" }, ...roleOptions]}
                 />
               </Col>
               <Col xs={12} md={5}>
@@ -531,12 +531,12 @@ const UserManagementPage = () => {
                   value={statusFilter}
                   style={{ ...toolbarInputStyle, width: "100%" }}
                   onChange={setStatusFilter}
-                  options={[{ label: "Tat ca trang thai", value: "all" }, ...statusOptions]}
+                  options={[{ label: "Tất cả trạng thái", value: "all" }, ...statusOptions]}
                 />
               </Col>
               <Col xs={24} md={5}>
                 <Button block icon={<ReloadOutlined />} onClick={resetFilters} style={{ ...toolbarInputStyle, background: "#f3f6fb", borderColor: "#f3f6fb", fontWeight: 700 }}>
-                  Dat lai
+                  Đặt lại
                 </Button>
               </Col>
             </Row>
@@ -552,18 +552,18 @@ const UserManagementPage = () => {
             </div>
             <div>
               <Typography.Text strong style={sectionTitleStyle}>
-                Danh sach tai khoan
+                Danh sách tài khoản
               </Typography.Text>
               <br />
               <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                Quan ly thong tin va quyen truy cap nguoi dung
+                Quản lý thông tin và quyền truy cập người dùng
               </Typography.Text>
             </div>
           </Space>
         }
         extra={
           <Tag bordered={false} style={{ background: "#f5edff", borderRadius: 999, color: "#7c3aed", fontWeight: 800, padding: "5px 12px" }}>
-            Hien thi {filteredUsers.length}/{users.length}
+            Hiển thị {filteredUsers.length}/{users.length}
           </Tag>
         }
         style={{ ...panelStyle, overflow: "hidden" }}
@@ -580,13 +580,13 @@ const UserManagementPage = () => {
           size="middle"
           rowClassName={() => "user-management-row"}
           locale={{
-            emptyText: <Empty description="Khong co tai khoan phu hop" />,
+            emptyText: <Empty description="Không có tài khoản phù hợp" />,
           }}
           scroll={{ x: 1180 }}
           pagination={{
             pageSize: 8,
             showSizeChanger: false,
-            showTotal: (total) => `${total} tai khoan`,
+            showTotal: (total) => `${total} tài khoản`,
           }}
         />
       </Card>
@@ -600,10 +600,10 @@ const UserManagementPage = () => {
               icon={<UserOutlined />}
             />
             <div>
-              <Typography.Text strong>{editingUser ? "Sua tai khoan" : "Them tai khoan"}</Typography.Text>
+              <Typography.Text strong>{editingUser ? "Sửa tài khoản" : "Thêm tài khoản"}</Typography.Text>
               <br />
               <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                {editingUser ? editingUser.email : "Tao nguoi dung moi cho he thong"}
+                {editingUser ? editingUser.email : "Tạo người dùng mới cho hệ thống"}
               </Typography.Text>
             </div>
           </Space>
@@ -612,26 +612,26 @@ const UserManagementPage = () => {
         onCancel={closeModal}
         onOk={() => form.submit()}
         confirmLoading={submitting}
-        okText={editingUser ? "Luu" : "Tao tai khoan"}
-        cancelText="Huy"
+        okText={editingUser ? "Lưu" : "Tạo tài khoản"}
+        cancelText="Hủy"
         width={720}
       >
         <Alert
           showIcon
           type="info"
-          message={editingUser ? "Cap nhat thong tin tai khoan" : "Nhap thong tin de tao tai khoan moi"}
+          message={editingUser ? "Cập nhật thông tin tài khoản" : "Nhập thông tin để tạo tài khoản mới"}
           style={{ marginBottom: 18, borderRadius: 8 }}
         />
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
           <Space>
             <SafetyCertificateOutlined style={{ color: "#1677ff" }} />
-            <Typography.Text strong>Thong tin dang nhap</Typography.Text>
+            <Typography.Text strong>Thông tin đăng nhập</Typography.Text>
           </Space>
           <Divider style={{ margin: "12px 0 16px" }} />
           <Row gutter={16}>
             <Col xs={24} md={12}>
-              <Form.Item name="name" label="Ho ten" rules={[{ required: true }]}>
-                <Input placeholder="Nhap ho ten" />
+              <Form.Item name="name" label="Họ tên" rules={[{ required: true }]}>
+                <Input placeholder="Nhập họ tên" />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
@@ -642,19 +642,19 @@ const UserManagementPage = () => {
             <Col xs={24} md={12}>
               <Form.Item
                 name="password"
-                label={editingUser ? "Mat khau moi" : "Mat khau"}
+                label={editingUser ? "Mật khẩu mới" : "Mật khẩu"}
                 rules={editingUser ? [] : [{ required: true }, { min: 6 }]}
               >
-                <Input.Password placeholder={editingUser ? "De trong neu khong doi" : "Toi thieu 6 ky tu"} />
+                <Input.Password placeholder={editingUser ? "Để trống nếu không đổi" : "Tối thiểu 6 ký tự"} />
               </Form.Item>
             </Col>
             <Col xs={24} md={6}>
-              <Form.Item name="role" label="Vai tro" rules={[{ required: true }]}>
+              <Form.Item name="role" label="Vai trò" rules={[{ required: true }]}>
                 <Select options={roleOptions} />
               </Form.Item>
             </Col>
             <Col xs={24} md={6}>
-              <Form.Item name="status" label="Trang thai" rules={[{ required: true }]}>
+              <Form.Item name="status" label="Trạng thái" rules={[{ required: true }]}>
                 <Select options={statusOptions} />
               </Form.Item>
             </Col>
@@ -662,19 +662,19 @@ const UserManagementPage = () => {
 
           <Space>
             <IdcardOutlined style={{ color: "#0f766e" }} />
-            <Typography.Text strong>Thong tin ca nhan</Typography.Text>
+            <Typography.Text strong>Thông tin cá nhân</Typography.Text>
           </Space>
           <Divider style={{ margin: "12px 0 16px" }} />
           <div className="form-grid">
-            <Form.Item name="phone" label="So dien thoai">
-              <Input placeholder="Nhap so dien thoai" />
+            <Form.Item name="phone" label="Số điện thoại">
+              <Input placeholder="Nhập số điện thoại" />
             </Form.Item>
-            <Form.Item name="identityNumber" label="So CCCD/CMND">
-              <Input placeholder="Nhap so dinh danh" />
+            <Form.Item name="identityNumber" label="Số CCCD/CMND">
+              <Input placeholder="Nhập số định danh" />
             </Form.Item>
           </div>
           <div className="form-grid">
-            <Form.Item name="identityFrontImage" label="Anh mat truoc CCCD">
+            <Form.Item name="identityFrontImage" label="Ảnh mặt trước CCCD">
               <Upload
                 accept="image/png,image/jpeg,image/webp"
                 customRequest={handleIdentityImageUpload}
@@ -686,12 +686,12 @@ const UserManagementPage = () => {
                 {identityFrontFileList.length ? null : (
                   <button type="button" className="upload-card-button">
                     <UploadOutlined />
-                    <span>Tai anh</span>
+                    <span>Tải ảnh</span>
                   </button>
                 )}
               </Upload>
             </Form.Item>
-            <Form.Item name="identityBackImage" label="Anh mat sau CCCD">
+            <Form.Item name="identityBackImage" label="Ảnh mặt sau CCCD">
               <Upload
                 accept="image/png,image/jpeg,image/webp"
                 customRequest={handleIdentityImageUpload}
@@ -703,14 +703,14 @@ const UserManagementPage = () => {
                 {identityBackFileList.length ? null : (
                   <button type="button" className="upload-card-button">
                     <UploadOutlined />
-                    <span>Tai anh</span>
+                    <span>Tải ảnh</span>
                   </button>
                 )}
               </Upload>
             </Form.Item>
           </div>
-          <Form.Item name="address" label="Dia chi">
-            <Input.TextArea rows={3} />
+          <Form.Item name="address" label="Địa chỉ">
+            <Input.TextArea rows={3} placeholder="Nhập địa chỉ" />
           </Form.Item>
         </Form>
       </Modal>

@@ -23,7 +23,7 @@ const compactCurrencyFormatter = (value) => {
   const amount = Number(value || 0);
 
   if (amount >= 1000000000) {
-    return `${(amount / 1000000000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} ty`;
+    return `${(amount / 1000000000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} tỷ`;
   }
 
   if (amount >= 1000000) {
@@ -35,10 +35,10 @@ const compactCurrencyFormatter = (value) => {
 const formatDate = (value) => (value ? new Date(value).toLocaleDateString("vi-VN") : "-");
 
 const invoiceStatusMeta = {
-  overdue: { color: "error", label: "Qua han" },
-  paid: { color: "success", label: "Da thanh toan" },
-  partial: { color: "warning", label: "Thanh toan mot phan" },
-  unpaid: { color: "default", label: "Chua thanh toan" },
+  overdue: { color: "error", label: "Quá hạn" },
+  paid: { color: "success", label: "Đã thanh toán" },
+  partial: { color: "warning", label: "Thanh toán một phần" },
+  unpaid: { color: "default", label: "Chưa thanh toán" },
 };
 
 const metricCardStyle = {
@@ -59,7 +59,7 @@ const AdminDashboardPage = () => {
       const { data } = await http.get("/dashboard/admin", { params: { year } });
       setDashboard(data);
     } catch (error) {
-      message.error(error.response?.data?.message || "Khong tai duoc du lieu tong quan");
+      message.error(error.response?.data?.message || "Không tải được dữ liệu tổng quan");
     } finally {
       setLoading(false);
     }
@@ -115,7 +115,7 @@ const AdminDashboardPage = () => {
 
   const expiringContractColumns = [
     {
-      title: "Hop dong",
+      title: "Hợp đồng",
       dataIndex: "contractCode",
       key: "contractCode",
       render: (value, record) => (
@@ -128,13 +128,13 @@ const AdminDashboardPage = () => {
       ),
     },
     {
-      title: "Khach thue",
+      title: "Khách thuê",
       dataIndex: "tenantName",
       key: "tenantName",
       render: (value) => value || "-",
     },
     {
-      title: "Het han",
+      title: "Hết hạn",
       dataIndex: "endDate",
       key: "endDate",
       render: (value) => <Typography.Text type="warning">{formatDate(value)}</Typography.Text>,
@@ -145,49 +145,49 @@ const AdminDashboardPage = () => {
     <Space direction="vertical" size={16} className="page-stack">
       <div className="page-toolbar">
         <div className="page-title">
-          <Typography.Title level={3}>Tong quan</Typography.Title>
+          <Typography.Title level={3}>Tổng quan</Typography.Title>
           <Typography.Text type="secondary">
-            Bao cao nhanh ve phong, doanh thu, hoa don va hop dong.
+            Báo cáo nhanh về phòng, doanh thu, hóa đơn và hợp đồng.
           </Typography.Text>
         </div>
         <Button icon={<ReloadOutlined />} onClick={() => fetchDashboard(selectedYear)} loading={loading}>
-          Tai lai
+          Tải lại
         </Button>
       </div>
 
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} xl={6}>
           <Card loading={loading} style={metricCardStyle}>
-            <Statistic title="Tong so phong" value={dashboard?.rooms?.total || 0} prefix={<HomeOutlined />} />
+            <Statistic title="Tổng số phòng" value={dashboard?.rooms?.total || 0} prefix={<HomeOutlined />} />
             <Typography.Text type="secondary">
-              {dashboard?.rooms?.occupied || 0} dang thue, {dashboard?.rooms?.maintenance || 0} bao tri
+              {dashboard?.rooms?.occupied || 0} đang thuê, {dashboard?.rooms?.maintenance || 0} bảo trì
             </Typography.Text>
           </Card>
         </Col>
         <Col xs={24} sm={12} xl={6}>
           <Card loading={loading} style={metricCardStyle}>
-            <Statistic title="Phong con trong" value={dashboard?.rooms?.available || 0} prefix={<HomeOutlined />} />
+            <Statistic title="Phòng còn trống" value={dashboard?.rooms?.available || 0} prefix={<HomeOutlined />} />
             <Progress percent={occupancyPercent} size="small" strokeColor="#0f766e" />
           </Card>
         </Col>
         <Col xs={24} sm={12} xl={6}>
           <Card loading={loading} style={metricCardStyle}>
-            <Statistic title="Ti le lap day" value={occupancyPercent} suffix="%" prefix={<ArrowUpOutlined />} />
+            <Statistic title="Tỷ lệ lấp đầy" value={occupancyPercent} suffix="%" prefix={<ArrowUpOutlined />} />
             <Typography.Text type="secondary">
-              Tinh theo phong dang thue / tong phong
+              Tính theo phòng đang thuê / tổng phòng
             </Typography.Text>
           </Card>
         </Col>
         <Col xs={24} sm={12} xl={6}>
           <Card loading={loading} style={metricCardStyle}>
             <Statistic
-              title={`Doanh thu thang ${dashboard?.period?.month || new Date().getMonth() + 1}`}
+              title={`Doanh thu tháng ${dashboard?.period?.month || new Date().getMonth() + 1}`}
               value={currentMonthRevenue}
               formatter={currencyFormatter}
               prefix={<WalletOutlined />}
             />
             {currentMonthGrowth === null ? (
-              <Typography.Text type="secondary">Chua co moc so sanh</Typography.Text>
+              <Typography.Text type="secondary">Chưa có mốc so sánh</Typography.Text>
             ) : (
               <Tag color={currentMonthGrowth >= 0 ? "success" : "error"}>
                 {currentMonthGrowth >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />} {Math.abs(currentMonthGrowth)}%
@@ -198,13 +198,13 @@ const AdminDashboardPage = () => {
         <Col xs={24} sm={12} xl={6}>
           <Card loading={loading} style={metricCardStyle}>
             <Statistic
-              title={`Loi nhuan thang ${dashboard?.period?.month || new Date().getMonth() + 1}`}
+              title={`Lợi nhuận tháng ${dashboard?.period?.month || new Date().getMonth() + 1}`}
               value={currentMonthProfit}
               formatter={currencyFormatter}
               prefix={<DollarOutlined />}
               valueStyle={{ color: Number(currentMonthProfit || 0) >= 0 ? "#0f766e" : "#dc2626" }}
             />
-            <Typography.Text type="secondary">Doanh thu da thu - chi phi da chi</Typography.Text>
+            <Typography.Text type="secondary">Doanh thu đã thu - chi phí đã chi</Typography.Text>
           </Card>
         </Col>
       </Row>
@@ -213,9 +213,9 @@ const AdminDashboardPage = () => {
         loading={loading}
         title={
           <Space direction="vertical" size={0}>
-            <Typography.Text strong>Doanh thu theo thang</Typography.Text>
+            <Typography.Text strong>Doanh thu theo tháng</Typography.Text>
             <Typography.Text type="secondary">
-              Nam {selectedYear}: thu {currencyFormatter(dashboard?.revenue?.yearlyCollectedAmount || 0)} - loi nhuan{" "}
+              Năm {selectedYear}: thu {currencyFormatter(dashboard?.revenue?.yearlyCollectedAmount || 0)} - lợi nhuận{" "}
               {currencyFormatter(dashboard?.revenue?.yearlyProfitAmount || 0)}
             </Typography.Text>
           </Space>
@@ -230,9 +230,9 @@ const AdminDashboardPage = () => {
         }
       >
         <Space wrap size={8}>
-          <Tag color="blue">Doanh thu da thu</Tag>
-          <Tag color="success">Loi nhuan duong</Tag>
-          <Tag color="error">Loi nhuan am</Tag>
+          <Tag color="blue">Doanh thu đã thu</Tag>
+          <Tag color="success">Lợi nhuận dương</Tag>
+          <Tag color="error">Lợi nhuận âm</Tag>
         </Space>
         <div
           style={{
@@ -267,7 +267,7 @@ const AdminDashboardPage = () => {
                   }}
                 >
                   <div
-                    title={`Doanh thu thang ${item.month}: ${currencyFormatter(item.collectedAmount)}`}
+                    title={`Doanh thu tháng ${item.month}: ${currencyFormatter(item.collectedAmount)}`}
                     style={{
                       background: isCurrentMonth ? "#0f766e" : "#1677ff",
                       borderRadius: "6px 6px 2px 2px",
@@ -277,7 +277,7 @@ const AdminDashboardPage = () => {
                     }}
                   />
                   <div
-                    title={`Loi nhuan thang ${item.month}: ${currencyFormatter(item.profitAmount)}`}
+                    title={`Lợi nhuận tháng ${item.month}: ${currencyFormatter(item.profitAmount)}`}
                     style={{
                       background: Number(item.profitAmount || 0) >= 0 ? "#16a34a" : "#dc2626",
                       borderRadius: "6px 6px 2px 2px",
@@ -302,7 +302,7 @@ const AdminDashboardPage = () => {
 
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={10}>
-          <Card loading={loading} title="Trang thai hoa don">
+          <Card loading={loading} title="Trạng thái hóa đơn">
             <Space direction="vertical" size={14} className="page-stack">
               {invoiceSegments.map((item) => (
                 <div key={item.status}>
@@ -314,8 +314,8 @@ const AdminDashboardPage = () => {
                 </div>
               ))}
               <Space wrap>
-                <Tag color="blue">Tong hoa don: {invoiceTotal}</Tag>
-                <Tag color="red">Con no: {currencyFormatter(dashboard?.invoices?.outstandingAmount || 0)}</Tag>
+                <Tag color="blue">Tổng hóa đơn: {invoiceTotal}</Tag>
+                <Tag color="red">Còn nợ: {currencyFormatter(dashboard?.invoices?.outstandingAmount || 0)}</Tag>
               </Space>
             </Space>
           </Card>
@@ -323,8 +323,8 @@ const AdminDashboardPage = () => {
         <Col xs={24} lg={14}>
           <Card
             loading={loading}
-            title="Hop dong sap het han"
-            extra={<Button type="link" onClick={() => navigate("/admin/contracts")}>Xem tat ca</Button>}
+            title="Hợp đồng sắp hết hạn"
+            extra={<Button type="link" onClick={() => navigate("/admin/contracts")}>Xem tất cả</Button>}
           >
             <Table
               rowKey="id"
