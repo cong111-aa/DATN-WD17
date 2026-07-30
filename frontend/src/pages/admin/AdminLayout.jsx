@@ -5,6 +5,7 @@ import {
   FileTextOutlined,
   HomeOutlined,
   LogoutOutlined,
+  SolutionOutlined,
   TeamOutlined,
   ToolOutlined,
   UserSwitchOutlined,
@@ -37,6 +38,8 @@ const AdminLayout = () => {
             ? "/admin/operating-expenses"
           : location.pathname.startsWith("/admin/repair-requests")
             ? "/admin/repair-requests"
+          : location.pathname.startsWith("/admin/room-requests")
+            ? "/admin/room-requests"
             : location.pathname.startsWith("/admin/tenants")
               ? "/admin/tenants"
       : "/admin";
@@ -91,6 +94,12 @@ const AdminLayout = () => {
               icon: <ToolOutlined />,
               label: "Quan ly su co",
               onClick: () => navigate("/admin/repair-requests"),
+            },
+            {
+              key: "/admin/room-requests",
+              icon: <SolutionOutlined />,
+              label: "Yeu cau phong",
+              onClick: () => navigate("/admin/room-requests"),
             },
             {
               key: "/admin/tenants",

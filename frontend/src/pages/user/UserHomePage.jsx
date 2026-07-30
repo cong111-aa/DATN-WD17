@@ -1,4 +1,5 @@
 import {
+  CreditCardOutlined,
   DeleteOutlined,
   EditOutlined,
   FileProtectOutlined,
@@ -20,6 +21,7 @@ import {
   Form,
   Image,
   Input,
+  InputNumber,
   Layout,
   Modal,
   Popconfirm,
@@ -67,6 +69,27 @@ const invoiceStatusMeta = {
   partial: { color: "warning", label: "Thanh toan mot phan" },
   paid: { color: "success", label: "Da thanh toan" },
   overdue: { color: "error", label: "Qua han" },
+};
+
+const roomRequestTypeMeta = {
+  hold_deposit: { color: "gold", label: "Giu phong" },
+  rent: { color: "blue", label: "Thue phong" },
+};
+
+const roomRequestStatusMeta = {
+  pending: { color: "processing", label: "Cho xac nhan" },
+  approved: { color: "success", label: "Da xac nhan" },
+  rejected: { color: "error", label: "Tu choi" },
+  cancelled: { color: "default", label: "Da huy" },
+  expired: { color: "warning", label: "Het han" },
+};
+
+const paymentStatusMeta = {
+  unpaid: { color: "default", label: "Chua thanh toan" },
+  pending: { color: "processing", label: "Dang thanh toan" },
+  paid: { color: "success", label: "Da thanh toan" },
+  failed: { color: "error", label: "That bai" },
+  cancelled: { color: "default", label: "Da huy" },
 };
 
 const repairPriorityOptions = [
@@ -130,6 +153,7 @@ const toIdentityFileList = (url) =>
 const UserHomePage = () => {
   const [form] = Form.useForm();
   const [repairForm] = Form.useForm();
+  const [roomRequestForm] = Form.useForm();
   const { logout, refreshProfile, user } = useAuth();
   const navigate = useNavigate();
   const [tenancies, setTenancies] = useState([]);
@@ -138,18 +162,24 @@ const UserHomePage = () => {
   const [contracts, setContracts] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [repairRequests, setRepairRequests] = useState([]);
+  const [roomRequests, setRoomRequests] = useState([]);
   const [identityBackFileList, setIdentityBackFileList] = useState([]);
   const [identityFrontFileList, setIdentityFrontFileList] = useState([]);
   const [repairImageFileList, setRepairImageFileList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [repairSubmitting, setRepairSubmitting] = useState(false);
+  const [roomRequestSubmitting, setRoomRequestSubmitting] = useState(false);
   const [detailAvailableRoom, setDetailAvailableRoom] = useState(null);
   const [detailTenancy, setDetailTenancy] = useState(null);
   const [detailContract, setDetailContract] = useState(null);
   const [detailInvoice, setDetailInvoice] = useState(null);
   const [detailRepairRequest, setDetailRepairRequest] = useState(null);
+  const [paymentRequest, setPaymentRequest] = useState(null);
   const [editingRepairRequest, setEditingRepairRequest] = useState(null);
   const [repairModalOpen, setRepairModalOpen] = useState(false);
+  const [roomRequestModalOpen, setRoomRequestModalOpen] = useState(false);
+  const [roomRequestType, setRoomRequestType] = useState("hold_deposit");
+  const [selectedRequestRoom, setSelectedRequestRoom] = useState(null);
 
   const activeTenancies = useMemo(
     () => tenancies.filter((tenancy) => tenancy.status === "active"),
@@ -180,6 +210,7 @@ const UserHomePage = () => {
         { data: contractData },
         { data: invoiceData },
         { data: repairRequestData },
+        { data: roomRequestData },
         { data: availableRoomData },
         { data: interestedRoomData },
       ] = await Promise.all([
@@ -187,6 +218,7 @@ const UserHomePage = () => {
         http.get("/me/contracts"),
         http.get("/me/invoices"),
         http.get("/me/repair-requests"),
+        http.get("/me/room-requests"),
         http.get("/me/available-rooms"),
         http.get("/me/interested-rooms"),
       ]);
@@ -197,6 +229,7 @@ const UserHomePage = () => {
       setContracts(contractData);
       setInvoices(invoiceData);
       setRepairRequests(repairRequestData);
+      setRoomRequests(roomRequestData);
     } catch (error) {
       message.error(error.response?.data?.message || "Khong tai duoc du lieu nguoi dung");
     } finally {
@@ -288,6 +321,89 @@ const UserHomePage = () => {
       fetchUserData();
     } catch (error) {
       message.error(error.response?.data?.message || "Khong bo quan tam duoc phong");
+    }
+  };
+
+  const openRoomRequestModal = (type, room) => {
+    const resolvedRoom = {
+      ...room,
+      id: room.id || room.room,
+      images: room.images || room.roomImages || [],
+      price: room.price || room.roomPrice,
+    };
+
+    setRoomRequestType(type);
+    setSelectedRequestRoom(resolvedRoom);
+    roomRequestForm.resetFields();
+    roomRequestForm.setFieldsValue(
+      type === "rent"
+        ? {
+            durationMonths: 12,
+            occupantCount: 1,
+            occupants: [
+              {
+                name: user?.name || "",
+                phone: user?.phone || "",
+                identityNumber: user?.identityNumber || "",
+                identityFrontImage: user?.identityFrontImage || "",
+                identityBackImage: user?.identityBackImage || "",
+              },
+            ],
+          }
+        : {}
+    );
+    setRoomRequestModalOpen(true);
+  };
+
+  const closeRoomRequestModal = () => {
+    setRoomRequestModalOpen(false);
+    setSelectedRequestRoom(null);
+    roomRequestForm.resetFields();
+  };
+
+  const handleRoomRequestSubmit = async (values) => {
+    if (!selectedRequestRoom) {
+      return;
+    }
+
+    setRoomRequestSubmitting(true);
+
+    try {
+      const payload = {
+        message: values.message,
+        room: selectedRequestRoom.id,
+      };
+
+      if (roomRequestType === "rent") {
+        payload.durationMonths = values.durationMonths;
+        payload.occupantCount = values.occupantCount;
+        payload.occupants = values.occupants || [];
+      }
+
+      const { data } = await http.post(
+        roomRequestType === "hold_deposit"
+          ? "/me/room-requests/hold-deposit"
+          : "/me/room-requests/rent",
+        payload
+      );
+      message.success("Da gui yeu cau phong");
+      closeRoomRequestModal();
+      setPaymentRequest(data);
+      fetchUserData();
+    } catch (error) {
+      message.error(error.response?.data?.message || "Gui yeu cau phong that bai");
+    } finally {
+      setRoomRequestSubmitting(false);
+    }
+  };
+
+  const handleCancelRoomRequest = async (request) => {
+    try {
+      await http.patch(`/me/room-requests/${request.id}/cancel`);
+      message.success("Da huy yeu cau");
+      fetchUserData();
+    } catch (error) {
+      message.error(error.response?.data?.message || "Huy yeu cau that bai");
     }
   };
 
@@ -568,6 +684,95 @@ const UserHomePage = () => {
     },
   ];
 
+  const roomRequestColumns = [
+    {
+      title: "Yeu cau",
+      dataIndex: "requestCode",
+      key: "requestCode",
+      render: (value, record) => (
+        <Space direction="vertical" size={0}>
+          <Typography.Text strong>{value}</Typography.Text>
+          <Typography.Text type="secondary">
+            {record.roomNumber || "-"} - {record.roomName || "-"}
+          </Typography.Text>
+        </Space>
+      ),
+    },
+    {
+      title: "Loai",
+      dataIndex: "type",
+      key: "type",
+      render: (type) => {
+        const meta = roomRequestTypeMeta[type] || roomRequestTypeMeta.rent;
+        return <Tag color={meta.color}>{meta.label}</Tag>;
+      },
+    },
+    {
+      title: "So tien",
+      dataIndex: "amount",
+      key: "amount",
+      render: (value) => <Typography.Text strong>{formatCurrency(value)}</Typography.Text>,
+    },
+    {
+      title: "Thanh toan",
+      dataIndex: "paymentStatus",
+      key: "paymentStatus",
+      render: (status) => {
+        const meta = paymentStatusMeta[status] || paymentStatusMeta.unpaid;
+        return <Tag color={meta.color}>{meta.label}</Tag>;
+      },
+    },
+    {
+      title: "Trang thai",
+      dataIndex: "status",
+      key: "status",
+      render: (status) => {
+        const meta = roomRequestStatusMeta[status] || roomRequestStatusMeta.pending;
+        return <Tag color={meta.color}>{meta.label}</Tag>;
+      },
+    },
+    {
+      title: "Hop dong",
+      dataIndex: "contractCode",
+      key: "contractCode",
+      render: (value) => value || "-",
+    },
+    {
+      title: "Ngay gui",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      render: formatDate,
+    },
+    {
+      title: "Het han giu phong",
+      dataIndex: "holdExpiresAt",
+      key: "holdExpiresAt",
+      render: formatDate,
+    },
+    {
+      title: "Thao tac",
+      key: "actions",
+      render: (_, record) => (
+        <Space wrap>
+          <Button onClick={() => setPaymentRequest(record)}>
+            Thanh toan
+          </Button>
+          <Popconfirm
+            title="Huy yeu cau nay?"
+            okText="Huy yeu cau"
+            cancelText="Dong"
+            onConfirm={() => handleCancelRoomRequest(record)}
+            disabled={record.status !== "pending"}
+          >
+            <Button danger disabled={record.status !== "pending"}>
+              Huy
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
   const repairRequestColumns = [
     {
       title: "Su co",
@@ -725,6 +930,12 @@ const UserHomePage = () => {
                               <Button type="link" icon={<HeartOutlined />} onClick={() => handleInterestedRoom(room)}>
                                 Quan tam
                               </Button>,
+                              <Button type="link" icon={<CreditCardOutlined />} onClick={() => openRoomRequestModal("hold_deposit", room)}>
+                                Dat coc
+                              </Button>,
+                              <Button type="link" onClick={() => openRoomRequestModal("rent", room)}>
+                                Thue
+                              </Button>,
                             ]}
                           >
                             <Space direction="vertical" size={8} className="page-stack">
@@ -805,6 +1016,21 @@ const UserHomePage = () => {
                               >
                                 Chi tiet
                               </Button>,
+                              <Button
+                                type="link"
+                                icon={<CreditCardOutlined />}
+                                onClick={() => openRoomRequestModal("hold_deposit", room)}
+                                disabled={room.roomStatus !== "available"}
+                              >
+                                Dat coc
+                              </Button>,
+                              <Button
+                                type="link"
+                                onClick={() => openRoomRequestModal("rent", room)}
+                                disabled={room.roomStatus !== "available"}
+                              >
+                                Thue
+                              </Button>,
                               <Button type="link" danger onClick={() => handleRemoveInterestedRoom(room)}>
                                 Bo quan tam
                               </Button>,
@@ -836,6 +1062,24 @@ const UserHomePage = () => {
                       </div>
                     )}
                   </Space>
+                ),
+              },
+              {
+                key: "room-requests",
+                icon: <CreditCardOutlined />,
+                label: "Yeu cau cua toi",
+                children: (
+                  <Card>
+                    <Table
+                      rowKey="id"
+                      columns={roomRequestColumns}
+                      dataSource={roomRequests}
+                      loading={loading}
+                      pagination={{ pageSize: 6 }}
+                      scroll={{ x: 1100 }}
+                      locale={{ emptyText: "Chua co yeu cau phong" }}
+                    />
+                  </Card>
                 ),
               },
               {
@@ -1011,6 +1255,12 @@ const UserHomePage = () => {
             <Button key="interest" type="primary" onClick={() => handleInterestedRoom(detailAvailableRoom)}>
               Quan tam phong nay
             </Button>,
+            <Button key="hold" onClick={() => openRoomRequestModal("hold_deposit", detailAvailableRoom)}>
+              Dat coc giu phong
+            </Button>,
+            <Button key="rent" onClick={() => openRoomRequestModal("rent", detailAvailableRoom)}>
+              Thue phong
+            </Button>,
             <Button key="close" onClick={() => setDetailAvailableRoom(null)}>
               Dong
             </Button>,
@@ -1112,6 +1362,193 @@ const UserHomePage = () => {
                   {detailTenancy.roomDescription || "-"}
                 </Descriptions.Item>
               </Descriptions>
+            </Space>
+          )}
+        </Modal>
+
+        <Modal
+          title="Thong tin thanh toan"
+          open={Boolean(paymentRequest)}
+          onCancel={() => setPaymentRequest(null)}
+          footer={[
+            <Button key="close" onClick={() => setPaymentRequest(null)}>
+              Dong
+            </Button>,
+          ]}
+          width={760}
+        >
+          {paymentRequest && (
+            <Space direction="vertical" size={16} className="page-stack">
+              <Descriptions bordered size="small" column={2}>
+                <Descriptions.Item label="Ma yeu cau">{paymentRequest.requestCode}</Descriptions.Item>
+                <Descriptions.Item label="Phong">
+                  {paymentRequest.roomNumber} - {paymentRequest.roomName}
+                </Descriptions.Item>
+                <Descriptions.Item label="So tien">
+                  <Typography.Text strong>{formatCurrency(paymentRequest.amount)}</Typography.Text>
+                </Descriptions.Item>
+                <Descriptions.Item label="Trang thai thanh toan">
+                  <Tag color={paymentStatusMeta[paymentRequest.paymentStatus]?.color}>
+                    {paymentStatusMeta[paymentRequest.paymentStatus]?.label}
+                  </Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="Ngan hang">{paymentRequest.paymentBankName || "-"}</Descriptions.Item>
+                <Descriptions.Item label="So tai khoan">
+                  <Typography.Text copyable>{paymentRequest.paymentBankAccountNumber || "-"}</Typography.Text>
+                </Descriptions.Item>
+                <Descriptions.Item label="Chu tai khoan">{paymentRequest.paymentBankAccountName || "-"}</Descriptions.Item>
+                <Descriptions.Item label="Noi dung CK">
+                  <Typography.Text copyable strong>
+                    {paymentRequest.paymentContent || paymentRequest.paymentOrderCode || paymentRequest.requestCode}
+                  </Typography.Text>
+                </Descriptions.Item>
+              </Descriptions>
+              {paymentRequest.paymentQrCode ? (
+                <Space direction="vertical" align="center" className="page-stack">
+                  <Image src={paymentRequest.paymentQrCode} width={280} />
+                  <Typography.Text type="secondary">
+                    Vui long chuyen dung so tien va dung noi dung de admin doi soat.
+                  </Typography.Text>
+                </Space>
+              ) : (
+                <Typography.Text type="danger">
+                  Chua cau hinh thong tin ngan hang de tao QR thanh toan.
+                </Typography.Text>
+              )}
+            </Space>
+          )}
+        </Modal>
+
+        <Modal
+          title={
+            roomRequestType === "hold_deposit"
+              ? "Dat coc giu phong"
+              : "Yeu cau thue phong"
+          }
+          open={roomRequestModalOpen}
+          onCancel={closeRoomRequestModal}
+          onOk={() => roomRequestForm.submit()}
+          confirmLoading={roomRequestSubmitting}
+          okText="Gui yeu cau"
+          cancelText="Huy"
+          width={860}
+        >
+          {selectedRequestRoom && (
+            <Space direction="vertical" size={16} className="page-stack">
+              <Descriptions bordered size="small" column={2}>
+                <Descriptions.Item label="Phong">
+                  {selectedRequestRoom.roomNumber} - {selectedRequestRoom.name}
+                </Descriptions.Item>
+                <Descriptions.Item label="Gia thue">
+                  {formatCurrency(selectedRequestRoom.price)}
+                </Descriptions.Item>
+                <Descriptions.Item label="So tien can thanh toan">
+                  <Typography.Text strong>
+                    {formatCurrency(
+                      roomRequestType === "hold_deposit"
+                        ? Math.ceil(Number(selectedRequestRoom.price || 0) / 3)
+                        : selectedRequestRoom.price
+                    )}
+                  </Typography.Text>
+                </Descriptions.Item>
+                <Descriptions.Item label="Ghi chu">
+                  {roomRequestType === "hold_deposit"
+                    ? "Giu phong trong 7 ngay sau khi thanh toan coc."
+                    : "Tien coc bang 1 thang tien phong."}
+                </Descriptions.Item>
+              </Descriptions>
+
+              <Form form={roomRequestForm} layout="vertical" onFinish={handleRoomRequestSubmit}>
+                {roomRequestType === "rent" ? (
+                  <>
+                    <div className="form-grid">
+                      <Form.Item
+                        name="durationMonths"
+                        label="Thoi han thue (thang)"
+                        rules={[{ required: true, message: "Nhap thoi han thue" }]}
+                      >
+                        <InputNumber className="full-width-input" min={1} />
+                      </Form.Item>
+                      <Form.Item
+                        name="occupantCount"
+                        label="So nguoi o"
+                        rules={[{ required: true, message: "Nhap so nguoi o" }]}
+                      >
+                        <InputNumber className="full-width-input" min={1} />
+                      </Form.Item>
+                    </div>
+
+                    <Form.List name="occupants">
+                      {(fields, { add, remove }) => (
+                        <Space direction="vertical" size={12} className="page-stack">
+                          {fields.map((field, index) => (
+                            <Card
+                              key={field.key}
+                              size="small"
+                              title={`Nguoi o ${index + 1}`}
+                              extra={
+                                fields.length > 1 ? (
+                                  <Button type="link" danger onClick={() => remove(field.name)}>
+                                    Xoa
+                                  </Button>
+                                ) : null
+                              }
+                            >
+                              <div className="form-grid">
+                                <Form.Item
+                                  {...field}
+                                  name={[field.name, "name"]}
+                                  label="Ho ten"
+                                  rules={[{ required: true, message: "Nhap ho ten" }]}
+                                >
+                                  <Input />
+                                </Form.Item>
+                                <Form.Item
+                                  {...field}
+                                  name={[field.name, "phone"]}
+                                  label="So dien thoai"
+                                  rules={[{ required: true, message: "Nhap so dien thoai" }]}
+                                >
+                                  <Input />
+                                </Form.Item>
+                                <Form.Item
+                                  {...field}
+                                  name={[field.name, "identityNumber"]}
+                                  label="So CCCD"
+                                  rules={[{ required: true, message: "Nhap so CCCD" }]}
+                                >
+                                  <Input />
+                                </Form.Item>
+                                <Form.Item
+                                  {...field}
+                                  name={[field.name, "identityFrontImage"]}
+                                  label="Anh CCCD mat truoc"
+                                  rules={[{ required: true, message: "Nhap duong dan anh mat truoc" }]}
+                                >
+                                  <Input placeholder="/uploads/identity/..." />
+                                </Form.Item>
+                                <Form.Item
+                                  {...field}
+                                  name={[field.name, "identityBackImage"]}
+                                  label="Anh CCCD mat sau"
+                                  rules={[{ required: true, message: "Nhap duong dan anh mat sau" }]}
+                                >
+                                  <Input placeholder="/uploads/identity/..." />
+                                </Form.Item>
+                              </div>
+                            </Card>
+                          ))}
+                          <Button onClick={() => add()}>Them nguoi o</Button>
+                        </Space>
+                      )}
+                    </Form.List>
+                  </>
+                ) : null}
+
+                <Form.Item name="message" label="Loi nhan cho admin">
+                  <Input.TextArea rows={3} placeholder="VD: Toi muon xem phong vao cuoi tuan nay" />
+                </Form.Item>
+              </Form>
             </Space>
           )}
         </Modal>

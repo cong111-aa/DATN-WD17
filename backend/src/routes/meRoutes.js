@@ -1,6 +1,9 @@
 const express = require("express");
 const {
   addMyInterestedRoom,
+  cancelMyRoomRequest,
+  createMyHoldDepositRequest,
+  createMyRentRequest,
   createMyRepairRequest,
   deleteMyRepairRequest,
   getAvailableRoomById,
@@ -12,6 +15,7 @@ const {
   getMyInvoices,
   getMyRepairRequestById,
   getMyRepairRequests,
+  getMyRoomRequests,
   getMyTenancies,
   removeMyInterestedRoom,
   updateMyRepairRequest,
@@ -26,6 +30,10 @@ router.get("/available-rooms/:id", protect, getAvailableRoomById);
 router.get("/interested-rooms", protect, getMyInterestedRooms);
 router.post("/interested-rooms", protect, addMyInterestedRoom);
 router.delete("/interested-rooms/:roomId", protect, removeMyInterestedRoom);
+router.get("/room-requests", protect, getMyRoomRequests);
+router.post("/room-requests/hold-deposit", protect, createMyHoldDepositRequest);
+router.post("/room-requests/rent", protect, createMyRentRequest);
+router.patch("/room-requests/:id/cancel", protect, cancelMyRoomRequest);
 router.get("/contracts", protect, getMyContracts);
 router.get("/contracts/:id/file", protect, getMyContractFile);
 router.get("/invoices", protect, getMyInvoices);

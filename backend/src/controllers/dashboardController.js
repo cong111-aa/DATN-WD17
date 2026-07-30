@@ -77,6 +77,7 @@ const getAdminDashboard = async (req, res, next) => {
     const [
       totalRooms,
       availableRooms,
+      reservedRooms,
       occupiedRooms,
       maintenanceRooms,
       activeTenants,
@@ -95,6 +96,7 @@ const getAdminDashboard = async (req, res, next) => {
     ] = await Promise.all([
       Room.countDocuments(),
       Room.countDocuments({ status: "available" }),
+      Room.countDocuments({ status: "reserved" }),
       Room.countDocuments({ status: "occupied" }),
       Room.countDocuments({ status: "maintenance" }),
       Tenant.countDocuments({ status: "active" }),
@@ -191,6 +193,7 @@ const getAdminDashboard = async (req, res, next) => {
         available: availableRooms,
         maintenance: maintenanceRooms,
         occupied: occupiedRooms,
+        reserved: reservedRooms,
         total: totalRooms,
       },
       tenants: {

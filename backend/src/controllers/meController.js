@@ -3,8 +3,10 @@ const InterestedRoom = require("../models/InterestedRoom");
 const Invoice = require("../models/Invoice");
 const RepairRequest = require("../models/RepairRequest");
 const Room = require("../models/Room");
+const RoomRequest = require("../models/RoomRequest");
 const Tenant = require("../models/Tenant");
 const renderContractHtml = require("../utils/renderContractHtml");
+const { buildBankTransferPayment, buildPaymentContent, buildVietQrUrl } = require("../utils/paymentQr");
 const { toRepairRequestResponse } = require("./repairRequestController");
 
 const tenantPopulate = [
@@ -29,6 +31,14 @@ const repairRequestPopulate = [
   { path: "room", select: "roomNumber name floor" },
   { path: "tenant", select: "name email phone" },
   { path: "createdBy", select: "name email phone role" },
+];
+
+const roomRequestPopulate = [
+  { path: "user", select: "name email phone identityNumber" },
+  { path: "room", select: "roomNumber name floor area capacity price deposit electricityPrice waterPrice serviceFee description status images" },
+  { path: "processedBy", select: "name email role" },
+  { path: "tenantRecord", select: "moveInDate moveOutDate roomRole status" },
+  { path: "contract", select: "contractCode status startDate endDate" },
 ];
 
 const toTenantResponse = (tenant) => ({
@@ -92,6 +102,51 @@ const toInterestedRoomResponse = (interest) => ({
   status: interest.status,
   createdAt: interest.createdAt,
   updatedAt: interest.updatedAt,
+});
+
+const toRoomRequestResponse = (roomRequest) => ({
+  id: roomRequest._id,
+  requestCode: roomRequest.requestCode,
+  user: roomRequest.user?._id || roomRequest.user,
+  userName: roomRequest.user?.name,
+  userEmail: roomRequest.user?.email,
+  userPhone: roomRequest.user?.phone,
+  room: roomRequest.room?._id || roomRequest.room,
+  roomNumber: roomRequest.room?.roomNumber,
+  roomName: roomRequest.room?.name,
+  roomFloor: roomRequest.room?.floor,
+  roomArea: roomRequest.room?.area,
+  roomCapacity: roomRequest.room?.capacity,
+  roomPrice: roomRequest.room?.price,
+  roomDeposit: roomRequest.room?.deposit,
+  roomStatus: roomRequest.room?.status,
+  roomImages: roomRequest.room?.images || [],
+  type: roomRequest.type,
+  durationMonths: roomRequest.durationMonths,
+  occupantCount: roomRequest.occupantCount,
+  occupants: roomRequest.occupants || [],
+  amount: roomRequest.amount,
+  holdExpiresAt: roomRequest.holdExpiresAt,
+  paymentProvider: roomRequest.paymentProvider,
+  paymentStatus: roomRequest.paymentStatus,
+  paymentOrderCode: roomRequest.paymentOrderCode,
+  paymentCheckoutUrl: roomRequest.paymentCheckoutUrl,
+  ...buildBankTransferPayment(roomRequest),
+  paidAt: roomRequest.paidAt,
+  tenantRecord: roomRequest.tenantRecord?._id || roomRequest.tenantRecord,
+  contract: roomRequest.contract?._id || roomRequest.contract,
+  contractCode: roomRequest.contract?.contractCode,
+  contractStatus: roomRequest.contract?.status,
+  contractStartDate: roomRequest.contract?.startDate,
+  contractEndDate: roomRequest.contract?.endDate,
+  status: roomRequest.status,
+  message: roomRequest.message,
+  adminNote: roomRequest.adminNote,
+  processedBy: roomRequest.processedBy?._id || roomRequest.processedBy,
+  processedByName: roomRequest.processedBy?.name,
+  processedAt: roomRequest.processedAt,
+  createdAt: roomRequest.createdAt,
+  updatedAt: roomRequest.updatedAt,
 });
 
 const toContractResponse = (contract) => ({
@@ -168,6 +223,33 @@ const toInvoiceResponse = (invoice) => ({
 
 const getActiveMembers = (roomId) =>
   Tenant.find({ room: roomId, status: "active" }).populate("user", "name email phone identityNumber");
+
+const addDays = (date, days) => new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
+
+const generateRoomRequestCode = (type) => {
+  const prefix = type === "hold_deposit" ? "HOLD" : "RENT";
+  return `RQ-${prefix}-${Date.now()}-${Math.floor(Math.random() * 900 + 100)}`;
+};
+
+const buildPaymentFields = (requestCode, amount) => {
+  const content = buildPaymentContent(requestCode);
+
+  return {
+    paymentOrderCode: content,
+    paymentProvider: "vietqr",
+    paymentQrCode: buildVietQrUrl({ amount, content }),
+    paymentStatus: "unpaid",
+  };
+};
+
+const normalizeOccupants = (occupants = []) =>
+  occupants.map((occupant) => ({
+    name: String(occupant.name || "").trim(),
+    phone: String(occupant.phone || "").trim(),
+    identityNumber: String(occupant.identityNumber || "").trim(),
+    identityFrontImage: String(occupant.identityFrontImage || "").trim(),
+    identityBackImage: String(occupant.identityBackImage || "").trim(),
+  }));
 
 const getMyTenancies = async (req, res, next) => {
   try {
@@ -269,6 +351,167 @@ const removeMyInterestedRoom = async (req, res, next) => {
 
     res.json({ message: "Interested room removed" });
   } catch (error) {
+    next(error);
+  }
+};
+
+const getMyRoomRequests = async (req, res, next) => {
+  try {
+    const roomRequests = await RoomRequest.find({ user: req.user._id })
+      .populate(roomRequestPopulate)
+      .sort({ createdAt: -1 });
+
+    res.json(roomRequests.map(toRoomRequestResponse));
+  } catch (error) {
+    next(error);
+  }
+};
+
+const ensureRoomCanBeRequested = async (userId, roomId) => {
+  if (!roomId) {
+    throw new Error("Room is required");
+  }
+
+  const room = await Room.findOne({ _id: roomId, status: "available" });
+
+  if (!room) {
+    throw new Error("Room is not available");
+  }
+
+  const existingRequest = await RoomRequest.findOne({
+    user: userId,
+    room: roomId,
+    status: "pending",
+  });
+
+  if (existingRequest) {
+    throw new Error("You already have a pending request for this room");
+  }
+
+  return room;
+};
+
+const createMyHoldDepositRequest = async (req, res, next) => {
+  try {
+    const { message = "", room: roomId } = req.body;
+    const room = await ensureRoomCanBeRequested(req.user._id, roomId);
+    const requestCode = generateRoomRequestCode("hold_deposit");
+    const amount = Math.ceil(Number(room.price || 0) / 3);
+
+    const roomRequest = await RoomRequest.create({
+      requestCode,
+      user: req.user._id,
+      room: room._id,
+      type: "hold_deposit",
+      occupantCount: 1,
+      occupants: [],
+      amount,
+      holdExpiresAt: addDays(new Date(), 7),
+      ...buildPaymentFields(requestCode, amount),
+      status: "pending",
+      message,
+    });
+
+    const populatedRequest = await roomRequest.populate(roomRequestPopulate);
+    res.status(201).json(toRoomRequestResponse(populatedRequest));
+  } catch (error) {
+    if (!res.statusCode || res.statusCode < 400) {
+      res.status(400);
+    }
+
+    next(error);
+  }
+};
+
+const createMyRentRequest = async (req, res, next) => {
+  try {
+    const { durationMonths, message = "", occupants = [], room: roomId } = req.body;
+    const room = await ensureRoomCanBeRequested(req.user._id, roomId);
+    const normalizedOccupants = normalizeOccupants(occupants);
+
+    if (!Number(durationMonths) || Number(durationMonths) < 1) {
+      throw new Error("Duration months must be greater than 0");
+    }
+
+    if (normalizedOccupants.length === 0) {
+      throw new Error("At least one occupant is required");
+    }
+
+    const missingOccupantInfo = normalizedOccupants.some(
+      (occupant) =>
+        !occupant.name ||
+        !occupant.phone ||
+        !occupant.identityNumber ||
+        !occupant.identityFrontImage ||
+        !occupant.identityBackImage
+    );
+
+    if (missingOccupantInfo) {
+      throw new Error("Occupant information is incomplete");
+    }
+
+    const requestCode = generateRoomRequestCode("rent");
+    const amount = Number(room.price || 0);
+
+    const roomRequest = await RoomRequest.create({
+      requestCode,
+      user: req.user._id,
+      room: room._id,
+      type: "rent",
+      durationMonths: Number(durationMonths),
+      occupantCount: Math.max(Number(req.body.occupantCount || 0), normalizedOccupants.length),
+      occupants: normalizedOccupants,
+      amount,
+      ...buildPaymentFields(requestCode, amount),
+      status: "pending",
+      message,
+    });
+
+    const populatedRequest = await roomRequest.populate(roomRequestPopulate);
+    res.status(201).json(toRoomRequestResponse(populatedRequest));
+  } catch (error) {
+    if (!res.statusCode || res.statusCode < 400) {
+      res.status(400);
+    }
+
+    next(error);
+  }
+};
+
+const cancelMyRoomRequest = async (req, res, next) => {
+  try {
+    const roomRequest = await RoomRequest.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    });
+
+    if (!roomRequest) {
+      res.status(404);
+      throw new Error("Room request not found");
+    }
+
+    if (roomRequest.status !== "pending") {
+      res.status(400);
+      throw new Error("Only pending requests can be cancelled");
+    }
+
+    if (roomRequest.paymentStatus === "paid") {
+      res.status(400);
+      throw new Error("Paid requests must be processed by admin");
+    }
+
+    roomRequest.status = "cancelled";
+    roomRequest.paymentStatus =
+      roomRequest.paymentStatus === "pending" ? "cancelled" : roomRequest.paymentStatus;
+    await roomRequest.save();
+    await roomRequest.populate(roomRequestPopulate);
+
+    res.json(toRoomRequestResponse(roomRequest));
+  } catch (error) {
+    if (!res.statusCode || res.statusCode < 400) {
+      res.status(400);
+    }
+
     next(error);
   }
 };
@@ -504,6 +747,10 @@ const getMyContractFile = async (req, res, next) => {
 
 module.exports = {
   addMyInterestedRoom,
+  cancelMyRoomRequest,
+  createMyHoldDepositRequest,
+  createMyRentRequest,
+  createMyRepairRequest,
   deleteMyRepairRequest,
   getAvailableRoomById,
   getAvailableRooms,
@@ -512,9 +759,9 @@ module.exports = {
   getMyInterestedRooms,
   getMyInvoiceById,
   getMyInvoices,
-  createMyRepairRequest,
   getMyRepairRequestById,
   getMyRepairRequests,
+  getMyRoomRequests,
   getMyTenancies,
   removeMyInterestedRoom,
   updateMyRepairRequest,
