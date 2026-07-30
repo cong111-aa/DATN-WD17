@@ -12,6 +12,7 @@ import UserManagementPage from "./pages/admin/UserManagementPage";
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
 import UserHomePage from "./pages/user/UserHomePage";
+import UserRoomDetailPage from "./pages/user/UserRoomDetailPage";
 
 const App = () => (
   <BrowserRouter>
@@ -40,6 +41,14 @@ const App = () => (
         element={
           <ProtectedRoute>
             <UserHomePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/user/rooms/:id"
+        element={
+          <ProtectedRoute>
+            <UserRoomDetailPage />
           </ProtectedRoute>
         }
       />

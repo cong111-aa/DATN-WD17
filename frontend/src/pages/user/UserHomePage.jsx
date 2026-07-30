@@ -3,6 +3,7 @@ import {
   EditOutlined,
   FileProtectOutlined,
   FileTextOutlined,
+  HeartOutlined,
   HomeOutlined,
   LogoutOutlined,
   ReloadOutlined,
@@ -133,6 +134,7 @@ const UserHomePage = () => {
   const navigate = useNavigate();
   const [tenancies, setTenancies] = useState([]);
   const [availableRooms, setAvailableRooms] = useState([]);
+  const [interestedRooms, setInterestedRooms] = useState([]);
   const [contracts, setContracts] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [repairRequests, setRepairRequests] = useState([]);
@@ -179,16 +181,19 @@ const UserHomePage = () => {
         { data: invoiceData },
         { data: repairRequestData },
         { data: availableRoomData },
+        { data: interestedRoomData },
       ] = await Promise.all([
         http.get("/me/tenancies"),
         http.get("/me/contracts"),
         http.get("/me/invoices"),
         http.get("/me/repair-requests"),
         http.get("/me/available-rooms"),
+        http.get("/me/interested-rooms"),
       ]);
 
       setTenancies(tenancyData);
       setAvailableRooms(availableRoomData);
+      setInterestedRooms(interestedRoomData);
       setContracts(contractData);
       setInvoices(invoiceData);
       setRepairRequests(repairRequestData);
@@ -262,8 +267,28 @@ const UserHomePage = () => {
     }
   };
 
-  const handleInterestedRoom = (room) => {
-    message.info(`Ban quan tam phong ${room.roomNumber}. Vui long lien he admin de duoc ho tro doi phong.`);
+  const handleInterestedRoom = async (room) => {
+    if (!room) {
+      return;
+    }
+
+    try {
+      await http.post("/me/interested-rooms", { room: room.id || room.room });
+      message.success(`Da them phong ${room.roomNumber} vao danh sach quan tam`);
+      fetchUserData();
+    } catch (error) {
+      message.error(error.response?.data?.message || "Khong them duoc phong quan tam");
+    }
+  };
+
+  const handleRemoveInterestedRoom = async (room) => {
+    try {
+      await http.delete(`/me/interested-rooms/${room.room}`);
+      message.success("Da bo quan tam phong");
+      fetchUserData();
+    } catch (error) {
+      message.error(error.response?.data?.message || "Khong bo quan tam duoc phong");
+    }
   };
 
   const openRepairModal = () => {
@@ -650,42 +675,25 @@ const UserHomePage = () => {
           </div>
 
           <Tabs
-            defaultActiveKey="rooms"
+            defaultActiveKey="home"
             items={[
               {
-                key: "rooms",
+                key: "home",
                 icon: <HomeOutlined />,
-                label: "Phong cua toi",
+                label: "Trang chu",
                 children: (
                   <Space direction="vertical" size={16} className="page-stack">
-                    {activeTenancies.length === 0 ? (
-                      <Card>
-                        <Empty description="Ban chua co phong dang thue" />
-                      </Card>
-                    ) : (
-                      <Card>
-                        <Table
-                          rowKey="id"
-                          columns={tenancyColumns}
-                          dataSource={tenancies}
-                          loading={loading}
-                          pagination={false}
-                          scroll={{ x: 900 }}
-                        />
-                      </Card>
-                    )}
-                  </Space>
-                ),
-              },
-              {
-                key: "available-rooms",
-                icon: <HomeOutlined />,
-                label: "Phong con trong",
-                children: (
-                  <Space direction="vertical" size={16} className="page-stack">
-                    <Typography.Text type="secondary">
-                      Cac phong dang o trang thai con trong do admin quan ly.
-                    </Typography.Text>
+                    <Card>
+                      <div className="page-toolbar">
+                        <div className="page-title">
+                          <Typography.Title level={2}>Tim phong tro phu hop voi ban</Typography.Title>
+                          <Typography.Text type="secondary">
+                            Kham pha cac phong dang con trong, xem chi tiet va luu phong ban quan tam.
+                          </Typography.Text>
+                        </div>
+                        <Tag color="success">{availableRooms.length} phong con trong</Tag>
+                      </div>
+                    </Card>
                     {availableRooms.length === 0 ? (
                       <Card>
                         <Empty description="Hien chua co phong con trong" />
@@ -711,10 +719,10 @@ const UserHomePage = () => {
                               ) : null
                             }
                             actions={[
-                              <Button type="link" onClick={() => setDetailAvailableRoom(room)}>
+                              <Button type="link" onClick={() => navigate(`/user/rooms/${room.id}`)}>
                                 Chi tiet
                               </Button>,
-                              <Button type="link" onClick={() => handleInterestedRoom(room)}>
+                              <Button type="link" icon={<HeartOutlined />} onClick={() => handleInterestedRoom(room)}>
                                 Quan tam
                               </Button>,
                             ]}
@@ -741,6 +749,116 @@ const UserHomePage = () => {
                           </Card>
                         ))}
                       </div>
+                    )}
+                    <Card>
+                      <Space direction="vertical" size={8} className="page-stack">
+                        <Typography.Title level={4}>Gioi thieu ve Tro Plus</Typography.Title>
+                        <Typography.Text type="secondary">
+                          Tro Plus ho tro nguoi thue theo doi phong, hop dong, hoa don va su co trong qua trinh sinh hoat.
+                          Quan tri vien cap nhat phong trong va thong tin van hanh de ban de dang tim lua chon phu hop.
+                        </Typography.Text>
+                        <Space wrap>
+                          <Tag color="blue">Thong tin phong ro rang</Tag>
+                          <Tag color="green">Theo doi hop dong va hoa don</Tag>
+                          <Tag color="gold">Bao su co truc tiep</Tag>
+                        </Space>
+                      </Space>
+                    </Card>
+                  </Space>
+                ),
+              },
+              {
+                key: "interested-rooms",
+                icon: <HeartOutlined />,
+                label: "Phong da quan tam",
+                children: (
+                  <Space direction="vertical" size={16} className="page-stack">
+                    {interestedRooms.length === 0 ? (
+                      <Card>
+                        <Empty description="Ban chua quan tam phong nao" />
+                      </Card>
+                    ) : (
+                      <div
+                        style={{
+                          display: "grid",
+                          gap: 16,
+                          gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+                        }}
+                      >
+                        {interestedRooms.map((room) => (
+                          <Card
+                            key={room.id}
+                            cover={
+                              room.images?.[0] ? (
+                                <img
+                                  alt={`${room.roomNumber} - ${room.name}`}
+                                  src={toImageUrl(room.images[0])}
+                                  style={{ height: 170, objectFit: "cover", width: "100%" }}
+                                />
+                              ) : null
+                            }
+                            actions={[
+                              <Button
+                                type="link"
+                                onClick={() => navigate(`/user/rooms/${room.room}`)}
+                                disabled={room.roomStatus !== "available"}
+                              >
+                                Chi tiet
+                              </Button>,
+                              <Button type="link" danger onClick={() => handleRemoveInterestedRoom(room)}>
+                                Bo quan tam
+                              </Button>,
+                            ]}
+                          >
+                            <Space direction="vertical" size={8} className="page-stack">
+                              <Space style={{ justifyContent: "space-between", width: "100%" }}>
+                                <Typography.Text strong>
+                                  {room.roomNumber} - {room.name}
+                                </Typography.Text>
+                                <Tag color={room.roomStatus === "available" ? "success" : "default"}>
+                                  {room.roomStatus === "available" ? "Con trong" : "Khong con trong"}
+                                </Tag>
+                              </Space>
+                              <Typography.Title level={4} style={{ margin: 0 }}>
+                                {formatCurrency(room.price)}
+                              </Typography.Title>
+                              <Space wrap>
+                                <Tag>{room.area || 0} m2</Tag>
+                                <Tag>{room.capacity || 0} nguoi</Tag>
+                                <Tag>Tang {room.floor ?? "-"}</Tag>
+                              </Space>
+                              <Typography.Text type="secondary">
+                                Da quan tam tu {formatDate(room.createdAt)}
+                              </Typography.Text>
+                            </Space>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </Space>
+                ),
+              },
+              {
+                key: "rooms",
+                icon: <HomeOutlined />,
+                label: "Phong cua toi",
+                children: (
+                  <Space direction="vertical" size={16} className="page-stack">
+                    {activeTenancies.length === 0 ? (
+                      <Card>
+                        <Empty description="Ban chua co phong dang thue" />
+                      </Card>
+                    ) : (
+                      <Card>
+                        <Table
+                          rowKey="id"
+                          columns={tenancyColumns}
+                          dataSource={tenancies}
+                          loading={loading}
+                          pagination={false}
+                          scroll={{ x: 900 }}
+                        />
+                      </Card>
                     )}
                   </Space>
                 ),
