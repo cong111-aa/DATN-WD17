@@ -1,4 +1,5 @@
 const Contract = require("../models/Contract");
+const InterestedRoom = require("../models/InterestedRoom");
 const Invoice = require("../models/Invoice");
 const RepairRequest = require("../models/RepairRequest");
 const Room = require("../models/Room");
@@ -69,6 +70,28 @@ const toAvailableRoomResponse = (room) => ({
   images: room.images || [],
   status: room.status,
   createdAt: room.createdAt,
+});
+
+const toInterestedRoomResponse = (interest) => ({
+  id: interest._id,
+  room: interest.room?._id || interest.room,
+  roomNumber: interest.room?.roomNumber,
+  name: interest.room?.name,
+  floor: interest.room?.floor,
+  area: interest.room?.area,
+  capacity: interest.room?.capacity,
+  price: interest.room?.price,
+  deposit: interest.room?.deposit,
+  electricityPrice: interest.room?.electricityPrice,
+  waterPrice: interest.room?.waterPrice,
+  serviceFee: interest.room?.serviceFee,
+  description: interest.room?.description,
+  images: interest.room?.images || [],
+  roomStatus: interest.room?.status,
+  note: interest.note,
+  status: interest.status,
+  createdAt: interest.createdAt,
+  updatedAt: interest.updatedAt,
 });
 
 const toContractResponse = (contract) => ({
@@ -162,6 +185,89 @@ const getAvailableRooms = async (req, res, next) => {
   try {
     const rooms = await Room.find({ status: "available" }).sort({ createdAt: -1 });
     res.json(rooms.map(toAvailableRoomResponse));
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getAvailableRoomById = async (req, res, next) => {
+  try {
+    const room = await Room.findOne({ _id: req.params.id, status: "available" });
+
+    if (!room) {
+      res.status(404);
+      throw new Error("Room not found");
+    }
+
+    res.json(toAvailableRoomResponse(room));
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getMyInterestedRooms = async (req, res, next) => {
+  try {
+    const interestedRooms = await InterestedRoom.find({
+      user: req.user._id,
+      status: "active",
+    })
+      .populate("room", "roomNumber name floor area capacity price deposit electricityPrice waterPrice serviceFee description status images")
+      .sort({ createdAt: -1 });
+
+    res.json(interestedRooms.map(toInterestedRoomResponse));
+  } catch (error) {
+    next(error);
+  }
+};
+
+const addMyInterestedRoom = async (req, res, next) => {
+  try {
+    const { note = "", room } = req.body;
+
+    if (!room) {
+      throw new Error("Room is required");
+    }
+
+    const availableRoom = await Room.findOne({ _id: room, status: "available" });
+
+    if (!availableRoom) {
+      res.status(400);
+      throw new Error("Room is not available");
+    }
+
+    const interestedRoom = await InterestedRoom.findOneAndUpdate(
+      { user: req.user._id, room },
+      { note, status: "active" },
+      { new: true, setDefaultsOnInsert: true, upsert: true }
+    ).populate("room", "roomNumber name floor area capacity price deposit electricityPrice waterPrice serviceFee description status images");
+
+    res.status(201).json(toInterestedRoomResponse(interestedRoom));
+  } catch (error) {
+    if (!res.statusCode || res.statusCode < 400) {
+      res.status(400);
+    }
+
+    next(error);
+  }
+};
+
+const removeMyInterestedRoom = async (req, res, next) => {
+  try {
+    const interestedRoom = await InterestedRoom.findOne({
+      room: req.params.roomId,
+      user: req.user._id,
+      status: "active",
+    });
+
+    if (!interestedRoom) {
+      res.status(404);
+      throw new Error("Interested room not found");
+    }
+
+    interestedRoom.status = "removed";
+    await interestedRoom.save();
+
+    res.json({ message: "Interested room removed" });
   } catch (error) {
     next(error);
   }
@@ -397,15 +503,19 @@ const getMyContractFile = async (req, res, next) => {
 };
 
 module.exports = {
+  addMyInterestedRoom,
   deleteMyRepairRequest,
+  getAvailableRoomById,
   getAvailableRooms,
   getMyContractFile,
   getMyContracts,
+  getMyInterestedRooms,
   getMyInvoiceById,
   getMyInvoices,
   createMyRepairRequest,
   getMyRepairRequestById,
   getMyRepairRequests,
   getMyTenancies,
+  removeMyInterestedRoom,
   updateMyRepairRequest,
 };
