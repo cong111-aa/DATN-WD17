@@ -1,7 +1,8 @@
 const Room = require("../models/Room");
+const RoomRequest = require("../models/RoomRequest");
 const Tenant = require("../models/Tenant");
 
-const roomStatuses = ["available", "occupied", "maintenance"];
+const roomStatuses = ["available", "reserved", "occupied", "maintenance"];
 
 const toRoomResponse = (room) => ({
   id: room._id,
@@ -79,6 +80,18 @@ const ensureRoomCanBeMarkedAvailable = async (room, res) => {
   if (activeTenant) {
     res.status(400);
     throw new Error("Cannot mark room as available while it has active tenant");
+  }
+
+  const paidHoldRequest = await RoomRequest.findOne({
+    room: room._id,
+    type: "hold_deposit",
+    paymentStatus: "paid",
+    status: { $in: ["pending", "approved"] },
+  });
+
+  if (paidHoldRequest) {
+    res.status(400);
+    throw new Error("Cannot mark reserved room as available while it has paid hold request");
   }
 };
 

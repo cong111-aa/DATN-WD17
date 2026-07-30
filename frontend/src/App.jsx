@@ -6,6 +6,7 @@ import ContractManagementPage from "./pages/admin/ContractManagementPage";
 import InvoiceManagementPage from "./pages/admin/InvoiceManagementPage";
 import OperatingExpenseManagementPage from "./pages/admin/OperatingExpenseManagementPage";
 import RepairRequestManagementPage from "./pages/admin/RepairRequestManagementPage";
+import RoomRequestManagementPage from "./pages/admin/RoomRequestManagementPage";
 import RoomManagementPage from "./pages/admin/RoomManagementPage";
 import TenantManagementPage from "./pages/admin/TenantManagementPage";
 import UserManagementPage from "./pages/admin/UserManagementPage";
@@ -32,6 +33,7 @@ const App = () => (
         <Route path="invoices" element={<InvoiceManagementPage />} />
         <Route path="operating-expenses" element={<OperatingExpenseManagementPage />} />
         <Route path="repair-requests" element={<RepairRequestManagementPage />} />
+        <Route path="room-requests" element={<RoomRequestManagementPage />} />
         <Route path="rooms" element={<RoomManagementPage />} />
         <Route path="tenants" element={<TenantManagementPage />} />
         <Route path="users" element={<UserManagementPage />} />

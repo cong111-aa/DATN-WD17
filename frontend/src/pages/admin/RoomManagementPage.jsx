@@ -44,12 +44,14 @@ const defaultFormValues = {
 };
 
 const statusOptions = [
+  { label: "Da giu cho", value: "reserved" },
   { label: "Còn trống", value: "available" },
   { label: "Đang thuê", value: "occupied" },
   { label: "Bảo trì", value: "maintenance" },
 ];
 
 const statusMeta = {
+  reserved: { color: "gold", label: "Da giu cho" },
   available: { color: "success", label: "Còn trống" },
   occupied: { color: "blue", label: "Đang thuê" },
   maintenance: { color: "warning", label: "Bảo trì" },

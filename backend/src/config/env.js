@@ -7,6 +7,11 @@ const env = {
   jwtSecret: process.env.JWT_SECRET || "change_this_secret",
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
   clientUrl: process.env.CLIENT_URL || "http://localhost:5173",
+  bankBin: process.env.BANK_BIN || "",
+  bankAccountNumber: process.env.BANK_ACCOUNT_NUMBER || "",
+  bankAccountName: process.env.BANK_ACCOUNT_NAME || "",
+  bankName: process.env.BANK_NAME || "",
+  paymentQrTemplate: process.env.PAYMENT_QR_TEMPLATE || "compact2",
 };
 
 module.exports = env;

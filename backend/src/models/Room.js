@@ -16,7 +16,7 @@ const roomSchema = new mongoose.Schema(
     images: [{ type: String, trim: true }], // Danh sach anh phong
     status: {
       type: String,
-      enum: ["available", "occupied", "maintenance"],
+      enum: ["available", "reserved", "occupied", "maintenance"],
       default: "available",
     }, // Trang thai phong
   },
