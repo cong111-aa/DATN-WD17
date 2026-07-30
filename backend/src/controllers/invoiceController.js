@@ -133,9 +133,15 @@ const applyMeterReadingAmounts = async (payload) => {
   let meterReading = existingMeterReading;
 
   if (hasInlineReading) {
-    const electricityOld = toNumber(payload.electricityOld, existingMeterReading?.electricityOld ?? 0);
+    const seed = existingMeterReading
+      ? {
+          electricityOld: existingMeterReading.electricityOld,
+          waterOld: existingMeterReading.waterOld,
+        }
+      : await getPreviousMeterReadingForPeriod(payload.room, payload.month, payload.year);
+    const electricityOld = toNumber(payload.electricityOld, seed.electricityOld ?? 0);
     const electricityNew = toNumber(payload.electricityNew, existingMeterReading?.electricityNew ?? electricityOld);
-    const waterOld = toNumber(payload.waterOld, existingMeterReading?.waterOld ?? 0);
+    const waterOld = toNumber(payload.waterOld, seed.waterOld ?? 0);
     const waterNew = toNumber(payload.waterNew, existingMeterReading?.waterNew ?? waterOld);
 
     if (electricityNew < electricityOld) {
@@ -171,6 +177,43 @@ const applyMeterReadingAmounts = async (payload) => {
   payload.waterAmount = waterUsage * Number(room.waterPrice || 0);
 
   return payload;
+};
+
+const getPreviousMeterReadingForPeriod = async (room, month, year) => {
+  const selectedMonth = Number(month);
+  const selectedYear = Number(year);
+
+  const currentReading = await MeterReading.findOne({
+    room,
+    month: selectedMonth,
+    year: selectedYear,
+  });
+
+  if (currentReading) {
+    return {
+      electricityNew: currentReading.electricityNew,
+      electricityOld: currentReading.electricityOld,
+      source: "current",
+      waterNew: currentReading.waterNew,
+      waterOld: currentReading.waterOld,
+    };
+  }
+
+  const previousReading = await MeterReading.findOne({
+    room,
+    $or: [
+      { year: { $lt: selectedYear } },
+      { year: selectedYear, month: { $lt: selectedMonth } },
+    ],
+  }).sort({ year: -1, month: -1 });
+
+  return {
+    electricityNew: previousReading?.electricityNew ?? 0,
+    electricityOld: previousReading?.electricityNew ?? 0,
+    source: previousReading ? "previous" : "empty",
+    waterNew: previousReading?.waterNew ?? 0,
+    waterOld: previousReading?.waterNew ?? 0,
+  };
 };
 
 const ensureInvoiceRepresentative = async (tenant, room) => {
@@ -314,6 +357,34 @@ const getInvoiceById = async (req, res, next) => {
 
     res.json(toInvoiceResponse(invoice));
   } catch (error) {
+    next(error);
+  }
+};
+
+const getInvoiceMeterReadingSeed = async (req, res, next) => {
+  try {
+    const { room, month, year } = req.query;
+
+    if (!room || !month || !year) {
+      res.status(400);
+      throw new Error("Room, month and year are required");
+    }
+
+    const existingRoom = await Room.findById(room).select("_id");
+
+    if (!existingRoom) {
+      res.status(404);
+      throw new Error("Room not found");
+    }
+
+    const seed = await getPreviousMeterReadingForPeriod(room, month, year);
+
+    res.json(seed);
+  } catch (error) {
+    if (!res.statusCode || res.statusCode < 400) {
+      res.status(400);
+    }
+
     next(error);
   }
 };
@@ -520,6 +591,7 @@ module.exports = {
   createInvoice,
   deleteInvoice,
   getInvoiceById,
+  getInvoiceMeterReadingSeed,
   getInvoices,
   updateInvoice,
   updateInvoiceStatus,
