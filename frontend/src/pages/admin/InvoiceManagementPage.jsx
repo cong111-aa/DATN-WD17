@@ -279,34 +279,24 @@ const InvoiceManagementPage = () => {
     setYearFilter("");
   };
 
-  const loadExistingMeterReading = async (room, month, year) => {
+  const loadMeterReadingSeed = async (room, month, year) => {
     if (!room || !month || !year) {
       return;
     }
 
     try {
-      const { data } = await http.get("/meter-readings", {
+      const { data } = await http.get("/invoices/meter-reading-seed", {
         params: { room, month, year },
       });
-      const reading = data?.[0];
 
-      if (reading) {
-        form.setFieldsValue({
-          electricityOld: reading.electricityOld,
-          electricityNew: reading.electricityNew,
-          waterOld: reading.waterOld,
-          waterNew: reading.waterNew,
-        });
-      } else {
-        form.setFieldsValue({
-          electricityOld: 0,
-          electricityNew: 0,
-          waterOld: 0,
-          waterNew: 0,
-        });
-      }
+      form.setFieldsValue({
+        electricityOld: data.electricityOld ?? 0,
+        electricityNew: data.electricityNew ?? data.electricityOld ?? 0,
+        waterOld: data.waterOld ?? 0,
+        waterNew: data.waterNew ?? data.waterOld ?? 0,
+      });
     } catch (error) {
-      message.error(error.response?.data?.message || "Khong tai duoc chi so dien nuoc");
+      message.error(error.response?.data?.message || "Khong tai duoc chi so cu cua ky hoa don");
     }
   };
 
@@ -340,7 +330,7 @@ const InvoiceManagementPage = () => {
       rentAmount: nextRoom?.price ?? form.getFieldValue("rentAmount"),
       serviceAmount: nextRoom?.serviceFee ?? form.getFieldValue("serviceAmount"),
     });
-    loadExistingMeterReading(
+    loadMeterReadingSeed(
       selectedTenant?.room,
       form.getFieldValue("month"),
       form.getFieldValue("year")
@@ -354,11 +344,11 @@ const InvoiceManagementPage = () => {
       rentAmount: nextRoom?.price ?? form.getFieldValue("rentAmount"),
       serviceAmount: nextRoom?.serviceFee ?? form.getFieldValue("serviceAmount"),
     });
-    loadExistingMeterReading(roomId, form.getFieldValue("month"), form.getFieldValue("year"));
+    loadMeterReadingSeed(roomId, form.getFieldValue("month"), form.getFieldValue("year"));
   };
 
   const handlePeriodChange = () => {
-    loadExistingMeterReading(
+    loadMeterReadingSeed(
       form.getFieldValue("room"),
       form.getFieldValue("month"),
       form.getFieldValue("year")

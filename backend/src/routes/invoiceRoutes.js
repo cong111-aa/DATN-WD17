@@ -3,6 +3,7 @@ const {
   createInvoice,
   deleteInvoice,
   getInvoiceById,
+  getInvoiceMeterReadingSeed,
   getInvoices,
   updateInvoice,
   updateInvoiceStatus,
@@ -13,6 +14,7 @@ const router = express.Router();
 
 router.get("/", protect, adminOnly, getInvoices);
 router.post("/", protect, adminOnly, createInvoice);
+router.get("/meter-reading-seed", protect, adminOnly, getInvoiceMeterReadingSeed);
 router.get("/:id", protect, adminOnly, getInvoiceById);
 router.put("/:id", protect, adminOnly, updateInvoice);
 router.patch("/:id/status", protect, adminOnly, updateInvoiceStatus);
