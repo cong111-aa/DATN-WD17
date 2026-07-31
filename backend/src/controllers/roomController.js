@@ -327,6 +327,7 @@ module.exports = {
   deleteRoom,
   getRoomById,
   getRooms,
+  toRoomResponse,
   updateRoom,
   updateRoomStatus,
 };

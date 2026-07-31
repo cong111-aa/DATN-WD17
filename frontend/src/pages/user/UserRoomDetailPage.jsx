@@ -22,16 +22,17 @@ const UserRoomDetailPage = () => {
   const [roomRequestSubmitting, setRoomRequestSubmitting] = useState(false);
   const [roomRequestType, setRoomRequestType] = useState("hold_deposit");
   const [paymentRequest, setPaymentRequest] = useState(null);
+  const [loginPromptOpen, setLoginPromptOpen] = useState(false);
 
   const fetchRoom = async () => {
     setLoading(true);
 
     try {
-      const { data } = await http.get(`/me/available-rooms/${id}`);
+      const { data } = await http.get(user ? `/me/available-rooms/${id}` : `/public/rooms/${id}`);
       setRoom(data);
     } catch (error) {
       message.error(error.response?.data?.message || "Khong tai duoc chi tiet phong");
-      navigate("/user", { replace: true });
+      navigate(user ? "/user" : "/", { replace: true });
     } finally {
       setLoading(false);
     }
@@ -39,9 +40,22 @@ const UserRoomDetailPage = () => {
 
   useEffect(() => {
     fetchRoom();
-  }, [id]);
+  }, [id, user]);
+
+  const requireLogin = () => {
+    if (user) {
+      return true;
+    }
+
+    setLoginPromptOpen(true);
+    return false;
+  };
 
   const handleInterestedRoom = async () => {
+    if (!requireLogin()) {
+      return;
+    }
+
     try {
       await http.post("/me/interested-rooms", { room: id });
       message.success("Da them phong vao danh sach quan tam");
@@ -51,6 +65,10 @@ const UserRoomDetailPage = () => {
   };
 
   const openRoomRequestModal = (type) => {
+    if (!requireLogin()) {
+      return;
+    }
+
     setRoomRequestType(type);
     roomRequestForm.resetFields();
     roomRequestForm.setFieldsValue(
@@ -117,18 +135,31 @@ const UserRoomDetailPage = () => {
   return (
     <Layout className="app-shell">
       <Header className="app-header">
-        <div className="brand">Tro Plus</div>
+        <div className="brand" onClick={() => navigate("/")} style={{ cursor: "pointer" }}>
+          Tro Plus
+        </div>
         <Space>
-          <Typography.Text className="header-user">{user?.name}</Typography.Text>
-          <Button icon={<LogoutOutlined />} onClick={handleLogout}>
-            Dang xuat
-          </Button>
+          {user ? (
+            <>
+              <Typography.Text className="header-user">{user.name}</Typography.Text>
+              <Button icon={<LogoutOutlined />} onClick={handleLogout}>
+                Dang xuat
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button onClick={() => navigate("/login")}>Dang nhap</Button>
+              <Button type="primary" onClick={() => navigate("/register")}>
+                Dang ky
+              </Button>
+            </>
+          )}
         </Space>
       </Header>
       <Content className="app-content">
         <Space direction="vertical" size={16} className="page-stack">
           <div className="page-toolbar">
-            <Button icon={<ArrowLeftOutlined />} onClick={() => navigate("/user")}>
+            <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(user ? "/user" : "/")}>
               Quay lai
             </Button>
             <Space wrap>
@@ -340,6 +371,19 @@ const UserRoomDetailPage = () => {
               )}
             </Space>
           )}
+        </Modal>
+
+        <Modal
+          title="Can dang nhap"
+          open={loginPromptOpen}
+          onCancel={() => setLoginPromptOpen(false)}
+          onOk={() => navigate(`/login?redirect=${encodeURIComponent(`/rooms/${id}`)}`)}
+          okText="Tiep tuc dang nhap"
+          cancelText="O lai"
+        >
+          <Typography.Text>
+            Ban can dang nhap de thuc hien tac vu nay. Ban co muon tiep tuc dang nhap khong?
+          </Typography.Text>
         </Modal>
       </Content>
     </Layout>

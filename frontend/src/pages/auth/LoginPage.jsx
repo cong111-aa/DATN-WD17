@@ -7,12 +7,13 @@ import {
 } from "@ant-design/icons";
 import { Alert, Button, Card, Checkbox, Form, Input, Space, Typography } from "antd";
 import { useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
 const LoginPage = () => {
   const { isAdmin, login, user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -22,7 +23,8 @@ const LoginPage = () => {
 
     try {
       const data = await login({ email, password });
-      navigate(data.role === "admin" ? "/admin" : "/user");
+      const redirect = searchParams.get("redirect");
+      navigate(data.role === "admin" ? "/admin" : redirect || "/user");
     } catch (error) {
       setErrorMessage(error.response?.data?.message || "Đăng nhập thất bại. Vui lòng thử lại.");
     } finally {
@@ -31,7 +33,7 @@ const LoginPage = () => {
   };
 
   if (user) {
-    return <Navigate to={isAdmin ? "/admin" : "/user"} replace />;
+    return <Navigate to={isAdmin ? "/admin" : searchParams.get("redirect") || "/user"} replace />;
   }
 
   return (
@@ -118,7 +120,7 @@ const LoginPage = () => {
           </Form>
 
           <Typography.Paragraph className="auth-register-link">
-            Chua co tai khoan? <Link to="/register">Dang ky ngay</Link>
+            Chua co tai khoan? <Link to={`/register${searchParams.get("redirect") ? `?redirect=${encodeURIComponent(searchParams.get("redirect"))}` : ""}`}>Dang ky ngay</Link>
           </Typography.Paragraph>
         </Card>
       </div>

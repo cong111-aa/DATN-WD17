@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
+import PublicHomePage from "./pages/PublicHomePage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminLayout from "./pages/admin/AdminLayout";
 import ContractManagementPage from "./pages/admin/ContractManagementPage";
@@ -18,6 +19,7 @@ import UserRoomDetailPage from "./pages/user/UserRoomDetailPage";
 const App = () => (
   <BrowserRouter>
     <Routes>
+      <Route path="/" element={<PublicHomePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route
@@ -47,14 +49,14 @@ const App = () => (
         }
       />
       <Route
-        path="/user/rooms/:id"
-        element={
-          <ProtectedRoute>
-            <UserRoomDetailPage />
-          </ProtectedRoute>
-        }
+        path="/rooms/:id"
+        element={<UserRoomDetailPage />}
       />
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route
+        path="/user/rooms/:id"
+        element={<UserRoomDetailPage />}
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   </BrowserRouter>
 );

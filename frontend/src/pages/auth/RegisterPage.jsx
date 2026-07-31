@@ -1,12 +1,13 @@
 import { LockOutlined, MailOutlined, PhoneOutlined, UserOutlined } from "@ant-design/icons";
 import { Alert, Button, Card, Form, Input, Space, Typography } from "antd";
 import { useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
 const RegisterPage = () => {
   const { isAdmin, register, user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -16,7 +17,8 @@ const RegisterPage = () => {
 
     try {
       const data = await register(values);
-      navigate(data.role === "admin" ? "/admin" : "/user");
+      const redirect = searchParams.get("redirect");
+      navigate(data.role === "admin" ? "/admin" : redirect || "/user");
     } catch (error) {
       setErrorMessage(error.response?.data?.message || "Dang ky that bai. Vui long thu lai.");
     } finally {
@@ -25,7 +27,7 @@ const RegisterPage = () => {
   };
 
   if (user) {
-    return <Navigate to={isAdmin ? "/admin" : "/user"} replace />;
+    return <Navigate to={isAdmin ? "/admin" : searchParams.get("redirect") || "/user"} replace />;
   }
 
   return (
@@ -68,7 +70,7 @@ const RegisterPage = () => {
         </Form>
 
         <Typography.Paragraph className="auth-register-link">
-          Da co tai khoan? <Link to="/login">Dang nhap</Link>
+          Da co tai khoan? <Link to={`/login${searchParams.get("redirect") ? `?redirect=${encodeURIComponent(searchParams.get("redirect"))}` : ""}`}>Dang nhap</Link>
         </Typography.Paragraph>
       </Card>
     </div>
