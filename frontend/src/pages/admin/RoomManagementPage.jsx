@@ -303,7 +303,7 @@ const RoomManagementPage = () => {
         .room-card-title .ant-tag { border:0; border-radius:12px; padding:1px 8px; margin:0; font-size:10px; font-weight:700; }
         .room-menu { margin-left:auto; color:#738297; }
         .room-info { display:grid; gap:7px; margin:12px 0; color:#556579; font-size:11px; } .room-info span { display:flex; align-items:center; gap:7px; } .room-info .anticon { color:#6d7d8f; }
-        .room-actions { display:flex; gap:7px; } .room-actions .ant-btn { flex:1; border:0; background:#f5f5f6; color:#536174; font-size:11px; height:30px; padding:0 5px; } .room-actions .ant-btn-primary { background:#168761; color:#fff; } .room-actions .room-delete { flex:0 0 30px; color:#d95454; background:#fff1f1; } .room-actions .room-delete:disabled { color:#b9c1ca; background:#f5f6f7; }
+        .room-actions { display:flex; flex-wrap:wrap; gap:7px; } .room-actions .ant-btn { flex:1 1 calc(50% - 4px); border:0; background:#f5f5f6; color:#536174; font-size:11px; height:30px; padding:0 5px; } .room-actions .ant-btn-primary { background:#168761; color:#fff; } .room-actions .room-contract { color:#234a7c; background:#eef6ff; } .room-actions .room-delete { flex:0 0 30px; color:#d95454; background:#fff1f1; } .room-actions .room-delete:disabled { color:#b9c1ca; background:#f5f6f7; }
         .room-card-add { min-height:290px; border:1px dashed #cbd4de; display:flex; align-items:center; justify-content:center; background:#fbfcfd; } .room-card-add .ant-btn { border:0; background:#eef1f4; color:#68778a; width:42px; height:42px; border-radius:8px; font-size:18px; }
         .room-empty { grid-column:1/-1; padding:50px; text-align:center; color:#748397; background:#fff; border-radius:8px; }
         .room-modal .ant-modal-content { padding:0; overflow:hidden; border-radius:14px; }
@@ -349,6 +349,7 @@ const RoomManagementPage = () => {
               <div className="room-info"><span><UserOutlined />{room.name || (isOccupied ? "Đang có khách thuê" : "Sẵn sàng ngay lập tức")}</span><span><FileTextOutlined />{formatCurrency(room.price)}</span></div>
               <div className="room-actions">
                 <Button onClick={() => openDetailModal(room)}>Chi tiết</Button>
+                <Button className="room-contract" icon={<FileTextOutlined />} onClick={() => handleViewContract(room)}>Hợp đồng</Button>
                 <Button type={isOccupied ? "primary" : "default"} icon={<EditOutlined />} onClick={() => openEditModal(room)}>{isOccupied ? "Cập nhật" : "Chỉnh sửa"}</Button>
                 <Popconfirm title="Xóa phòng này?" description="Không thể xóa phòng đang có người thuê." okText="Xóa" cancelText="Hủy" onConfirm={() => handleDelete(room)} disabled={isOccupied}>
                   <Button className="room-delete" aria-label={`Xóa phòng ${room.roomNumber}`} danger icon={<DeleteOutlined />} disabled={isOccupied} />
