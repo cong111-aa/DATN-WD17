@@ -16,6 +16,9 @@ const toRoomResponse = (room) => ({
   electricityPrice: room.electricityPrice,
   waterPrice: room.waterPrice,
   serviceFee: room.serviceFee,
+  address: room.address,
+  latitude: room.latitude,
+  longitude: room.longitude,
   description: room.description,
   images: room.images || [],
   status: room.status,
@@ -27,6 +30,14 @@ const validateNonNegativeNumber = (value, fieldName) => {
   if (value !== undefined && Number(value) < 0) {
     throw new Error(`${fieldName} must be greater than or equal to 0`);
   }
+};
+
+const normalizeCoordinate = (value) => {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+
+  return Number(value);
 };
 
 const validateRoomPayload = (
@@ -41,6 +52,8 @@ const validateRoomPayload = (
     electricityPrice,
     waterPrice,
     serviceFee,
+    latitude,
+    longitude,
     status,
   },
   isCreate
@@ -63,6 +76,17 @@ const validateRoomPayload = (
 
   if (status && !roomStatuses.includes(status)) {
     throw new Error("Invalid status");
+  }
+
+  const nextLatitude = normalizeCoordinate(latitude);
+  const nextLongitude = normalizeCoordinate(longitude);
+
+  if (nextLatitude !== null && (Number.isNaN(nextLatitude) || nextLatitude < -90 || nextLatitude > 90)) {
+    throw new Error("Latitude must be between -90 and 90");
+  }
+
+  if (nextLongitude !== null && (Number.isNaN(nextLongitude) || nextLongitude < -180 || nextLongitude > 180)) {
+    throw new Error("Longitude must be between -180 and 180");
   }
 };
 
@@ -133,6 +157,9 @@ const createRoom = async (req, res, next) => {
       electricityPrice = 3500,
       waterPrice = 15000,
       serviceFee = 0,
+      address = "",
+      latitude,
+      longitude,
       description,
       images = [],
       status = "available",
@@ -150,6 +177,8 @@ const createRoom = async (req, res, next) => {
         electricityPrice,
         waterPrice,
         serviceFee,
+        latitude,
+        longitude,
         status,
       },
       true
@@ -173,6 +202,9 @@ const createRoom = async (req, res, next) => {
       electricityPrice,
       waterPrice,
       serviceFee,
+      address,
+      latitude: normalizeCoordinate(latitude),
+      longitude: normalizeCoordinate(longitude),
       description,
       images,
       status,
@@ -208,6 +240,9 @@ const updateRoom = async (req, res, next) => {
       electricityPrice,
       waterPrice,
       serviceFee,
+      address,
+      latitude,
+      longitude,
       description,
       images,
       status,
@@ -225,6 +260,8 @@ const updateRoom = async (req, res, next) => {
         electricityPrice,
         waterPrice,
         serviceFee,
+        latitude,
+        longitude,
         status,
       },
       false
@@ -258,6 +295,9 @@ const updateRoom = async (req, res, next) => {
     room.electricityPrice = electricityPrice ?? room.electricityPrice;
     room.waterPrice = waterPrice ?? room.waterPrice;
     room.serviceFee = serviceFee ?? room.serviceFee;
+    room.address = address ?? room.address;
+    room.latitude = latitude !== undefined ? normalizeCoordinate(latitude) : room.latitude;
+    room.longitude = longitude !== undefined ? normalizeCoordinate(longitude) : room.longitude;
     room.description = description ?? room.description;
     room.images = images ?? room.images;
     room.status = status ?? room.status;

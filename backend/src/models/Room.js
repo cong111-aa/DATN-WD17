@@ -12,6 +12,9 @@ const roomSchema = new mongoose.Schema(
     electricityPrice: { type: Number, default: 3500, min: 0 }, // Don gia dien
     waterPrice: { type: Number, default: 15000, min: 0 }, // Don gia nuoc
     serviceFee: { type: Number, default: 0, min: 0 }, // Phi dich vu
+    address: { type: String, default: "", trim: true }, // Dia chi/vi tri phong
+    latitude: { type: Number, default: null, min: -90, max: 90 }, // Vi do
+    longitude: { type: Number, default: null, min: -180, max: 180 }, // Kinh do
     description: { type: String, default: "", trim: true }, // Mo ta
     images: [{ type: String, trim: true }], // Danh sach anh phong
     status: {
