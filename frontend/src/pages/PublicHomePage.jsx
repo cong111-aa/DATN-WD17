@@ -2,6 +2,7 @@ import {
   CreditCardOutlined,
   HeartOutlined,
   HomeOutlined,
+  KeyOutlined,
   LoginOutlined,
   UserAddOutlined,
   UserOutlined,
@@ -283,6 +284,9 @@ const PublicHomePage = () => {
                     </Button>,
                     <Button type="link" icon={<CreditCardOutlined />} onClick={() => requireLogin(`/rooms/${room.id}`)}>
                       Dat coc
+                    </Button>,
+                    <Button type="link" icon={<KeyOutlined />} onClick={() => requireLogin(`/user/rooms/${room.id}`)}>
+                      Thue phong
                     </Button>,
                   ]}
                 >
