@@ -39,6 +39,9 @@ const defaultFormValues = {
   floor: 1,
   serviceFee: 0,
   images: [],
+  address: "",
+  latitude: null,
+  longitude: null,
   status: "available",
   waterPrice: 15000,
 };
@@ -150,7 +153,7 @@ const RoomManagementPage = () => {
     const keyword = searchText.trim().toLowerCase();
     return rooms
       .filter((room) => {
-        const matchesKeyword = !keyword || [room.roomNumber, room.name, room.description]
+        const matchesKeyword = !keyword || [room.roomNumber, room.name, room.description, room.address]
           .some((value) => String(value || "").toLowerCase().includes(keyword));
         return matchesKeyword && (statusFilter === "all" || room.status === statusFilter);
       })
@@ -410,6 +413,19 @@ const RoomManagementPage = () => {
             </Form.Item>
           </div>
 
+          <div className="modal-section">Vị trí phòng</div>
+          <div className="form-grid">
+            <Form.Item name="address" label="Địa chỉ phòng" style={{ gridColumn: "1 / -1" }}>
+              <Input placeholder="VD: Số 12 ngõ 34 Cầu Giấy, Hà Nội" />
+            </Form.Item>
+            <Form.Item name="latitude" label="Vĩ độ">
+              <InputNumber min={-90} max={90} precision={6} className="full-width-input" placeholder="VD: 21.036236" />
+            </Form.Item>
+            <Form.Item name="longitude" label="Kinh độ">
+              <InputNumber min={-180} max={180} precision={6} className="full-width-input" placeholder="VD: 105.790583" />
+            </Form.Item>
+          </div>
+
           <div className="modal-section">Mô tả và hình ảnh</div>
           <Form.Item name="description" label="Mô tả">
             <Input.TextArea rows={3} />
@@ -463,6 +479,13 @@ const RoomManagementPage = () => {
                   {statusMeta[detailRoom.status]?.label}
                 </Tag>
               </Descriptions.Item>
+            </Descriptions>
+
+            <Divider orientation="left">Vị trí phòng</Divider>
+            <Descriptions bordered size="small" column={2}>
+              <Descriptions.Item label="Địa chỉ" span={2}>{detailRoom.address || "-"}</Descriptions.Item>
+              <Descriptions.Item label="Vĩ độ">{detailRoom.latitude ?? "-"}</Descriptions.Item>
+              <Descriptions.Item label="Kinh độ">{detailRoom.longitude ?? "-"}</Descriptions.Item>
             </Descriptions>
 
             <Divider orientation="left">Giá và dịch vụ</Divider>
