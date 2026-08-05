@@ -13,8 +13,16 @@ import TenantManagementPage from "./pages/admin/TenantManagementPage";
 import UserManagementPage from "./pages/admin/UserManagementPage";
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
+import UserContractsPage from "./pages/user/UserContractsPage";
 import UserHomePage from "./pages/user/UserHomePage";
+import UserInterestedRoomsPage from "./pages/user/UserInterestedRoomsPage";
+import UserInvoicesPage from "./pages/user/UserInvoicesPage";
+import UserLayout from "./pages/user/UserLayout";
+import UserMyRoomsPage from "./pages/user/UserMyRoomsPage";
+import UserProfilePage from "./pages/user/UserProfilePage";
+import UserRepairRequestsPage from "./pages/user/UserRepairRequestsPage";
 import UserRoomDetailPage from "./pages/user/UserRoomDetailPage";
+import UserRoomRequestsPage from "./pages/user/UserRoomRequestsPage";
 
 const App = () => (
   <BrowserRouter>
@@ -44,10 +52,19 @@ const App = () => (
         path="/user"
         element={
           <ProtectedRoute>
-            <UserHomePage />
+            <UserLayout />
           </ProtectedRoute>
         }
-      />
+      >
+        <Route index element={<UserHomePage />} />
+        <Route path="my-rooms" element={<UserMyRoomsPage />} />
+        <Route path="contracts" element={<UserContractsPage />} />
+        <Route path="invoices" element={<UserInvoicesPage />} />
+        <Route path="repair-requests" element={<UserRepairRequestsPage />} />
+        <Route path="room-requests" element={<UserRoomRequestsPage />} />
+        <Route path="interested-rooms" element={<UserInterestedRoomsPage />} />
+        <Route path="profile" element={<UserProfilePage />} />
+      </Route>
       <Route
         path="/rooms/:id"
         element={<UserRoomDetailPage />}

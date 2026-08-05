@@ -1,22 +1,31 @@
 import {
+  CheckCircleOutlined,
+  ClockCircleOutlined,
   CreditCardOutlined,
   DeleteOutlined,
+  DownOutlined,
   EditOutlined,
   FileProtectOutlined,
   FileTextOutlined,
   HeartOutlined,
   HomeOutlined,
+  InfoCircleOutlined,
   LogoutOutlined,
+  PhoneOutlined,
   ReloadOutlined,
+  SafetyCertificateOutlined,
   ToolOutlined,
   UploadOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import {
+  Avatar,
+  Badge,
   Button,
   Card,
   DatePicker,
   Descriptions,
+  Dropdown,
   Empty,
   Form,
   Image,
@@ -36,88 +45,89 @@ import {
 } from "antd";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import http from "../../api/http";
 import { useAuth } from "../../context/AuthContext";
 
 const { Content, Header } = Layout;
+const { Title, Text, Paragraph } = Typography;
 
 const apiOrigin = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/api\/?$/, "");
 
-const formatCurrency = (value) => `${Number(value || 0).toLocaleString("vi-VN")} VND`;
+const formatCurrency = (value) => `${Number(value || 0).toLocaleString("vi-VN")} đ`;
 const formatDate = (value) => (value ? new Date(value).toLocaleDateString("vi-VN") : "-");
-const formatResolvedDate = (value) => (value ? formatDate(value) : "Chua xu ly");
+const formatResolvedDate = (value) => (value ? formatDate(value) : "Chưa xử lý");
 
 const roomRoleMeta = {
-  member: { color: "green", label: "Thanh vien" },
-  representative: { color: "gold", label: "Dai dien phong" },
+  member: { color: "green", label: "Thành viên" },
+  representative: { color: "gold", label: "Đại diện phòng" },
 };
 
 const tenantStatusMeta = {
-  active: { color: "blue", label: "Dang thue" },
-  inactive: { color: "default", label: "Da ket thuc" },
+  active: { color: "blue", label: "Đang thuê" },
+  inactive: { color: "default", label: "Đã kết thúc" },
 };
 
 const contractStatusMeta = {
-  active: { color: "blue", label: "Dang hieu luc" },
-  expired: { color: "default", label: "Het han" },
-  terminated: { color: "error", label: "Da cham dut" },
+  active: { color: "blue", label: "Đang hiệu lực" },
+  expired: { color: "default", label: "Hết hạn" },
+  terminated: { color: "error", label: "Đã chấm dứt" },
 };
 
 const invoiceStatusMeta = {
-  unpaid: { color: "default", label: "Chua thanh toan" },
-  partial: { color: "warning", label: "Thanh toan mot phan" },
-  paid: { color: "success", label: "Da thanh toan" },
-  overdue: { color: "error", label: "Qua han" },
+  unpaid: { color: "error", label: "Chưa thanh toán" },
+  partial: { color: "warning", label: "Thanh toán một phần" },
+  paid: { color: "success", label: "Đã thanh toán" },
+  overdue: { color: "error", label: "Quá hạn" },
 };
 
 const roomRequestTypeMeta = {
-  hold_deposit: { color: "gold", label: "Giu phong" },
-  rent: { color: "blue", label: "Thue phong" },
+  hold_deposit: { color: "gold", label: "Giữ phòng" },
+  rent: { color: "blue", label: "Thuê phòng" },
 };
 
 const roomRequestStatusMeta = {
-  pending: { color: "processing", label: "Cho xac nhan" },
-  approved: { color: "success", label: "Da xac nhan" },
-  rejected: { color: "error", label: "Tu choi" },
-  cancelled: { color: "default", label: "Da huy" },
-  expired: { color: "warning", label: "Het han" },
+  pending: { color: "processing", label: "Chờ xác nhận" },
+  approved: { color: "success", label: "Đã xác nhận" },
+  rejected: { color: "error", label: "Từ chối" },
+  cancelled: { color: "default", label: "Đã hủy" },
+  expired: { color: "warning", label: "Hết hạn" },
 };
 
 const paymentStatusMeta = {
-  unpaid: { color: "default", label: "Chua thanh toan" },
-  pending: { color: "processing", label: "Dang thanh toan" },
-  paid: { color: "success", label: "Da thanh toan" },
-  failed: { color: "error", label: "That bai" },
-  cancelled: { color: "default", label: "Da huy" },
+  unpaid: { color: "default", label: "Chưa thanh toán" },
+  pending: { color: "processing", label: "Đang thanh toán" },
+  paid: { color: "success", label: "Đã thanh toán" },
+  failed: { color: "error", label: "Thất bại" },
+  cancelled: { color: "default", label: "Đã hủy" },
 };
 
 const repairPriorityOptions = [
-  { label: "Thap", value: "low" },
-  { label: "Trung binh", value: "medium" },
+  { label: "Thấp", value: "low" },
+  { label: "Trung bình", value: "medium" },
   { label: "Cao", value: "high" },
-  { label: "Khan cap", value: "urgent" },
+  { label: "Khẩn cấp", value: "urgent" },
 ];
 
 const repairPriorityMeta = {
-  low: { color: "default", label: "Thap" },
-  medium: { color: "blue", label: "Trung binh" },
+  low: { color: "default", label: "Thấp" },
+  medium: { color: "blue", label: "Trung bình" },
   high: { color: "orange", label: "Cao" },
-  urgent: { color: "error", label: "Khan cap" },
+  urgent: { color: "error", label: "Khẩn cấp" },
 };
 
 const repairStatusMeta = {
-  pending: { color: "warning", label: "Cho xu ly" },
-  processing: { color: "processing", label: "Dang xu ly" },
-  resolved: { color: "success", label: "Da xu ly" },
-  cancelled: { color: "default", label: "Da huy" },
+  pending: { color: "warning", label: "Chờ xử lý" },
+  processing: { color: "processing", label: "Đang xử lý" },
+  resolved: { color: "success", label: "Đã xử lý" },
+  cancelled: { color: "default", label: "Đã hủy" },
 };
 
 const repairStatusOptions = [
-  { label: "Cho xu ly", value: "pending" },
-  { label: "Dang xu ly", value: "processing" },
-  { label: "Da xu ly", value: "resolved" },
-  { label: "Da huy", value: "cancelled" },
+  { label: "Chờ xử lý", value: "pending" },
+  { label: "Đang xử lý", value: "processing" },
+  { label: "Đã xử lý", value: "resolved" },
+  { label: "Đã hủy", value: "cancelled" },
 ];
 
 const toImageUrl = (url) => (url?.startsWith("http") ? url : `${apiOrigin}${url}`);
@@ -156,6 +166,18 @@ const UserHomePage = () => {
   const [roomRequestForm] = Form.useForm();
   const { logout, refreshProfile, user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "rooms";
+
+  const handleTabChange = (key) => {
+    setSearchParams({ tab: key });
+    setTimeout(() => {
+      const el = document.getElementById("portal-active-section");
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth" });
+      }
+    }, 50);
+  };
   const [tenancies, setTenancies] = useState([]);
   const [availableRooms, setAvailableRooms] = useState([]);
   const [interestedRooms, setInterestedRooms] = useState([]);
@@ -189,7 +211,7 @@ const UserHomePage = () => {
   const activeRoomOptions = useMemo(
     () =>
       activeTenancies.map((tenancy) => ({
-        label: `${tenancy.roomNumber} - ${tenancy.roomName}`,
+        label: `Phòng ${tenancy.roomNumber} - ${tenancy.roomName}`,
         value: tenancy.room,
       })),
     [activeTenancies]
@@ -231,7 +253,7 @@ const UserHomePage = () => {
       setRepairRequests(repairRequestData);
       setRoomRequests(roomRequestData);
     } catch (error) {
-      message.error(error.response?.data?.message || "Khong tai duoc du lieu nguoi dung");
+      message.error(error.response?.data?.message || "Không tải được dữ liệu người dùng");
     } finally {
       setLoading(false);
     }
@@ -245,9 +267,9 @@ const UserHomePage = () => {
     try {
       await http.put("/auth/profile", values);
       await refreshProfile();
-      message.success("Da cap nhat thong tin");
+      message.success("Đã cập nhật thông tin thành công");
     } catch (error) {
-      message.error(error.response?.data?.message || "Cap nhat that bai");
+      message.error(error.response?.data?.message || "Cập nhật thất bại");
     }
   };
 
@@ -261,7 +283,7 @@ const UserHomePage = () => {
       });
       onSuccess(data);
     } catch (error) {
-      message.error(error.response?.data?.message || "Upload anh CCCD that bai");
+      message.error(error.response?.data?.message || "Upload ảnh CCCD thất bại");
       onError(error);
     }
   };
@@ -287,7 +309,7 @@ const UserHomePage = () => {
       window.open(url, "_blank", "noopener,noreferrer");
       setTimeout(() => URL.revokeObjectURL(url), 30000);
     } catch (error) {
-      message.error(error.response?.data?.message || "Khong mo duoc hop dong");
+      message.error(error.response?.data?.message || "Không mở được file hợp đồng");
     }
   };
 
@@ -296,7 +318,7 @@ const UserHomePage = () => {
       const { data } = await http.get(`/me/invoices/${invoice.id}`);
       setDetailInvoice(data);
     } catch (error) {
-      message.error(error.response?.data?.message || "Khong tai duoc chi tiet hoa don");
+      message.error(error.response?.data?.message || "Không tải được chi tiết hóa đơn");
     }
   };
 
@@ -307,20 +329,20 @@ const UserHomePage = () => {
 
     try {
       await http.post("/me/interested-rooms", { room: room.id || room.room });
-      message.success(`Da them phong ${room.roomNumber} vao danh sach quan tam`);
+      message.success(`Đã thêm phòng ${room.roomNumber} vào danh sách quan tâm`);
       fetchUserData();
     } catch (error) {
-      message.error(error.response?.data?.message || "Khong them duoc phong quan tam");
+      message.error(error.response?.data?.message || "Không thêm được phòng quan tâm");
     }
   };
 
   const handleRemoveInterestedRoom = async (room) => {
     try {
       await http.delete(`/me/interested-rooms/${room.room}`);
-      message.success("Da bo quan tam phong");
+      message.success("Đã bỏ quan tâm phòng");
       fetchUserData();
     } catch (error) {
-      message.error(error.response?.data?.message || "Khong bo quan tam duoc phong");
+      message.error(error.response?.data?.message || "Không bỏ quan tâm được phòng");
     }
   };
 
@@ -386,12 +408,12 @@ const UserHomePage = () => {
           : "/me/room-requests/rent",
         payload
       );
-      message.success("Da gui yeu cau phong");
+      message.success("Đã gửi yêu cầu phòng thành công");
       closeRoomRequestModal();
       setPaymentRequest(data);
       fetchUserData();
     } catch (error) {
-      message.error(error.response?.data?.message || "Gui yeu cau phong that bai");
+      message.error(error.response?.data?.message || "Gửi yêu cầu phòng thất bại");
     } finally {
       setRoomRequestSubmitting(false);
     }
@@ -400,10 +422,10 @@ const UserHomePage = () => {
   const handleCancelRoomRequest = async (request) => {
     try {
       await http.patch(`/me/room-requests/${request.id}/cancel`);
-      message.success("Da huy yeu cau");
+      message.success("Đã hủy yêu cầu");
       fetchUserData();
     } catch (error) {
-      message.error(error.response?.data?.message || "Huy yeu cau that bai");
+      message.error(error.response?.data?.message || "Hủy yêu cầu thất bại");
     }
   };
 
@@ -452,7 +474,7 @@ const UserHomePage = () => {
       });
       onSuccess(data);
     } catch (error) {
-      message.error(error.response?.data?.message || "Upload anh su co that bai");
+      message.error(error.response?.data?.message || "Upload ảnh sự cố thất bại");
       onError(error);
     }
   };
@@ -471,16 +493,16 @@ const UserHomePage = () => {
 
       if (editingRepairRequest) {
         await http.put(`/me/repair-requests/${editingRepairRequest.id}`, payload);
-        message.success("Da cap nhat su co");
+        message.success("Đã cập nhật sự cố");
       } else {
         await http.post("/me/repair-requests", payload);
-        message.success("Da gui bao cao su co");
+        message.success("Đã gửi báo cáo sự cố");
       }
 
       closeRepairModal();
       fetchUserData();
     } catch (error) {
-      message.error(error.response?.data?.message || "Gui bao cao su co that bai");
+      message.error(error.response?.data?.message || "Gửi báo cáo sự cố thất bại");
     } finally {
       setRepairSubmitting(false);
     }
@@ -491,68 +513,68 @@ const UserHomePage = () => {
       const { data } = await http.get(`/me/repair-requests/${request.id}`);
       setDetailRepairRequest(data);
     } catch (error) {
-      message.error(error.response?.data?.message || "Khong tai duoc chi tiet su co");
+      message.error(error.response?.data?.message || "Không tải được chi tiết sự cố");
     }
   };
 
   const handleDeleteRepairRequest = async (request) => {
     try {
       await http.delete(`/me/repair-requests/${request.id}`);
-      message.success("Da xoa su co");
+      message.success("Đã xóa sự cố");
       fetchUserData();
     } catch (error) {
-      message.error(error.response?.data?.message || "Xoa su co that bai");
+      message.error(error.response?.data?.message || "Xóa sự cố thất bại");
     }
   };
 
   const tenancyColumns = [
     {
-      title: "Phong",
+      title: "Phòng",
       dataIndex: "roomNumber",
       key: "roomNumber",
       render: (value, record) => (
         <Space direction="vertical" size={0}>
-          <Typography.Text strong>{value || "-"}</Typography.Text>
-          <Typography.Text type="secondary">{record.roomName || "-"}</Typography.Text>
+          <Text strong style={{ fontSize: 15 }}>Phòng {value || "-"}</Text>
+          <Text type="secondary" style={{ fontSize: 13 }}>{record.roomName || "-"}</Text>
         </Space>
       ),
     },
     {
-      title: "Vai tro",
+      title: "Vai trò",
       dataIndex: "roomRole",
       key: "roomRole",
       render: (role) => {
         const meta = roomRoleMeta[role] || roomRoleMeta.member;
-        return <Tag color={meta.color}>{meta.label}</Tag>;
+        return <Tag color={meta.color} style={{ borderRadius: 4, fontWeight: 600 }}>{meta.label}</Tag>;
       },
     },
     {
-      title: "Ngay vao",
+      title: "Ngày vào ở",
       dataIndex: "moveInDate",
       key: "moveInDate",
       render: formatDate,
     },
     {
-      title: "Gia phong",
+      title: "Giá thuê",
       dataIndex: "roomPrice",
       key: "roomPrice",
-      render: formatCurrency,
+      render: (val) => <Text strong>{formatCurrency(val)}</Text>,
     },
     {
-      title: "Trang thai",
+      title: "Trạng thái",
       dataIndex: "status",
       key: "status",
       render: (status) => {
         const meta = tenantStatusMeta[status] || tenantStatusMeta.inactive;
-        return <Tag color={meta.color}>{meta.label}</Tag>;
+        return <Tag color={meta.color} style={{ borderRadius: 4 }}>{meta.label}</Tag>;
       },
     },
     {
-      title: "Thao tac",
+      title: "Thao tác",
       key: "actions",
       render: (_, record) => (
-        <Button onClick={() => setDetailTenancy(record)}>
-          Chi tiet
+        <Button size="small" onClick={() => setDetailTenancy(record)} style={{ borderRadius: 6 }}>
+          Chi tiết
         </Button>
       ),
     },
@@ -560,37 +582,37 @@ const UserHomePage = () => {
 
   const contractColumns = [
     {
-      title: "Ma hop dong",
+      title: "Mã HĐ",
       dataIndex: "contractCode",
       key: "contractCode",
       render: (value, record) => (
         <Space direction="vertical" size={0}>
-          <Typography.Text strong>{value}</Typography.Text>
-          <Typography.Text type="secondary">
-            {record.roomNumber || "-"} - {record.roomName || "-"}
-          </Typography.Text>
+          <Text strong style={{ color: "#0f766e" }}>{value}</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            Phòng {record.roomNumber || "-"}
+          </Text>
         </Space>
       ),
     },
     {
-      title: "Thoi han",
+      title: "Thời hạn",
       key: "period",
       render: (_, record) => `${formatDate(record.startDate)} - ${formatDate(record.endDate)}`,
     },
     {
-      title: "Tien thue",
+      title: "Tiền thuê",
       dataIndex: "monthlyRent",
       key: "monthlyRent",
       render: formatCurrency,
     },
     {
-      title: "Tien coc",
+      title: "Tiền cọc",
       dataIndex: "deposit",
       key: "deposit",
       render: formatCurrency,
     },
     {
-      title: "Trang thai",
+      title: "Trạng thái",
       dataIndex: "status",
       key: "status",
       render: (status) => {
@@ -599,13 +621,13 @@ const UserHomePage = () => {
       },
     },
     {
-      title: "Thao tac",
+      title: "Thao tác",
       key: "actions",
       render: (_, record) => (
         <Space wrap>
-          <Button onClick={() => setDetailContract(record)}>Chi tiet</Button>
-          <Button type="primary" onClick={() => handleOpenContractFile(record)}>
-            Xem file
+          <Button size="small" onClick={() => setDetailContract(record)} style={{ borderRadius: 6 }}>Chi tiết</Button>
+          <Button size="small" type="primary" onClick={() => handleOpenContractFile(record)} style={{ background: "#0f766e", borderRadius: 6 }}>
+            Xem hợp đồng
           </Button>
         </Space>
       ),
@@ -614,58 +636,52 @@ const UserHomePage = () => {
 
   const invoiceColumns = [
     {
-      title: "Ma hoa don",
+      title: "Mã hóa đơn",
       dataIndex: "invoiceCode",
       key: "invoiceCode",
       render: (value, record) => (
         <Space direction="vertical" size={0}>
-          <Typography.Text strong>{value}</Typography.Text>
-          <Typography.Text type="secondary">
-            {record.roomNumber || "-"} - {record.roomName || "-"}
-          </Typography.Text>
+          <Text strong>{value}</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            Phòng {record.roomNumber || "-"}
+          </Text>
         </Space>
       ),
     },
     {
-      title: "Ky hoa don",
+      title: "Kỳ HĐ",
       key: "period",
-      render: (_, record) => `${record.month}/${record.year}`,
+      render: (_, record) => `Tháng ${record.month}/${record.year}`,
     },
     {
-      title: "Dien/Nuoc",
+      title: "Điện / Nước",
       key: "utilities",
-      render: (_, record) => `${record.electricityUsage ?? 0} so / ${record.waterUsage ?? 0} khoi`,
+      render: (_, record) => `${record.electricityUsage ?? 0} số / ${record.waterUsage ?? 0} khối`,
     },
     {
-      title: "Tong tien",
+      title: "Tổng tiền",
       dataIndex: "totalAmount",
       key: "totalAmount",
-      render: (value) => <Typography.Text strong>{formatCurrency(value)}</Typography.Text>,
+      render: (value) => <Text strong style={{ fontSize: 15 }}>{formatCurrency(value)}</Text>,
     },
     {
-      title: "Da thanh toan",
-      dataIndex: "paidAmount",
-      key: "paidAmount",
-      render: formatCurrency,
-    },
-    {
-      title: "Con lai",
+      title: "Còn lại",
       dataIndex: "remainingAmount",
       key: "remainingAmount",
       render: (value) => (
-        <Typography.Text type={Number(value || 0) > 0 ? "danger" : "success"} strong>
+        <Text type={Number(value || 0) > 0 ? "danger" : "success"} strong>
           {formatCurrency(value)}
-        </Typography.Text>
+        </Text>
       ),
     },
     {
-      title: "Han TT",
+      title: "Hạn TT",
       dataIndex: "dueDate",
       key: "dueDate",
       render: formatDate,
     },
     {
-      title: "Trang thai",
+      title: "Trạng thái",
       dataIndex: "status",
       key: "status",
       render: (status) => {
@@ -674,11 +690,11 @@ const UserHomePage = () => {
       },
     },
     {
-      title: "Thao tac",
+      title: "Thao tác",
       key: "actions",
       render: (_, record) => (
-        <Button onClick={() => handleViewInvoice(record)}>
-          Chi tiet
+        <Button size="small" onClick={() => handleViewInvoice(record)} style={{ borderRadius: 6 }}>
+          Chi tiết
         </Button>
       ),
     },
@@ -686,20 +702,20 @@ const UserHomePage = () => {
 
   const roomRequestColumns = [
     {
-      title: "Yeu cau",
+      title: "Mã yêu cầu",
       dataIndex: "requestCode",
       key: "requestCode",
       render: (value, record) => (
         <Space direction="vertical" size={0}>
-          <Typography.Text strong>{value}</Typography.Text>
-          <Typography.Text type="secondary">
-            {record.roomNumber || "-"} - {record.roomName || "-"}
-          </Typography.Text>
+          <Text strong style={{ color: "#0f766e" }}>{value}</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            Phòng {record.roomNumber || "-"} - {record.roomName || "-"}
+          </Text>
         </Space>
       ),
     },
     {
-      title: "Loai",
+      title: "Loại yêu cầu",
       dataIndex: "type",
       key: "type",
       render: (type) => {
@@ -708,13 +724,13 @@ const UserHomePage = () => {
       },
     },
     {
-      title: "So tien",
+      title: "Số tiền cọc",
       dataIndex: "amount",
       key: "amount",
-      render: (value) => <Typography.Text strong>{formatCurrency(value)}</Typography.Text>,
+      render: (value) => <Text strong>{formatCurrency(value)}</Text>,
     },
     {
-      title: "Thanh toan",
+      title: "Thanh toán",
       dataIndex: "paymentStatus",
       key: "paymentStatus",
       render: (status) => {
@@ -723,7 +739,7 @@ const UserHomePage = () => {
       },
     },
     {
-      title: "Trang thai",
+      title: "Trạng thái",
       dataIndex: "status",
       key: "status",
       render: (status) => {
@@ -732,40 +748,28 @@ const UserHomePage = () => {
       },
     },
     {
-      title: "Hop dong",
-      dataIndex: "contractCode",
-      key: "contractCode",
-      render: (value) => value || "-",
-    },
-    {
-      title: "Ngay gui",
+      title: "Ngày gửi",
       dataIndex: "createdAt",
       key: "createdAt",
       render: formatDate,
     },
     {
-      title: "Het han giu phong",
-      dataIndex: "holdExpiresAt",
-      key: "holdExpiresAt",
-      render: formatDate,
-    },
-    {
-      title: "Thao tac",
+      title: "Thao tác",
       key: "actions",
       render: (_, record) => (
         <Space wrap>
-          <Button onClick={() => setPaymentRequest(record)}>
-            Thanh toan
+          <Button size="small" type="primary" onClick={() => setPaymentRequest(record)} style={{ background: "#0f766e", borderRadius: 6 }}>
+            QR Chuyển khoản
           </Button>
           <Popconfirm
-            title="Huy yeu cau nay?"
-            okText="Huy yeu cau"
-            cancelText="Dong"
+            title="Hủy yêu cầu giữ phòng này?"
+            okText="Hủy ngay"
+            cancelText="Đóng"
             onConfirm={() => handleCancelRoomRequest(record)}
             disabled={record.status !== "pending"}
           >
-            <Button danger disabled={record.status !== "pending"}>
-              Huy
+            <Button size="small" danger disabled={record.status !== "pending"} style={{ borderRadius: 6 }}>
+              Hủy
             </Button>
           </Popconfirm>
         </Space>
@@ -775,20 +779,20 @@ const UserHomePage = () => {
 
   const repairRequestColumns = [
     {
-      title: "Su co",
+      title: "Tiêu đề sự cố",
       dataIndex: "title",
       key: "title",
       render: (value, record) => (
         <Space direction="vertical" size={0}>
-          <Typography.Text strong>{value}</Typography.Text>
-          <Typography.Text type="secondary">
-            {record.roomNumber || "-"} - {record.roomName || "-"}
-          </Typography.Text>
+          <Text strong>{value}</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            Phòng {record.roomNumber || "-"}
+          </Text>
         </Space>
       ),
     },
     {
-      title: "Muc do",
+      title: "Mức độ",
       dataIndex: "priority",
       key: "priority",
       render: (priority) => {
@@ -797,7 +801,7 @@ const UserHomePage = () => {
       },
     },
     {
-      title: "Trang thai",
+      title: "Trạng thái",
       dataIndex: "status",
       key: "status",
       render: (status) => {
@@ -806,47 +810,37 @@ const UserHomePage = () => {
       },
     },
     {
-      title: "Ngay bao",
+      title: "Ngày báo",
       dataIndex: "createdAt",
       key: "createdAt",
       render: formatDate,
     },
     {
-      title: "Ngay muon xu ly",
-      dataIndex: "requestedResolveDate",
-      key: "requestedResolveDate",
-      render: formatDate,
-    },
-    {
-      title: "Ngay xu ly",
-      dataIndex: "resolvedAt",
-      key: "resolvedAt",
-      render: formatResolvedDate,
-    },
-    {
-      title: "Thao tac",
+      title: "Thao tác",
       key: "actions",
       render: (_, record) => (
         <Space wrap>
-          <Button onClick={() => handleViewRepairRequest(record)}>
-            Chi tiet
+          <Button size="small" onClick={() => handleViewRepairRequest(record)} style={{ borderRadius: 6 }}>
+            Chi tiết
           </Button>
           <Button
+            size="small"
             icon={<EditOutlined />}
             onClick={() => openEditRepairModal(record)}
             disabled={record.status !== "pending"}
+            style={{ borderRadius: 6 }}
           >
-            Sua
+            Sửa
           </Button>
           <Popconfirm
-            title="Xoa su co nay?"
-            okText="Xoa"
-            cancelText="Huy"
+            title="Xóa báo cáo sự cố này?"
+            okText="Xóa"
+            cancelText="Hủy"
             onConfirm={() => handleDeleteRepairRequest(record)}
             disabled={record.status !== "pending"}
           >
-            <Button danger icon={<DeleteOutlined />} disabled={record.status !== "pending"}>
-              Xoa
+            <Button size="small" danger icon={<DeleteOutlined />} disabled={record.status !== "pending"} style={{ borderRadius: 6 }}>
+              Xóa
             </Button>
           </Popconfirm>
         </Space>
@@ -854,931 +848,489 @@ const UserHomePage = () => {
     },
   ];
 
+  const unpaidInvoicesCount = useMemo(
+    () => invoices.filter((inv) => inv.status === "unpaid" || inv.status === "overdue").length,
+    [invoices]
+  );
+
+  const pendingRepairCount = useMemo(
+    () => repairRequests.filter((req) => req.status === "pending" || req.status === "processing").length,
+    [repairRequests]
+  );
+
   return (
-    <Layout className="app-shell">
-      <Header className="app-header">
-        <div className="brand">Tro Plus</div>
-        <Space>
-          <Typography.Text className="header-user">{user?.name}</Typography.Text>
-          <Button icon={<LogoutOutlined />} onClick={handleLogout}>
-            Dang xuat
-          </Button>
-        </Space>
-      </Header>
-      <Content className="app-content">
-        <Space direction="vertical" size={16} className="page-stack">
-          <div className="page-toolbar">
-            <div className="page-title">
-              <Typography.Title level={3}>Trang cua toi</Typography.Title>
-              <Typography.Text type="secondary">
-                Theo doi phong dang thue, hop dong, hoa don va thong tin tai khoan.
-              </Typography.Text>
+    <>
+      <div className="user-portal-container" style={{ paddingTop: 24, paddingBottom: 40 }}>
+        {/* ====== WELCOME BANNER ====== */}
+        <div className="user-welcome-banner">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16, position: "relative", zIndex: 2 }}>
+          <Space align="center" size="large">
+            <Avatar size={64} icon={<UserOutlined />} style={{ background: "rgba(255,255,255,0.15)", border: "2px solid rgba(255,255,255,0.3)", fontSize: 28 }} />
+            <div>
+              <Title level={3} style={{ color: "#ffffff", margin: 0, letterSpacing: "-0.5px" }}>
+                Xin chào, {user?.name || "Khách hàng"} 👋
+              </Title>
+              <Text style={{ color: "#94a3b8", fontSize: 14 }}>
+                {user?.email} {user?.phone ? `• SĐT: ${user.phone}` : ""}
+              </Text>
+              <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {activeTenancies.length > 0 && (
+                  <Tag style={{ background: "rgba(16, 185, 129, 0.2)", border: "1px solid rgba(16, 185, 129, 0.4)", color: "#6ee7b7", borderRadius: 6, fontWeight: 600 }}>
+                    <CheckCircleOutlined /> Đang thuê {activeTenancies.length} phòng
+                  </Tag>
+                )}
+                {unpaidInvoicesCount > 0 && (
+                  <Tag style={{ background: "rgba(245, 158, 11, 0.2)", border: "1px solid rgba(245, 158, 11, 0.4)", color: "#fcd34d", borderRadius: 6, fontWeight: 600 }}>
+                    <ClockCircleOutlined /> {unpaidInvoicesCount} hóa đơn chưa TT
+                  </Tag>
+                )}
+              </div>
             </div>
-            <Button icon={<ReloadOutlined />} onClick={fetchUserData} loading={loading}>
-              Tai lai
+          </Space>
+
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={fetchUserData}
+            loading={loading}
+            style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", color: "#ffffff", borderRadius: 8, fontWeight: 600, height: 40 }}
+          >
+            Làm mới
+          </Button>
+        </div>
+      </div>
+
+      {/* ====== STAT WIDGETS ====== */}
+      <div className="stat-widget-grid">
+        <div className="stat-widget teal-border" onClick={() => navigate("/user/my-rooms")} style={{ cursor: "pointer" }}>
+          <div className="stat-widget-icon teal"><HomeOutlined /></div>
+          <div className="stat-widget-info">
+            <span className="stat-widget-value">{activeTenancies.length}</span>
+            <span className="stat-widget-label">Phòng đang ở</span>
+          </div>
+        </div>
+        <div className="stat-widget blue-border" onClick={() => navigate("/user/contracts")} style={{ cursor: "pointer" }}>
+          <div className="stat-widget-icon blue"><FileProtectOutlined /></div>
+          <div className="stat-widget-info">
+            <span className="stat-widget-value">{contracts.filter((c) => c.status === "active").length}</span>
+            <span className="stat-widget-label">Hợp đồng hiệu lực</span>
+          </div>
+        </div>
+        <div className="stat-widget amber-border" onClick={() => navigate("/user/invoices")} style={{ cursor: "pointer" }}>
+          <div className="stat-widget-icon amber"><FileTextOutlined /></div>
+          <div className="stat-widget-info">
+            <span className="stat-widget-value" style={{ color: unpaidInvoicesCount > 0 ? "#b45309" : undefined }}>{unpaidInvoicesCount}</span>
+            <span className="stat-widget-label">Hóa đơn cần TT</span>
+          </div>
+        </div>
+        <div className="stat-widget rose-border" onClick={() => navigate("/user/repair-requests")} style={{ cursor: "pointer" }}>
+          <div className="stat-widget-icon rose"><ToolOutlined /></div>
+          <div className="stat-widget-info">
+            <span className="stat-widget-value">{pendingRepairCount}</span>
+            <span className="stat-widget-label">Sự cố chờ xử lý</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ====== QUICK ACTIONS ====== */}
+      <div className="section-header">
+        <h3 className="section-title"><span className="section-title-dot" /> Thao tác nhanh</h3>
+      </div>
+      <div className="quick-action-grid">
+        <div className="quick-action-card" onClick={() => navigate("/")}>
+          <div className="quick-action-icon" style={{ background: "#ecfdf5", color: "#0f766e" }}><HomeOutlined /></div>
+          <div className="quick-action-text">
+            <span className="quick-action-label">Tìm phòng trống</span>
+            <span className="quick-action-desc">Duyệt danh sách phòng khả dụng & đặt cọc</span>
+          </div>
+        </div>
+        <div className="quick-action-card" onClick={activeRoomOptions.length > 0 ? openRepairModal : undefined} style={activeRoomOptions.length === 0 ? { opacity: 0.5, cursor: "not-allowed" } : {}}>
+          <div className="quick-action-icon" style={{ background: "#fef3c7", color: "#b45309" }}><ToolOutlined /></div>
+          <div className="quick-action-text">
+            <span className="quick-action-label">Báo sự cố mới</span>
+            <span className="quick-action-desc">Gửi yêu cầu sửa chữa cho chủ trọ</span>
+          </div>
+        </div>
+        <div className="quick-action-card" onClick={() => navigate("/user/invoices")}>
+          <div className="quick-action-icon" style={{ background: "#dbeafe", color: "#1d4ed8" }}><FileTextOutlined /></div>
+          <div className="quick-action-text">
+            <span className="quick-action-label">Xem hóa đơn</span>
+            <span className="quick-action-desc">Tra cứu hóa đơn điện nước hàng tháng</span>
+          </div>
+        </div>
+        <div className="quick-action-card" onClick={() => navigate("/user/profile")}>
+          <div className="quick-action-icon" style={{ background: "#ffe4e6", color: "#be123c" }}><UserOutlined /></div>
+          <div className="quick-action-text">
+            <span className="quick-action-label">Cập nhật hồ sơ</span>
+            <span className="quick-action-desc">Thông tin cá nhân & ảnh CCCD</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ====== AVAILABLE ROOMS SECTION ====== */}
+      {availableRooms.length > 0 && (
+        <div style={{ marginBottom: 28 }}>
+          <div className="section-header">
+            <h3 className="section-title"><span className="section-title-dot" style={{ background: "#0d9488" }} /> Phòng trống khả dụng</h3>
+            <Button type="link" onClick={() => navigate("/")} style={{ color: "#0f766e", fontWeight: 600, padding: 0 }}>
+              Xem tất cả →
             </Button>
           </div>
+          <div className="rooms-horizontal-scroll">
+            {availableRooms.map((room) => (
+              <div key={room.id} className="rooms-h-card">
+                <img
+                  className="rooms-h-card-img"
+                  alt={`${room.roomNumber} - ${room.name}`}
+                  src={room.images?.[0] ? toImageUrl(room.images[0]) : "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=600&q=80"}
+                />
+                <div className="rooms-h-card-body">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <Text strong style={{ fontSize: 15 }}>Phòng {room.roomNumber}</Text>
+                    <Tag color="success" style={{ margin: 0, borderRadius: 4, fontWeight: 600, fontSize: 11 }}>Trống</Tag>
+                  </div>
+                  <Title level={4} style={{ margin: "0 0 6px 0", color: "#0f766e", fontSize: 18 }}>
+                    {formatCurrency(room.price)}<span style={{ fontSize: 13, fontWeight: 500, color: "#64748b" }}>/tháng</span>
+                  </Title>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+                    <span className="room-spec-chip" style={{ fontSize: 12 }}>📐 {room.area || 0}m²</span>
+                    <span className="room-spec-chip" style={{ fontSize: 12 }}>👥 {room.capacity || 1}</span>
+                    <span className="room-spec-chip" style={{ fontSize: 12 }}>🏢 T{room.floor ?? "-"}</span>
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <Button size="small" type="primary" onClick={() => navigate(`/user/rooms/${room.id}`)} style={{ flex: 1, background: "#0f766e", borderColor: "#0f766e", borderRadius: 6, fontWeight: 600, fontSize: 12 }}>
+                      Chi tiết
+                    </Button>
+                    <Button size="small" icon={<HeartOutlined />} onClick={() => handleInterestedRoom(room)} style={{ borderRadius: 6, color: "#e11d48", borderColor: "#fecdd3", fontSize: 12 }} />
+                    <Button size="small" onClick={() => openRoomRequestModal("hold_deposit", room)} style={{ flex: 1, borderRadius: 6, fontWeight: 600, fontSize: 12 }}>
+                      Đặt cọc
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
 
-          <Tabs
-            defaultActiveKey="home"
-            items={[
-              {
-                key: "home",
-                icon: <HomeOutlined />,
-                label: "Trang chu",
-                children: (
-                  <Space direction="vertical" size={16} className="page-stack">
-                    <Card>
-                      <div className="page-toolbar">
-                        <div className="page-title">
-                          <Typography.Title level={2}>Tim phong tro phu hop voi ban</Typography.Title>
-                          <Typography.Text type="secondary">
-                            Kham pha cac phong dang con trong, xem chi tiet va luu phong ban quan tam.
-                          </Typography.Text>
-                        </div>
-                        <Tag color="success">{availableRooms.length} phong con trong</Tag>
-                      </div>
-                    </Card>
-                    {availableRooms.length === 0 ? (
-                      <Card>
-                        <Empty description="Hien chua co phong con trong" />
-                      </Card>
-                    ) : (
-                      <div
-                        style={{
-                          display: "grid",
-                          gap: 16,
-                          gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-                        }}
-                      >
-                        {availableRooms.map((room) => (
-                          <Card
-                            key={room.id}
-                            cover={
-                              room.images?.[0] ? (
-                                <img
-                                  alt={`${room.roomNumber} - ${room.name}`}
-                                  src={toImageUrl(room.images[0])}
-                                  style={{ height: 170, objectFit: "cover", width: "100%" }}
-                                />
-                              ) : null
-                            }
-                            actions={[
-                              <Button type="link" onClick={() => navigate(`/user/rooms/${room.id}`)}>
-                                Chi tiet
-                              </Button>,
-                              <Button type="link" icon={<HeartOutlined />} onClick={() => handleInterestedRoom(room)}>
-                                Quan tam
-                              </Button>,
-                              <Button type="link" icon={<CreditCardOutlined />} onClick={() => openRoomRequestModal("hold_deposit", room)}>
-                                Dat coc
-                              </Button>,
-                              <Button type="link" onClick={() => openRoomRequestModal("rent", room)}>
-                                Thue
-                              </Button>,
-                            ]}
-                          >
-                            <Space direction="vertical" size={8} className="page-stack">
-                              <Space style={{ justifyContent: "space-between", width: "100%" }}>
-                                <Typography.Text strong>
-                                  {room.roomNumber} - {room.name}
-                                </Typography.Text>
-                                <Tag color="success">Con trong</Tag>
-                              </Space>
-                              <Typography.Title level={4} style={{ margin: 0 }}>
-                                {formatCurrency(room.price)}
-                              </Typography.Title>
-                              <Space wrap>
-                                <Tag>{room.area || 0} m2</Tag>
-                                <Tag>{room.capacity || 0} nguoi</Tag>
-                                <Tag>Tang {room.floor ?? "-"}</Tag>
-                              </Space>
-                              <Typography.Text type="secondary">
-                                Coc {formatCurrency(room.deposit)} - Phi dich vu {formatCurrency(room.serviceFee)}
-                              </Typography.Text>
-                            </Space>
-                          </Card>
-                        ))}
-                      </div>
-                    )}
-                    <Card>
-                      <Space direction="vertical" size={8} className="page-stack">
-                        <Typography.Title level={4}>Gioi thieu ve Tro Plus</Typography.Title>
-                        <Typography.Text type="secondary">
-                          Tro Plus ho tro nguoi thue theo doi phong, hop dong, hoa don va su co trong qua trinh sinh hoat.
-                          Quan tri vien cap nhat phong trong va thong tin van hanh de ban de dang tim lua chon phu hop.
-                        </Typography.Text>
-                        <Space wrap>
-                          <Tag color="blue">Thong tin phong ro rang</Tag>
-                          <Tag color="green">Theo doi hop dong va hoa don</Tag>
-                          <Tag color="gold">Bao su co truc tiep</Tag>
-                        </Space>
-                      </Space>
-                    </Card>
-                  </Space>
-                ),
-              },
-              {
-                key: "interested-rooms",
-                icon: <HeartOutlined />,
-                label: "Phong da quan tam",
-                children: (
-                  <Space direction="vertical" size={16} className="page-stack">
-                    {interestedRooms.length === 0 ? (
-                      <Card>
-                        <Empty description="Ban chua quan tam phong nao" />
-                      </Card>
-                    ) : (
-                      <div
-                        style={{
-                          display: "grid",
-                          gap: 16,
-                          gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-                        }}
-                      >
-                        {interestedRooms.map((room) => (
-                          <Card
-                            key={room.id}
-                            cover={
-                              room.images?.[0] ? (
-                                <img
-                                  alt={`${room.roomNumber} - ${room.name}`}
-                                  src={toImageUrl(room.images[0])}
-                                  style={{ height: 170, objectFit: "cover", width: "100%" }}
-                                />
-                              ) : null
-                            }
-                            actions={[
-                              <Button
-                                type="link"
-                                onClick={() => navigate(`/user/rooms/${room.room}`)}
-                                disabled={room.roomStatus !== "available"}
-                              >
-                                Chi tiet
-                              </Button>,
-                              <Button
-                                type="link"
-                                icon={<CreditCardOutlined />}
-                                onClick={() => openRoomRequestModal("hold_deposit", room)}
-                                disabled={room.roomStatus !== "available"}
-                              >
-                                Dat coc
-                              </Button>,
-                              <Button
-                                type="link"
-                                onClick={() => openRoomRequestModal("rent", room)}
-                                disabled={room.roomStatus !== "available"}
-                              >
-                                Thue
-                              </Button>,
-                              <Button type="link" danger onClick={() => handleRemoveInterestedRoom(room)}>
-                                Bo quan tam
-                              </Button>,
-                            ]}
-                          >
-                            <Space direction="vertical" size={8} className="page-stack">
-                              <Space style={{ justifyContent: "space-between", width: "100%" }}>
-                                <Typography.Text strong>
-                                  {room.roomNumber} - {room.name}
-                                </Typography.Text>
-                                <Tag color={room.roomStatus === "available" ? "success" : "default"}>
-                                  {room.roomStatus === "available" ? "Con trong" : "Khong con trong"}
-                                </Tag>
-                              </Space>
-                              <Typography.Title level={4} style={{ margin: 0 }}>
-                                {formatCurrency(room.price)}
-                              </Typography.Title>
-                              <Space wrap>
-                                <Tag>{room.area || 0} m2</Tag>
-                                <Tag>{room.capacity || 0} nguoi</Tag>
-                                <Tag>Tang {room.floor ?? "-"}</Tag>
-                              </Space>
-                              <Typography.Text type="secondary">
-                                Da quan tam tu {formatDate(room.createdAt)}
-                              </Typography.Text>
-                            </Space>
-                          </Card>
-                        ))}
-                      </div>
-                    )}
-                  </Space>
-                ),
-              },
-              {
-                key: "room-requests",
-                icon: <CreditCardOutlined />,
-                label: "Yeu cau cua toi",
-                children: (
-                  <Card>
-                    <Table
-                      rowKey="id"
-                      columns={roomRequestColumns}
-                      dataSource={roomRequests}
-                      loading={loading}
-                      pagination={{ pageSize: 6 }}
-                      scroll={{ x: 1100 }}
-                      locale={{ emptyText: "Chua co yeu cau phong" }}
-                    />
-                  </Card>
-                ),
-              },
-              {
-                key: "rooms",
-                icon: <HomeOutlined />,
-                label: "Phong cua toi",
-                children: (
-                  <Space direction="vertical" size={16} className="page-stack">
-                    {activeTenancies.length === 0 ? (
-                      <Card>
-                        <Empty description="Ban chua co phong dang thue" />
-                      </Card>
-                    ) : (
-                      <Card>
-                        <Table
-                          rowKey="id"
-                          columns={tenancyColumns}
-                          dataSource={tenancies}
-                          loading={loading}
-                          pagination={false}
-                          scroll={{ x: 900 }}
-                        />
-                      </Card>
-                    )}
-                  </Space>
-                ),
-              },
-              {
-                key: "contracts",
-                icon: <FileProtectOutlined />,
-                label: "Hop dong",
-                children: (
-                  <Card>
-                    <Table
-                      rowKey="id"
-                      columns={contractColumns}
-                      dataSource={contracts}
-                      loading={loading}
-                      pagination={{ pageSize: 6 }}
-                      scroll={{ x: 1000 }}
-                      locale={{ emptyText: "Chua co hop dong" }}
-                    />
-                  </Card>
-                ),
-              },
-              {
-                key: "invoices",
-                icon: <FileTextOutlined />,
-                label: "Hoa don",
-                children: (
-                  <Card>
-                    <Table
-                      rowKey="id"
-                      columns={invoiceColumns}
-                      dataSource={invoices}
-                      loading={loading}
-                      pagination={{ pageSize: 6 }}
-                      scroll={{ x: 1200 }}
-                      locale={{ emptyText: "Chua co hoa don" }}
-                    />
-                  </Card>
-                ),
-              },
-              {
-                key: "repair-requests",
-                icon: <ToolOutlined />,
-                label: "Su co",
-                children: (
-                  <Space direction="vertical" size={16} className="page-stack">
-                    <div className="page-toolbar">
-                      <Typography.Text type="secondary">
-                        Bao cao su co phong dang thue va theo doi trang thai xu ly.
-                      </Typography.Text>
-                      <Button type="primary" onClick={openRepairModal} disabled={activeRoomOptions.length === 0}>
-                        Bao su co
-                      </Button>
-                    </div>
-                    <Card>
-                      <Table
-                        rowKey="id"
-                        columns={repairRequestColumns}
-                        dataSource={repairRequests}
-                        loading={loading}
-                        pagination={{ pageSize: 6 }}
-                        scroll={{ x: 900 }}
-                        locale={{ emptyText: "Chua co su co" }}
-                      />
-                    </Card>
-                  </Space>
-                ),
-              },
-              {
-                key: "profile",
-                icon: <UserOutlined />,
-                label: "Tai khoan",
-                children: (
-                  <Card>
-                    <Typography.Title level={4}>Thong tin ca nhan</Typography.Title>
-                    <Typography.Paragraph type="secondary">
-                      Cap nhat thong tin lien he va CCCD/CMND cua ban.
-                    </Typography.Paragraph>
-                    <Form form={form} layout="vertical" onFinish={handleUpdate}>
-                      <div className="form-grid">
-                        <Form.Item name="name" label="Ho ten" rules={[{ required: true }]}>
-                          <Input />
-                        </Form.Item>
-                        <Form.Item name="email" label="Email">
-                          <Input disabled />
-                        </Form.Item>
-                        <Form.Item name="phone" label="So dien thoai">
-                          <Input />
-                        </Form.Item>
-                        <Form.Item name="identityNumber" label="So CCCD/CMND">
-                          <Input />
-                        </Form.Item>
-                        <Form.Item name="identityFrontImage" label="Anh mat truoc CCCD">
-                          <Upload
-                            accept="image/png,image/jpeg,image/webp"
-                            customRequest={handleIdentityImageUpload}
-                            fileList={identityFrontFileList}
-                            listType="picture-card"
-                            maxCount={1}
-                            onChange={handleIdentityFileChange("identityFrontImage", setIdentityFrontFileList)}
-                          >
-                            {identityFrontFileList.length ? null : (
-                              <button type="button" className="upload-card-button">
-                                <UploadOutlined />
-                                <span>Tai anh</span>
-                              </button>
-                            )}
-                          </Upload>
-                        </Form.Item>
-                        <Form.Item name="identityBackImage" label="Anh mat sau CCCD">
-                          <Upload
-                            accept="image/png,image/jpeg,image/webp"
-                            customRequest={handleIdentityImageUpload}
-                            fileList={identityBackFileList}
-                            listType="picture-card"
-                            maxCount={1}
-                            onChange={handleIdentityFileChange("identityBackImage", setIdentityBackFileList)}
-                          >
-                            {identityBackFileList.length ? null : (
-                              <button type="button" className="upload-card-button">
-                                <UploadOutlined />
-                                <span>Tai anh</span>
-                              </button>
-                            )}
-                          </Upload>
-                        </Form.Item>
-                      </div>
-                      <Form.Item name="address" label="Dia chi">
-                        <Input.TextArea rows={3} />
-                      </Form.Item>
-                      <Form.Item name="password" label="Mat khau moi">
-                        <Input.Password placeholder="De trong neu khong doi" />
-                      </Form.Item>
-                      <Button type="primary" htmlType="submit">
-                        Luu thong tin
-                      </Button>
-                    </Form>
-                  </Card>
-                ),
-              },
-            ]}
-          />
-        </Space>
+      {/* ====== ALL MODALS ====== */}
 
-        <Modal
-          title="Chi tiet phong con trong"
-          open={Boolean(detailAvailableRoom)}
-          onCancel={() => setDetailAvailableRoom(null)}
-          footer={[
-            <Button key="interest" type="primary" onClick={() => handleInterestedRoom(detailAvailableRoom)}>
-              Quan tam phong nay
-            </Button>,
-            <Button key="hold" onClick={() => openRoomRequestModal("hold_deposit", detailAvailableRoom)}>
-              Dat coc giu phong
-            </Button>,
-            <Button key="rent" onClick={() => openRoomRequestModal("rent", detailAvailableRoom)}>
-              Thue phong
-            </Button>,
-            <Button key="close" onClick={() => setDetailAvailableRoom(null)}>
-              Dong
-            </Button>,
-          ]}
-          width={840}
-        >
-          {detailAvailableRoom && (
-            <Space direction="vertical" size={16} className="page-stack">
-              {(detailAvailableRoom.images || []).length > 0 && (
-                <Image.PreviewGroup>
-                  <Space wrap>
-                    {detailAvailableRoom.images.map((image) => (
-                      <Image
-                        key={image}
-                        src={toImageUrl(image)}
-                        width={120}
-                        height={86}
-                        style={{ objectFit: "cover", borderRadius: 8 }}
-                      />
-                    ))}
-                  </Space>
-                </Image.PreviewGroup>
-              )}
-              <Descriptions bordered size="small" column={2}>
-                <Descriptions.Item label="Phong">
-                  {detailAvailableRoom.roomNumber} - {detailAvailableRoom.name}
-                </Descriptions.Item>
-                <Descriptions.Item label="Trang thai">
-                  <Tag color="success">Con trong</Tag>
-                </Descriptions.Item>
-                <Descriptions.Item label="Tang">{detailAvailableRoom.floor ?? "-"}</Descriptions.Item>
-                <Descriptions.Item label="Dien tich">{detailAvailableRoom.area || 0} m2</Descriptions.Item>
-                <Descriptions.Item label="Suc chua">{detailAvailableRoom.capacity || 0}</Descriptions.Item>
-                <Descriptions.Item label="Gia thue">{formatCurrency(detailAvailableRoom.price)}</Descriptions.Item>
-                <Descriptions.Item label="Tien coc">{formatCurrency(detailAvailableRoom.deposit)}</Descriptions.Item>
-                <Descriptions.Item label="Phi dich vu">{formatCurrency(detailAvailableRoom.serviceFee)}</Descriptions.Item>
-                <Descriptions.Item label="Gia dien">{formatCurrency(detailAvailableRoom.electricityPrice)}</Descriptions.Item>
-                <Descriptions.Item label="Gia nuoc">{formatCurrency(detailAvailableRoom.waterPrice)}</Descriptions.Item>
-                <Descriptions.Item label="Mo ta" span={2}>
-                  {detailAvailableRoom.description || "-"}
-                </Descriptions.Item>
-              </Descriptions>
-            </Space>
-          )}
-        </Modal>
-
-        <Modal
-          title="Chi tiet phong cua toi"
-          open={Boolean(detailTenancy)}
-          onCancel={() => setDetailTenancy(null)}
-          footer={[
-            <Button key="close" onClick={() => setDetailTenancy(null)}>
-              Dong
-            </Button>,
-          ]}
-          width={840}
-        >
-          {detailTenancy && (
-            <Space direction="vertical" size={16} className="page-stack">
-              {(detailTenancy.roomImages || []).length > 0 && (
-                <Image.PreviewGroup>
-                  <Space wrap>
-                    {detailTenancy.roomImages.map((image) => (
-                      <Image
-                        key={image}
-                        src={toImageUrl(image)}
-                        width={120}
-                        height={86}
-                        style={{ objectFit: "cover", borderRadius: 8 }}
-                      />
-                    ))}
-                  </Space>
-                </Image.PreviewGroup>
-              )}
-              <Descriptions bordered size="small" column={2}>
-                <Descriptions.Item label="Phong">
-                  {detailTenancy.roomNumber} - {detailTenancy.roomName}
-                </Descriptions.Item>
-                <Descriptions.Item label="Trang thai">
-                  <Tag color={tenantStatusMeta[detailTenancy.status]?.color}>
-                    {tenantStatusMeta[detailTenancy.status]?.label}
-                  </Tag>
-                </Descriptions.Item>
-                <Descriptions.Item label="Vai tro">
-                  <Tag color={roomRoleMeta[detailTenancy.roomRole]?.color}>
-                    {roomRoleMeta[detailTenancy.roomRole]?.label}
-                  </Tag>
-                </Descriptions.Item>
-                <Descriptions.Item label="Ngay vao">{formatDate(detailTenancy.moveInDate)}</Descriptions.Item>
-                <Descriptions.Item label="Tang">{detailTenancy.roomFloor ?? "-"}</Descriptions.Item>
-                <Descriptions.Item label="Dien tich">{detailTenancy.roomArea || 0} m2</Descriptions.Item>
-                <Descriptions.Item label="Suc chua">{detailTenancy.roomCapacity || 0}</Descriptions.Item>
-                <Descriptions.Item label="Gia thue">{formatCurrency(detailTenancy.roomPrice)}</Descriptions.Item>
-                <Descriptions.Item label="Tien coc">{formatCurrency(detailTenancy.roomDeposit)}</Descriptions.Item>
-                <Descriptions.Item label="Phi dich vu">{formatCurrency(detailTenancy.roomServiceFee)}</Descriptions.Item>
-                <Descriptions.Item label="Gia dien">{formatCurrency(detailTenancy.roomElectricityPrice)}</Descriptions.Item>
-                <Descriptions.Item label="Gia nuoc">{formatCurrency(detailTenancy.roomWaterPrice)}</Descriptions.Item>
-                <Descriptions.Item label="Mo ta" span={2}>
-                  {detailTenancy.roomDescription || "-"}
-                </Descriptions.Item>
-              </Descriptions>
-            </Space>
-          )}
-        </Modal>
-
-        <Modal
-          title="Thong tin thanh toan"
-          open={Boolean(paymentRequest)}
-          onCancel={() => setPaymentRequest(null)}
-          footer={[
-            <Button key="close" onClick={() => setPaymentRequest(null)}>
-              Dong
-            </Button>,
-          ]}
-          width={760}
-        >
-          {paymentRequest && (
-            <Space direction="vertical" size={16} className="page-stack">
-              <Descriptions bordered size="small" column={2}>
-                <Descriptions.Item label="Ma yeu cau">{paymentRequest.requestCode}</Descriptions.Item>
-                <Descriptions.Item label="Phong">
-                  {paymentRequest.roomNumber} - {paymentRequest.roomName}
-                </Descriptions.Item>
-                <Descriptions.Item label="So tien">
-                  <Typography.Text strong>{formatCurrency(paymentRequest.amount)}</Typography.Text>
-                </Descriptions.Item>
-                <Descriptions.Item label="Trang thai thanh toan">
-                  <Tag color={paymentStatusMeta[paymentRequest.paymentStatus]?.color}>
-                    {paymentStatusMeta[paymentRequest.paymentStatus]?.label}
-                  </Tag>
-                </Descriptions.Item>
-                <Descriptions.Item label="Ngan hang">{paymentRequest.paymentBankName || "-"}</Descriptions.Item>
-                <Descriptions.Item label="So tai khoan">
-                  <Typography.Text copyable>{paymentRequest.paymentBankAccountNumber || "-"}</Typography.Text>
-                </Descriptions.Item>
-                <Descriptions.Item label="Chu tai khoan">{paymentRequest.paymentBankAccountName || "-"}</Descriptions.Item>
-                <Descriptions.Item label="Noi dung CK">
-                  <Typography.Text copyable strong>
-                    {paymentRequest.paymentContent || paymentRequest.paymentOrderCode || paymentRequest.requestCode}
-                  </Typography.Text>
-                </Descriptions.Item>
-              </Descriptions>
-              {paymentRequest.paymentQrCode ? (
-                <Space direction="vertical" align="center" className="page-stack">
-                  <Image src={paymentRequest.paymentQrCode} width={280} />
-                  <Typography.Text type="secondary">
-                    Vui long chuyen dung so tien va dung noi dung de admin doi soat.
-                  </Typography.Text>
+      {/* Tenancy Detail Modal */}
+      <Modal
+        title="Chi Tiết Phòng Đang Thuê"
+        open={Boolean(detailTenancy)}
+        onCancel={() => setDetailTenancy(null)}
+        footer={[<Button key="close" onClick={() => setDetailTenancy(null)} style={{ borderRadius: 6 }}>Đóng</Button>]}
+        width={800}
+      >
+        {detailTenancy && (
+          <Space direction="vertical" size={16} style={{ width: "100%" }}>
+            {(detailTenancy.roomImages || []).length > 0 && (
+              <Image.PreviewGroup>
+                <Space wrap>
+                  {detailTenancy.roomImages.map((image) => (
+                    <Image key={image} src={toImageUrl(image)} width={120} height={86} style={{ objectFit: "cover", borderRadius: 8 }} />
+                  ))}
                 </Space>
-              ) : (
-                <Typography.Text type="danger">
-                  Chua cau hinh thong tin ngan hang de tao QR thanh toan.
-                </Typography.Text>
-              )}
-            </Space>
-          )}
-        </Modal>
+              </Image.PreviewGroup>
+            )}
+            <Descriptions bordered size="small" column={2} style={{ background: "#f8fafc" }}>
+              <Descriptions.Item label="Phòng">Phòng {detailTenancy.roomNumber} - {detailTenancy.roomName}</Descriptions.Item>
+              <Descriptions.Item label="Trạng thái">
+                <Tag color={tenantStatusMeta[detailTenancy.status]?.color}>{tenantStatusMeta[detailTenancy.status]?.label}</Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Vai trò">
+                <Tag color={roomRoleMeta[detailTenancy.roomRole]?.color}>{roomRoleMeta[detailTenancy.roomRole]?.label}</Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Ngày vào">{formatDate(detailTenancy.moveInDate)}</Descriptions.Item>
+              <Descriptions.Item label="Tầng">{detailTenancy.roomFloor ?? "-"}</Descriptions.Item>
+              <Descriptions.Item label="Diện tích">{detailTenancy.roomArea || 0} m²</Descriptions.Item>
+              <Descriptions.Item label="Sức chứa">{detailTenancy.roomCapacity || 0} người</Descriptions.Item>
+              <Descriptions.Item label="Giá thuê">{formatCurrency(detailTenancy.roomPrice)}</Descriptions.Item>
+              <Descriptions.Item label="Tiền cọc">{formatCurrency(detailTenancy.roomDeposit)}</Descriptions.Item>
+              <Descriptions.Item label="Phí dịch vụ">{formatCurrency(detailTenancy.roomServiceFee)}</Descriptions.Item>
+              <Descriptions.Item label="Giá điện">{formatCurrency(detailTenancy.roomElectricityPrice)}</Descriptions.Item>
+              <Descriptions.Item label="Giá nước">{formatCurrency(detailTenancy.roomWaterPrice)}</Descriptions.Item>
+              <Descriptions.Item label="Mô tả" span={2}>{detailTenancy.roomDescription || "-"}</Descriptions.Item>
+            </Descriptions>
+          </Space>
+        )}
+      </Modal>
 
-        <Modal
-          title={
-            roomRequestType === "hold_deposit"
-              ? "Dat coc giu phong"
-              : "Yeu cau thue phong"
-          }
-          open={roomRequestModalOpen}
-          onCancel={closeRoomRequestModal}
-          onOk={() => roomRequestForm.submit()}
-          confirmLoading={roomRequestSubmitting}
-          okText="Gui yeu cau"
-          cancelText="Huy"
-          width={860}
-        >
-          {selectedRequestRoom && (
-            <Space direction="vertical" size={16} className="page-stack">
-              <Descriptions bordered size="small" column={2}>
-                <Descriptions.Item label="Phong">
-                  {selectedRequestRoom.roomNumber} - {selectedRequestRoom.name}
-                </Descriptions.Item>
-                <Descriptions.Item label="Gia thue">
-                  {formatCurrency(selectedRequestRoom.price)}
-                </Descriptions.Item>
-                <Descriptions.Item label="So tien can thanh toan">
-                  <Typography.Text strong>
-                    {formatCurrency(
-                      roomRequestType === "hold_deposit"
-                        ? Math.ceil(Number(selectedRequestRoom.price || 0) / 3)
-                        : selectedRequestRoom.price
+      {/* Contract Detail Modal */}
+      <Modal
+        title="Chi Tiết Hợp Đồng"
+        open={Boolean(detailContract)}
+        onCancel={() => setDetailContract(null)}
+        footer={[
+          <Button key="file" type="primary" onClick={() => handleOpenContractFile(detailContract)} style={{ background: "#0f766e", borderRadius: 6 }}>Mở File Hợp Đồng</Button>,
+          <Button key="close" onClick={() => setDetailContract(null)} style={{ borderRadius: 6 }}>Đóng</Button>,
+        ]}
+        width={780}
+      >
+        {detailContract && (
+          <Descriptions bordered size="small" column={2} style={{ background: "#f8fafc" }}>
+            <Descriptions.Item label="Mã HĐ">{detailContract.contractCode}</Descriptions.Item>
+            <Descriptions.Item label="Trạng thái">
+              <Tag color={contractStatusMeta[detailContract.status]?.color}>{contractStatusMeta[detailContract.status]?.label}</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="Phòng">Phòng {detailContract.roomNumber} - {detailContract.roomName}</Descriptions.Item>
+            <Descriptions.Item label="Đại diện thuê">{detailContract.tenantName}</Descriptions.Item>
+            <Descriptions.Item label="Ngày bắt đầu">{formatDate(detailContract.startDate)}</Descriptions.Item>
+            <Descriptions.Item label="Ngày kết thúc">{formatDate(detailContract.endDate)}</Descriptions.Item>
+            <Descriptions.Item label="Thời hạn">{detailContract.durationMonths} tháng</Descriptions.Item>
+            <Descriptions.Item label="Số thành viên">{detailContract.memberCount} người</Descriptions.Item>
+            <Descriptions.Item label="Tiền thuê">{formatCurrency(detailContract.monthlyRent)}/tháng</Descriptions.Item>
+            <Descriptions.Item label="Tiền cọc">{formatCurrency(detailContract.deposit)}</Descriptions.Item>
+            <Descriptions.Item label="Điều khoản" span={2}>{detailContract.terms || "Theo quy định nhà trọ."}</Descriptions.Item>
+          </Descriptions>
+        )}
+      </Modal>
+
+      {/* Invoice Detail Modal */}
+      <Modal
+        title="Chi Tiết Hóa Đơn Hàng Tháng"
+        open={Boolean(detailInvoice)}
+        onCancel={() => setDetailInvoice(null)}
+        footer={[<Button key="close" onClick={() => setDetailInvoice(null)} style={{ borderRadius: 6 }}>Đóng</Button>]}
+        width={820}
+      >
+        {detailInvoice && (
+          <Space direction="vertical" size={16} style={{ width: "100%" }}>
+            <Descriptions bordered size="small" column={2} style={{ background: "#f8fafc" }}>
+              <Descriptions.Item label="Mã hóa đơn">{detailInvoice.invoiceCode}</Descriptions.Item>
+              <Descriptions.Item label="Trạng thái">
+                <Tag color={invoiceStatusMeta[detailInvoice.status]?.color}>{invoiceStatusMeta[detailInvoice.status]?.label}</Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Phòng">Phòng {detailInvoice.roomNumber} - {detailInvoice.roomName}</Descriptions.Item>
+              <Descriptions.Item label="Kỳ hóa đơn">Tháng {detailInvoice.month}/{detailInvoice.year}</Descriptions.Item>
+              <Descriptions.Item label="Hạn thanh toán">{formatDate(detailInvoice.dueDate)}</Descriptions.Item>
+              <Descriptions.Item label="Ngày xuất HĐ">{formatDate(detailInvoice.createdAt)}</Descriptions.Item>
+            </Descriptions>
+            <Descriptions title="Chỉ số điện nước" bordered size="small" column={2}>
+              <Descriptions.Item label="Điện cũ → mới">{detailInvoice.electricityOld ?? 0} → {detailInvoice.electricityNew ?? 0}</Descriptions.Item>
+              <Descriptions.Item label="Tiêu thụ">{detailInvoice.electricityUsage ?? 0} kWh</Descriptions.Item>
+              <Descriptions.Item label="Tiền điện">{formatCurrency(detailInvoice.electricityAmount)}</Descriptions.Item>
+              <Descriptions.Item label="Nước cũ → mới">{detailInvoice.waterOld ?? 0} → {detailInvoice.waterNew ?? 0}</Descriptions.Item>
+              <Descriptions.Item label="Tiêu thụ">{detailInvoice.waterUsage ?? 0} m³</Descriptions.Item>
+              <Descriptions.Item label="Tiền nước">{formatCurrency(detailInvoice.waterAmount)}</Descriptions.Item>
+            </Descriptions>
+            <Descriptions title="Tổng kết chi phí" bordered size="small" column={2}>
+              <Descriptions.Item label="Tiền phòng">{formatCurrency(detailInvoice.rentAmount)}</Descriptions.Item>
+              <Descriptions.Item label="Phí dịch vụ">{formatCurrency(detailInvoice.serviceAmount)}</Descriptions.Item>
+              <Descriptions.Item label="Tổng cộng">
+                <Text strong style={{ fontSize: 16, color: "#0f766e" }}>{formatCurrency(detailInvoice.totalAmount)}</Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="Còn lại phải trả">
+                <Text type={detailInvoice.remainingAmount > 0 ? "danger" : "success"} strong style={{ fontSize: 16 }}>
+                  {formatCurrency(detailInvoice.remainingAmount)}
+                </Text>
+              </Descriptions.Item>
+            </Descriptions>
+          </Space>
+        )}
+      </Modal>
+
+      {/* Room Request Modal */}
+      <Modal
+        title={roomRequestType === "hold_deposit" ? "Đặt Cọc Giữ Phòng" : "Yêu Cầu Thuê Phòng"}
+        open={roomRequestModalOpen}
+        onCancel={closeRoomRequestModal}
+        onOk={() => roomRequestForm.submit()}
+        confirmLoading={roomRequestSubmitting}
+        okText="Gửi yêu cầu"
+        cancelText="Hủy"
+        width={860}
+        okButtonProps={{ style: { background: "#0f766e", borderColor: "#0f766e" } }}
+      >
+        {selectedRequestRoom && (
+          <Space direction="vertical" size={16} style={{ width: "100%" }}>
+            <Descriptions bordered size="small" column={2} style={{ background: "#f8fafc" }}>
+              <Descriptions.Item label="Phòng">Phòng {selectedRequestRoom.roomNumber} - {selectedRequestRoom.name}</Descriptions.Item>
+              <Descriptions.Item label="Giá thuê">{formatCurrency(selectedRequestRoom.price)}</Descriptions.Item>
+              <Descriptions.Item label="Số tiền cần thanh toán">
+                <Text strong style={{ color: "#0f766e" }}>
+                  {formatCurrency(roomRequestType === "hold_deposit" ? Math.ceil(Number(selectedRequestRoom.price || 0) / 3) : selectedRequestRoom.price)}
+                </Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="Ghi chú">
+                {roomRequestType === "hold_deposit" ? "Giữ phòng trong 7 ngày sau khi thanh toán cọc." : "Tiền cọc bằng 1 tháng tiền phòng."}
+              </Descriptions.Item>
+            </Descriptions>
+            <Form form={roomRequestForm} layout="vertical" onFinish={handleRoomRequestSubmit}>
+              {roomRequestType === "rent" ? (
+                <>
+                  <div className="form-grid">
+                    <Form.Item name="durationMonths" label="Thời hạn thuê (tháng)" rules={[{ required: true, message: "Nhập thời hạn thuê" }]}>
+                      <InputNumber className="full-width-input" min={1} style={{ borderRadius: 8 }} />
+                    </Form.Item>
+                    <Form.Item name="occupantCount" label="Số người ở" rules={[{ required: true, message: "Nhập số người ở" }]}>
+                      <InputNumber className="full-width-input" min={1} style={{ borderRadius: 8 }} />
+                    </Form.Item>
+                  </div>
+                  <Form.List name="occupants">
+                    {(fields, { add, remove }) => (
+                      <Space direction="vertical" size={12} style={{ width: "100%" }}>
+                        {fields.map((field, index) => (
+                          <Card key={field.key} size="small" title={`Người ở ${index + 1}`} extra={fields.length > 1 ? <Button type="link" danger onClick={() => remove(field.name)}>Xóa</Button> : null} style={{ borderRadius: 8 }}>
+                            <div className="form-grid">
+                              <Form.Item {...field} name={[field.name, "name"]} label="Họ tên" rules={[{ required: true, message: "Nhập họ tên" }]}>
+                                <Input style={{ borderRadius: 6 }} />
+                              </Form.Item>
+                              <Form.Item {...field} name={[field.name, "phone"]} label="Số điện thoại" rules={[{ required: true, message: "Nhập SĐT" }]}>
+                                <Input style={{ borderRadius: 6 }} />
+                              </Form.Item>
+                              <Form.Item {...field} name={[field.name, "identityNumber"]} label="Số CCCD" rules={[{ required: true, message: "Nhập CCCD" }]}>
+                                <Input style={{ borderRadius: 6 }} />
+                              </Form.Item>
+                              <Form.Item {...field} name={[field.name, "identityFrontImage"]} label="Ảnh CCCD mặt trước" rules={[{ required: true, message: "Nhập đường dẫn ảnh" }]}>
+                                <Input placeholder="/uploads/identity/..." style={{ borderRadius: 6 }} />
+                              </Form.Item>
+                              <Form.Item {...field} name={[field.name, "identityBackImage"]} label="Ảnh CCCD mặt sau" rules={[{ required: true, message: "Nhập đường dẫn ảnh" }]}>
+                                <Input placeholder="/uploads/identity/..." style={{ borderRadius: 6 }} />
+                              </Form.Item>
+                            </div>
+                          </Card>
+                        ))}
+                        <Button onClick={() => add()} style={{ borderRadius: 6 }}>Thêm người ở</Button>
+                      </Space>
                     )}
-                  </Typography.Text>
-                </Descriptions.Item>
-                <Descriptions.Item label="Ghi chu">
-                  {roomRequestType === "hold_deposit"
-                    ? "Giu phong trong 7 ngay sau khi thanh toan coc."
-                    : "Tien coc bang 1 thang tien phong."}
-                </Descriptions.Item>
-              </Descriptions>
-
-              <Form form={roomRequestForm} layout="vertical" onFinish={handleRoomRequestSubmit}>
-                {roomRequestType === "rent" ? (
-                  <>
-                    <div className="form-grid">
-                      <Form.Item
-                        name="durationMonths"
-                        label="Thoi han thue (thang)"
-                        rules={[{ required: true, message: "Nhap thoi han thue" }]}
-                      >
-                        <InputNumber className="full-width-input" min={1} />
-                      </Form.Item>
-                      <Form.Item
-                        name="occupantCount"
-                        label="So nguoi o"
-                        rules={[{ required: true, message: "Nhap so nguoi o" }]}
-                      >
-                        <InputNumber className="full-width-input" min={1} />
-                      </Form.Item>
-                    </div>
-
-                    <Form.List name="occupants">
-                      {(fields, { add, remove }) => (
-                        <Space direction="vertical" size={12} className="page-stack">
-                          {fields.map((field, index) => (
-                            <Card
-                              key={field.key}
-                              size="small"
-                              title={`Nguoi o ${index + 1}`}
-                              extra={
-                                fields.length > 1 ? (
-                                  <Button type="link" danger onClick={() => remove(field.name)}>
-                                    Xoa
-                                  </Button>
-                                ) : null
-                              }
-                            >
-                              <div className="form-grid">
-                                <Form.Item
-                                  {...field}
-                                  name={[field.name, "name"]}
-                                  label="Ho ten"
-                                  rules={[{ required: true, message: "Nhap ho ten" }]}
-                                >
-                                  <Input />
-                                </Form.Item>
-                                <Form.Item
-                                  {...field}
-                                  name={[field.name, "phone"]}
-                                  label="So dien thoai"
-                                  rules={[{ required: true, message: "Nhap so dien thoai" }]}
-                                >
-                                  <Input />
-                                </Form.Item>
-                                <Form.Item
-                                  {...field}
-                                  name={[field.name, "identityNumber"]}
-                                  label="So CCCD"
-                                  rules={[{ required: true, message: "Nhap so CCCD" }]}
-                                >
-                                  <Input />
-                                </Form.Item>
-                                <Form.Item
-                                  {...field}
-                                  name={[field.name, "identityFrontImage"]}
-                                  label="Anh CCCD mat truoc"
-                                  rules={[{ required: true, message: "Nhap duong dan anh mat truoc" }]}
-                                >
-                                  <Input placeholder="/uploads/identity/..." />
-                                </Form.Item>
-                                <Form.Item
-                                  {...field}
-                                  name={[field.name, "identityBackImage"]}
-                                  label="Anh CCCD mat sau"
-                                  rules={[{ required: true, message: "Nhap duong dan anh mat sau" }]}
-                                >
-                                  <Input placeholder="/uploads/identity/..." />
-                                </Form.Item>
-                              </div>
-                            </Card>
-                          ))}
-                          <Button onClick={() => add()}>Them nguoi o</Button>
-                        </Space>
-                      )}
-                    </Form.List>
-                  </>
-                ) : null}
-
-                <Form.Item name="message" label="Loi nhan cho admin">
-                  <Input.TextArea rows={3} placeholder="VD: Toi muon xem phong vao cuoi tuan nay" />
-                </Form.Item>
-              </Form>
-            </Space>
-          )}
-        </Modal>
-
-        <Modal
-          title="Chi tiet hop dong"
-          open={Boolean(detailContract)}
-          onCancel={() => setDetailContract(null)}
-          footer={[
-            <Button key="file" type="primary" onClick={() => handleOpenContractFile(detailContract)}>
-              Xem file
-            </Button>,
-            <Button key="close" onClick={() => setDetailContract(null)}>
-              Dong
-            </Button>,
-          ]}
-          width={820}
-        >
-          {detailContract && (
-            <Descriptions bordered size="small" column={2}>
-              <Descriptions.Item label="Ma hop dong">{detailContract.contractCode}</Descriptions.Item>
-              <Descriptions.Item label="Trang thai">
-                <Tag color={contractStatusMeta[detailContract.status]?.color}>
-                  {contractStatusMeta[detailContract.status]?.label}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="Phong">
-                {detailContract.roomNumber} - {detailContract.roomName}
-              </Descriptions.Item>
-              <Descriptions.Item label="Nguoi dai dien">{detailContract.tenantName}</Descriptions.Item>
-              <Descriptions.Item label="Ngay bat dau">{formatDate(detailContract.startDate)}</Descriptions.Item>
-              <Descriptions.Item label="Ngay ket thuc">{formatDate(detailContract.endDate)}</Descriptions.Item>
-              <Descriptions.Item label="Thoi han">{detailContract.durationMonths} thang</Descriptions.Item>
-              <Descriptions.Item label="So thanh vien">{detailContract.memberCount}</Descriptions.Item>
-              <Descriptions.Item label="Tien thue">{formatCurrency(detailContract.monthlyRent)}</Descriptions.Item>
-              <Descriptions.Item label="Tien coc">{formatCurrency(detailContract.deposit)}</Descriptions.Item>
-              <Descriptions.Item label="Dieu khoan" span={2}>
-                {detailContract.terms || "-"}
-              </Descriptions.Item>
-            </Descriptions>
-          )}
-        </Modal>
-
-        <Modal
-          title="Chi tiet hoa don"
-          open={Boolean(detailInvoice)}
-          onCancel={() => setDetailInvoice(null)}
-          footer={[
-            <Button key="close" onClick={() => setDetailInvoice(null)}>
-              Dong
-            </Button>,
-          ]}
-          width={860}
-        >
-          {detailInvoice && (
-            <Space direction="vertical" size={16} className="page-stack">
-              <Descriptions bordered size="small" column={2}>
-                <Descriptions.Item label="Ma hoa don">{detailInvoice.invoiceCode}</Descriptions.Item>
-                <Descriptions.Item label="Trang thai">
-                  <Tag color={invoiceStatusMeta[detailInvoice.status]?.color}>
-                    {invoiceStatusMeta[detailInvoice.status]?.label}
-                  </Tag>
-                </Descriptions.Item>
-                <Descriptions.Item label="Phong">
-                  {detailInvoice.roomNumber} - {detailInvoice.roomName}
-                </Descriptions.Item>
-                <Descriptions.Item label="Ky hoa don">
-                  {detailInvoice.month}/{detailInvoice.year}
-                </Descriptions.Item>
-                <Descriptions.Item label="Nguoi thanh toan">{detailInvoice.tenantName}</Descriptions.Item>
-                <Descriptions.Item label="Lien he">
-                  {detailInvoice.tenantPhone || detailInvoice.tenantEmail || "-"}
-                </Descriptions.Item>
-                <Descriptions.Item label="Hop dong">{detailInvoice.contractCode || "-"}</Descriptions.Item>
-                <Descriptions.Item label="Han thanh toan">{formatDate(detailInvoice.dueDate)}</Descriptions.Item>
-                <Descriptions.Item label="Ngay tao">{formatDate(detailInvoice.createdAt)}</Descriptions.Item>
-              </Descriptions>
-
-              <Descriptions title="Chi so dien nuoc" bordered size="small" column={2}>
-                <Descriptions.Item label="Dien cu">{detailInvoice.electricityOld ?? "-"}</Descriptions.Item>
-                <Descriptions.Item label="Dien moi">{detailInvoice.electricityNew ?? "-"}</Descriptions.Item>
-                <Descriptions.Item label="Dien tieu thu">{detailInvoice.electricityUsage ?? 0} so</Descriptions.Item>
-                <Descriptions.Item label="Tien dien">{formatCurrency(detailInvoice.electricityAmount)}</Descriptions.Item>
-                <Descriptions.Item label="Nuoc cu">{detailInvoice.waterOld ?? "-"}</Descriptions.Item>
-                <Descriptions.Item label="Nuoc moi">{detailInvoice.waterNew ?? "-"}</Descriptions.Item>
-                <Descriptions.Item label="Nuoc tieu thu">{detailInvoice.waterUsage ?? 0} khoi</Descriptions.Item>
-                <Descriptions.Item label="Tien nuoc">{formatCurrency(detailInvoice.waterAmount)}</Descriptions.Item>
-              </Descriptions>
-
-              <Descriptions title="Tong ket chi phi" bordered size="small" column={2}>
-                <Descriptions.Item label="Tien phong">{formatCurrency(detailInvoice.rentAmount)}</Descriptions.Item>
-                <Descriptions.Item label="Phi dich vu">{formatCurrency(detailInvoice.serviceAmount)}</Descriptions.Item>
-                <Descriptions.Item label="Chi phi khac">{formatCurrency(detailInvoice.otherAmount)}</Descriptions.Item>
-                <Descriptions.Item label="Giam tru">{formatCurrency(detailInvoice.discountAmount)}</Descriptions.Item>
-                <Descriptions.Item label="Tong tien">
-                  <Typography.Text strong>{formatCurrency(detailInvoice.totalAmount)}</Typography.Text>
-                </Descriptions.Item>
-                <Descriptions.Item label="Da thanh toan">{formatCurrency(detailInvoice.paidAmount)}</Descriptions.Item>
-                <Descriptions.Item label="Con lai">
-                  <Typography.Text type={detailInvoice.remainingAmount > 0 ? "danger" : "success"} strong>
-                    {formatCurrency(detailInvoice.remainingAmount)}
-                  </Typography.Text>
-                </Descriptions.Item>
-              </Descriptions>
-
-              <Descriptions bordered size="small" column={1}>
-                <Descriptions.Item label="Ghi chu">{detailInvoice.note || "-"}</Descriptions.Item>
-              </Descriptions>
-            </Space>
-          )}
-        </Modal>
-
-        <Modal
-          title={editingRepairRequest ? "Sua su co" : "Bao cao su co"}
-          open={repairModalOpen}
-          onCancel={closeRepairModal}
-          onOk={() => repairForm.submit()}
-          confirmLoading={repairSubmitting}
-          okText={editingRepairRequest ? "Luu" : "Gui bao cao"}
-          cancelText="Huy"
-          width={720}
-        >
-          <Form form={repairForm} layout="vertical" onFinish={handleCreateRepairRequest}>
-            <div className="form-grid">
-              <Form.Item name="room" label="Phong" rules={[{ required: true }]}>
-                <Select options={activeRoomOptions} placeholder="Chon phong dang thue" />
-              </Form.Item>
-              <Form.Item name="priority" label="Muc do" rules={[{ required: true }]}>
-                <Select options={repairPriorityOptions} />
-              </Form.Item>
-              <Form.Item name="requestedResolveDate" label="Ngay mong muon xu ly">
-                <DatePicker className="full-width-input" format="DD/MM/YYYY" />
-              </Form.Item>
-              {editingRepairRequest ? (
-                <Form.Item name="status" label="Trang thai" rules={[{ required: true }]}>
-                  <Select options={repairStatusOptions} />
-                </Form.Item>
+                  </Form.List>
+                </>
               ) : null}
-            </div>
-            <Form.Item name="title" label="Tieu de" rules={[{ required: true }]}>
-              <Input placeholder="VD: Dieu hoa khong lanh" />
-            </Form.Item>
-            <Form.Item name="description" label="Mo ta su co" rules={[{ required: true }]}>
-              <Input.TextArea rows={4} />
-            </Form.Item>
-            <Form.Item label="Anh su co">
-              <Upload
-                accept="image/png,image/jpeg,image/webp"
-                customRequest={handleRepairImageUpload}
-                fileList={repairImageFileList}
-                listType="picture-card"
-                multiple
-                onChange={({ fileList }) => setRepairImageFileList(fileList)}
-              >
-                {repairImageFileList.length >= 10 ? null : (
-                  <button type="button" className="upload-card-button">
-                    <UploadOutlined />
-                    <span>Tai anh</span>
-                  </button>
-                )}
-              </Upload>
-            </Form.Item>
-          </Form>
-        </Modal>
+              <Form.Item name="message" label="Lời nhắn cho chủ trọ">
+                <Input.TextArea rows={3} placeholder="VD: Em muốn hẹn xem phòng vào cuối tuần này" style={{ borderRadius: 8 }} />
+              </Form.Item>
+            </Form>
+          </Space>
+        )}
+      </Modal>
 
-        <Modal
-          title="Chi tiet su co"
-          open={Boolean(detailRepairRequest)}
-          onCancel={() => setDetailRepairRequest(null)}
-          footer={[
-            <Button key="close" onClick={() => setDetailRepairRequest(null)}>
-              Dong
-            </Button>,
-          ]}
-          width={820}
-        >
-          {detailRepairRequest && (
-            <Descriptions bordered size="small" column={2}>
-              <Descriptions.Item label="Tieu de" span={2}>
-                {detailRepairRequest.title}
+      {/* Repair Request Modal */}
+      <Modal
+        title={editingRepairRequest ? "Sửa Báo Cáo Sự Cố" : "Báo Cáo Sự Cố Thiết Bị"}
+        open={repairModalOpen}
+        onCancel={closeRepairModal}
+        onOk={() => repairForm.submit()}
+        confirmLoading={repairSubmitting}
+        okText={editingRepairRequest ? "Cập nhật" : "Gửi báo cáo"}
+        cancelText="Hủy"
+        width={720}
+        okButtonProps={{ style: { background: "#0f766e", borderColor: "#0f766e" } }}
+      >
+        <Form form={repairForm} layout="vertical" onFinish={handleCreateRepairRequest}>
+          <div className="form-grid">
+            <Form.Item name="room" label="Chọn phòng trọ" rules={[{ required: true, message: "Chọn phòng trọ đang ở" }]}>
+              <Select options={activeRoomOptions} placeholder="Chọn phòng" />
+            </Form.Item>
+            <Form.Item name="priority" label="Mức độ khẩn cấp" rules={[{ required: true }]}>
+              <Select options={repairPriorityOptions} />
+            </Form.Item>
+            <Form.Item name="requestedResolveDate" label="Ngày mong muốn hỗ trợ">
+              <DatePicker className="full-width-input" format="DD/MM/YYYY" />
+            </Form.Item>
+          </div>
+          <Form.Item name="title" label="Tiêu đề sự cố" rules={[{ required: true, message: "Nhập tiêu đề sự cố" }]}>
+            <Input placeholder="VD: Máy giặt tầng 2 không vắt, vòi nước rò rỉ" style={{ borderRadius: 8 }} />
+          </Form.Item>
+          <Form.Item name="description" label="Mô tả chi tiết" rules={[{ required: true, message: "Mô tả sự cố" }]}>
+            <Input.TextArea rows={4} placeholder="Mô tả chi tiết để kỹ thuật viên chuẩn bị..." style={{ borderRadius: 8 }} />
+          </Form.Item>
+          <Form.Item label="Hình ảnh hiện trạng sự cố">
+            <Upload
+              accept="image/png,image/jpeg,image/webp"
+              customRequest={handleRepairImageUpload}
+              fileList={repairImageFileList}
+              listType="picture-card"
+              multiple
+              onChange={({ fileList }) => setRepairImageFileList(fileList)}
+            >
+              {repairImageFileList.length >= 10 ? null : (
+                <button type="button" className="upload-card-button">
+                  <UploadOutlined />
+                  <span>Tải ảnh</span>
+                </button>
+              )}
+            </Upload>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Repair Detail Modal */}
+      <Modal
+        title="Chi Tiết Báo Cáo Sự Cố"
+        open={Boolean(detailRepairRequest)}
+        onCancel={() => setDetailRepairRequest(null)}
+        footer={[<Button key="close" onClick={() => setDetailRepairRequest(null)} style={{ borderRadius: 6 }}>Đóng</Button>]}
+        width={760}
+      >
+        {detailRepairRequest && (
+          <Descriptions bordered size="small" column={2} style={{ background: "#f8fafc" }}>
+            <Descriptions.Item label="Tiêu đề" span={2}><Text strong>{detailRepairRequest.title}</Text></Descriptions.Item>
+            <Descriptions.Item label="Phòng">Phòng {detailRepairRequest.roomNumber}</Descriptions.Item>
+            <Descriptions.Item label="Mức độ">
+              <Tag color={repairPriorityMeta[detailRepairRequest.priority]?.color}>{repairPriorityMeta[detailRepairRequest.priority]?.label}</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="Trạng thái">
+              <Tag color={repairStatusMeta[detailRepairRequest.status]?.color}>{repairStatusMeta[detailRepairRequest.status]?.label}</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="Ngày gửi">{formatDate(detailRepairRequest.createdAt)}</Descriptions.Item>
+            <Descriptions.Item label="Mô tả sự cố" span={2}>{detailRepairRequest.description}</Descriptions.Item>
+            <Descriptions.Item label="Phản hồi từ chủ trọ" span={2}>{detailRepairRequest.adminNote || "Chưa có phản hồi mới."}</Descriptions.Item>
+            <Descriptions.Item label="Ảnh sự cố" span={2}>
+              {(detailRepairRequest.images || []).length > 0 ? (
+                <Image.PreviewGroup>
+                  <Space wrap>
+                    {detailRepairRequest.images.map((image) => (
+                      <Image key={image} src={toImageUrl(image)} width={120} height={86} style={{ objectFit: "cover", borderRadius: 8 }} />
+                    ))}
+                  </Space>
+                </Image.PreviewGroup>
+              ) : "-"}
+            </Descriptions.Item>
+          </Descriptions>
+        )}
+      </Modal>
+
+      {/* Payment QR Code Modal */}
+      <Modal
+        title="Mã QR Chuyển Khoản Thanh Toán"
+        open={Boolean(paymentRequest)}
+        onCancel={() => setPaymentRequest(null)}
+        footer={[<Button key="close" type="primary" onClick={() => setPaymentRequest(null)} style={{ background: "#0f766e", borderRadius: 8 }}>Đóng</Button>]}
+        width={720}
+      >
+        {paymentRequest && (
+          <Space direction="vertical" size={16} style={{ width: "100%" }}>
+            <Descriptions bordered size="small" column={2} style={{ background: "#f8fafc" }}>
+              <Descriptions.Item label="Mã yêu cầu">{paymentRequest.requestCode}</Descriptions.Item>
+              <Descriptions.Item label="Phòng">Phòng {paymentRequest.roomNumber}</Descriptions.Item>
+              <Descriptions.Item label="Số tiền cọc">
+                <Text strong style={{ color: "#0f766e", fontSize: 16 }}>{formatCurrency(paymentRequest.amount)}</Text>
               </Descriptions.Item>
-              <Descriptions.Item label="Phong">
-                {detailRepairRequest.roomNumber} - {detailRepairRequest.roomName}
-              </Descriptions.Item>
-              <Descriptions.Item label="Nguoi tao">{detailRepairRequest.createdByName || "-"}</Descriptions.Item>
-              <Descriptions.Item label="Muc do">
-                <Tag color={repairPriorityMeta[detailRepairRequest.priority]?.color}>
-                  {repairPriorityMeta[detailRepairRequest.priority]?.label}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="Trang thai">
-                <Tag color={repairStatusMeta[detailRepairRequest.status]?.color}>
-                  {repairStatusMeta[detailRepairRequest.status]?.label}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="Ngay bao">{formatDate(detailRepairRequest.createdAt)}</Descriptions.Item>
-              <Descriptions.Item label="Ngay mong muon xu ly">
-                {formatDate(detailRepairRequest.requestedResolveDate)}
-              </Descriptions.Item>
-              <Descriptions.Item label="Ngay xu ly">{formatResolvedDate(detailRepairRequest.resolvedAt)}</Descriptions.Item>
-              <Descriptions.Item label="Mo ta" span={2}>
-                {detailRepairRequest.description}
-              </Descriptions.Item>
-              <Descriptions.Item label="Ghi chu admin" span={2}>
-                {detailRepairRequest.adminNote || "-"}
-              </Descriptions.Item>
-              <Descriptions.Item label="Anh su co" span={2}>
-                {(detailRepairRequest.images || []).length > 0 ? (
-                  <Image.PreviewGroup>
-                    <Space wrap>
-                      {detailRepairRequest.images.map((image) => (
-                        <Image
-                          key={image}
-                          src={toImageUrl(image)}
-                          width={120}
-                          height={86}
-                          style={{ objectFit: "cover", borderRadius: 8 }}
-                        />
-                      ))}
-                    </Space>
-                  </Image.PreviewGroup>
-                ) : (
-                  "-"
-                )}
+              <Descriptions.Item label="Ngân hàng">{paymentRequest.paymentBankName || "MB Bank"}</Descriptions.Item>
+              <Descriptions.Item label="Số tài khoản"><Text copyable strong>{paymentRequest.paymentBankAccountNumber || "-"}</Text></Descriptions.Item>
+              <Descriptions.Item label="Chủ tài khoản">{paymentRequest.paymentBankAccountName || "-"}</Descriptions.Item>
+              <Descriptions.Item label="Nội dung CK" span={2}>
+                <Text copyable strong style={{ color: "#e11d48", fontSize: 15 }}>
+                  {paymentRequest.paymentContent || paymentRequest.paymentOrderCode || paymentRequest.requestCode}
+                </Text>
               </Descriptions.Item>
             </Descriptions>
-          )}
-        </Modal>
-      </Content>
-    </Layout>
+            {paymentRequest.paymentQrCode ? (
+              <div style={{ textAlign: "center", padding: 20, background: "#ffffff", borderRadius: 12, border: "1px solid #e2e8f0" }}>
+                <Image src={paymentRequest.paymentQrCode} width={260} style={{ borderRadius: 8 }} />
+                <Paragraph type="secondary" style={{ marginTop: 10, fontSize: 13 }}>
+                  Mở app Ngân hàng quét mã QR để chuyển khoản chính xác nội dung & số tiền.
+                </Paragraph>
+              </div>
+            ) : (
+              <Text type="danger">Chưa cấu hình thông tin ngân hàng để tạo QR thanh toán.</Text>
+            )}
+          </Space>
+        )}
+      </Modal>
+    </>
   );
 };
 

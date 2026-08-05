@@ -2,7 +2,10 @@ import {
   ArrowLeftOutlined,
   CheckCircleOutlined,
   CreditCardOutlined,
+  DownOutlined,
   EnvironmentOutlined,
+  FileProtectOutlined,
+  FileTextOutlined,
   HeartOutlined,
   HomeOutlined,
   InfoCircleOutlined,
@@ -10,9 +13,11 @@ import {
   PhoneOutlined,
   SafetyCertificateOutlined,
   ThunderboltOutlined,
+  ToolOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
-import { Button, Card, Descriptions, Form, Image, Input, InputNumber, Layout, Modal, Space, Tag, Typography, message } from "antd";
-import { useEffect, useState } from "react";
+import { Avatar, Button, Card, Descriptions, Dropdown, Form, Image, Input, InputNumber, Layout, Modal, Space, Tag, Typography, message } from "antd";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import http from "../../api/http";
 import { useAuth } from "../../context/AuthContext";
@@ -87,18 +92,18 @@ const UserRoomDetailPage = () => {
     roomRequestForm.setFieldsValue(
       type === "rent"
         ? {
-          durationMonths: 12,
-          occupantCount: 1,
-          occupants: [
-            {
-              name: user?.name || "",
-              phone: user?.phone || "",
-              identityNumber: user?.identityNumber || "",
-              identityFrontImage: user?.identityFrontImage || "",
-              identityBackImage: user?.identityBackImage || "",
-            },
-          ],
-        }
+            durationMonths: 12,
+            occupantCount: 1,
+            occupants: [
+              {
+                name: user?.name || "",
+                phone: user?.phone || "",
+                identityNumber: user?.identityNumber || "",
+                identityFrontImage: user?.identityFrontImage || "",
+                identityBackImage: user?.identityBackImage || "",
+              },
+            ],
+          }
         : {}
     );
     setRoomRequestModalOpen(true);
@@ -140,9 +145,72 @@ const UserRoomDetailPage = () => {
     }
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
+  const userMenuItems = useMemo(
+    () => [
+      {
+        key: "user-header",
+        disabled: true,
+        label: (
+          <div className="user-menu-header">
+            <div className="user-menu-info-name">{user?.name || "Người dùng"}</div>
+            <div className="user-menu-info-email">{user?.email || "Tenant Portal"}</div>
+          </div>
+        ),
+      },
+      {
+        key: "rooms",
+        icon: <HomeOutlined style={{ color: "#0f766e" }} />,
+        label: "Phòng của tôi",
+      },
+      {
+        key: "contracts",
+        icon: <FileProtectOutlined style={{ color: "#2563eb" }} />,
+        label: "Hợp đồng",
+      },
+      {
+        key: "invoices",
+        icon: <FileTextOutlined style={{ color: "#d97706" }} />,
+        label: "Hóa đơn",
+      },
+      {
+        key: "repair-requests",
+        icon: <ToolOutlined style={{ color: "#e11d48" }} />,
+        label: "Báo sự cố",
+      },
+      {
+        key: "room-requests",
+        icon: <CreditCardOutlined style={{ color: "#0284c7" }} />,
+        label: "Yêu cầu & Cọc",
+      },
+      {
+        key: "interested-rooms",
+        icon: <HeartOutlined style={{ color: "#e11d48" }} />,
+        label: "Phòng yêu thích",
+      },
+      {
+        key: "profile",
+        icon: <UserOutlined style={{ color: "#4f46e5" }} />,
+        label: "Hồ sơ cá nhân",
+      },
+      {
+        type: "divider",
+      },
+      {
+        key: "logout",
+        icon: <LogoutOutlined />,
+        label: "Đăng xuất",
+        danger: true,
+      },
+    ],
+    [user]
+  );
+
+  const handleUserMenuClick = ({ key }) => {
+    if (key === "logout") {
+      handleLogout();
+    } else if (key && key !== "user-header") {
+      navigate(`/user?tab=${key}`);
+    }
   };
 
   return (
@@ -155,16 +223,20 @@ const UserRoomDetailPage = () => {
         </div>
         <Space>
           {user ? (
-            <>
-              <Text className="header-user">Xin chào, {user.name}</Text>
-              <Button
-                icon={<LogoutOutlined />}
-                onClick={handleLogout}
-                style={{ borderRadius: 8 }}
-              >
-                Đăng xuất
-              </Button>
-            </>
+            <Dropdown
+              menu={{ items: userMenuItems, onClick: handleUserMenuClick }}
+              overlayClassName="user-dropdown-popover"
+              trigger={["click"]}
+              placement="bottomRight"
+            >
+              <div className="header-user-btn">
+                <Avatar className="header-user-avatar" size={32} icon={<UserOutlined />}>
+                  {user?.name?.[0]?.toUpperCase()}
+                </Avatar>
+                <span className="header-user-name">{user?.name || "Tài khoản"}</span>
+                <DownOutlined style={{ fontSize: 11, opacity: 0.8 }} />
+              </div>
+            </Dropdown>
           ) : (
             <>
               <Button onClick={() => navigate("/login")} style={{ borderRadius: 8 }}>
