@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AboutPage from "./pages/AboutPage";
 import PublicHomePage from "./pages/PublicHomePage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminLayout from "./pages/admin/AdminLayout";
@@ -28,6 +29,7 @@ const App = () => (
   <BrowserRouter>
     <Routes>
       <Route path="/" element={<PublicHomePage />} />
+      <Route path="/about" element={<AboutPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route

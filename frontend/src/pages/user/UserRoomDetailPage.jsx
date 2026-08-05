@@ -92,18 +92,18 @@ const UserRoomDetailPage = () => {
     roomRequestForm.setFieldsValue(
       type === "rent"
         ? {
-            durationMonths: 12,
-            occupantCount: 1,
-            occupants: [
-              {
-                name: user?.name || "",
-                phone: user?.phone || "",
-                identityNumber: user?.identityNumber || "",
-                identityFrontImage: user?.identityFrontImage || "",
-                identityBackImage: user?.identityBackImage || "",
-              },
-            ],
-          }
+          durationMonths: 12,
+          occupantCount: 1,
+          occupants: [
+            {
+              name: user?.name || "",
+              phone: user?.phone || "",
+              identityNumber: user?.identityNumber || "",
+              identityFrontImage: user?.identityFrontImage || "",
+              identityBackImage: user?.identityBackImage || "",
+            },
+          ],
+        }
         : {}
     );
     setRoomRequestModalOpen(true);
@@ -221,7 +221,21 @@ const UserRoomDetailPage = () => {
           <span>TRO PLUS</span>
           <span className="brand-badge">Premium</span>
         </div>
-        <Space>
+        <Space size="middle">
+          <Button
+            type="text"
+            onClick={() => navigate("/")}
+            style={{ color: "#ffffff", fontWeight: 600 }}
+          >
+            Trang chủ
+          </Button>
+          <Button
+            type="text"
+            onClick={() => navigate("/about")}
+            style={{ color: "#ffffff", fontWeight: 600 }}
+          >
+            Giới thiệu
+          </Button>
           {user ? (
             <Dropdown
               menu={{ items: userMenuItems, onClick: handleUserMenuClick }}

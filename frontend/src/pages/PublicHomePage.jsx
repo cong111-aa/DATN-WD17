@@ -148,6 +148,20 @@ const PublicHomePage = () => {
           <span className="brand-badge">Premium</span>
         </div>
         <Space size="middle">
+          <Button
+            type="text"
+            onClick={() => navigate("/")}
+            style={{ color: "#6ee7b7", fontWeight: 700 }}
+          >
+            Trang chủ
+          </Button>
+          <Button
+            type="text"
+            onClick={() => navigate("/about")}
+            style={{ color: "#ffffff", fontWeight: 600 }}
+          >
+            Giới thiệu
+          </Button>
           {user ? (
             <Button
               type="primary"
