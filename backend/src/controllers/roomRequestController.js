@@ -3,6 +3,7 @@ const Room = require("../models/Room");
 const RoomRequest = require("../models/RoomRequest");
 const Tenant = require("../models/Tenant");
 const { buildBankTransferPayment } = require("../utils/paymentQr");
+const { markRoomReservedFromPaymentLock } = require("../utils/roomPaymentLock");
 
 const roomRequestPopulate = [
   { path: "user", select: "name email phone identityNumber address" },
@@ -48,6 +49,9 @@ const toRoomRequestResponse = (request) => ({
   paymentOrderCode: request.paymentOrderCode,
   paymentLinkId: request.paymentLinkId,
   paymentCheckoutUrl: request.paymentCheckoutUrl,
+  paymentProofImages: request.paymentProofImages || [],
+  paymentConfirmedBy: request.paymentConfirmedBy,
+  paymentConfirmedAt: request.paymentConfirmedAt,
   ...buildBankTransferPayment(request),
   paidAt: request.paidAt,
   tenantRecord: request.tenantRecord?._id || request.tenantRecord,
@@ -264,18 +268,28 @@ const markRoomRequestPaid = async (req, res, next) => {
       throw new Error("Only pending requests can be marked as paid");
     }
 
+    if (request.paymentProvider !== "manual_qr") {
+      res.status(400);
+      throw new Error("Only manual QR payments can be confirmed by admin");
+    }
+
+    if (!request.paymentProofImages?.length) {
+      res.status(400);
+      throw new Error("Payment proof image is required before confirming payment");
+    }
+
     request.paymentStatus = "paid";
     request.paidAt = req.body.paidAt ? new Date(req.body.paidAt) : new Date();
+    request.paymentConfirmedBy = req.user._id;
+    request.paymentConfirmedAt = new Date();
     request.adminNote = req.body.adminNote ?? request.adminNote;
 
     const updatedRequest = await request.save();
 
-    if (request.type === "hold_deposit") {
-      await Room.findOneAndUpdate(
-        { _id: request.room, status: "available" },
-        { status: "reserved" }
-      );
-    }
+    await markRoomReservedFromPaymentLock({
+      requestId: request._id,
+      roomId: request.room,
+    });
 
     const populatedRequest = await populateRoomRequest(RoomRequest.findById(updatedRequest._id));
 

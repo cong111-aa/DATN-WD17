@@ -12,6 +12,15 @@ const env = {
   bankAccountName: process.env.BANK_ACCOUNT_NAME || "",
   bankName: process.env.BANK_NAME || "",
   paymentQrTemplate: process.env.PAYMENT_QR_TEMPLATE || "compact2",
+  vnpayTmnCode: process.env.VNPAY_TMN_CODE || "",
+  vnpayHashSecret: process.env.VNPAY_HASH_SECRET || "",
+  vnpayPaymentUrl:
+    process.env.VNPAY_PAYMENT_URL || "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
+  vnpayReturnUrl:
+    process.env.VNPAY_RETURN_URL || `${process.env.CLIENT_URL || "http://localhost:5173"}/payment/vnpay-return`,
+  vnpayIpnUrl:
+    process.env.VNPAY_IPN_URL || `${process.env.API_URL || "http://localhost:5000"}/api/payments/vnpay/ipn`,
+  vnpayLocale: process.env.VNPAY_LOCALE || "vn",
 };
 
 module.exports = env;

@@ -28,8 +28,8 @@ const roomRequestSchema = new mongoose.Schema(
     holdExpiresAt: { type: Date },
     paymentProvider: {
       type: String,
-      enum: ["vietqr", "payos"],
-      default: "vietqr",
+      enum: ["manual_qr", "vnpay"],
+      default: "manual_qr",
     },
     paymentStatus: {
       type: String,
@@ -40,7 +40,12 @@ const roomRequestSchema = new mongoose.Schema(
     paymentLinkId: { type: String, default: "", trim: true },
     paymentCheckoutUrl: { type: String, default: "", trim: true },
     paymentQrCode: { type: String, default: "", trim: true },
+    paymentProofImages: [{ type: String, trim: true }],
+    paymentConfirmedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    paymentConfirmedAt: { type: Date },
     paidAt: { type: Date },
+    sourceHoldRequest: { type: mongoose.Schema.Types.ObjectId, ref: "RoomRequest" },
+    depositCreditAmount: { type: Number, default: 0, min: 0 },
     tenantRecord: { type: mongoose.Schema.Types.ObjectId, ref: "Tenant" },
     contract: { type: mongoose.Schema.Types.ObjectId, ref: "Contract" },
     status: {

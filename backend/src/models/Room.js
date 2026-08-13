@@ -19,13 +19,17 @@ const roomSchema = new mongoose.Schema(
     images: [{ type: String, trim: true }], // Danh sach anh phong
     status: {
       type: String,
-      enum: ["available", "reserved", "occupied", "maintenance"],
+      enum: ["available", "payment_pending", "reserved", "occupied", "maintenance"],
       default: "available",
     }, // Trang thai phong
+    paymentHoldBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    paymentHoldRequest: { type: mongoose.Schema.Types.ObjectId, ref: "RoomRequest" },
+    paymentHoldExpiresAt: { type: Date },
   },
   { timestamps: true }
 );
 
 roomSchema.index({ roomNumber: 1 });
+roomSchema.index({ status: 1, paymentHoldExpiresAt: 1 });
 
 module.exports = mongoose.model("Room", roomSchema);

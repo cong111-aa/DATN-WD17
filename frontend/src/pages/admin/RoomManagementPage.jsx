@@ -47,14 +47,16 @@ const defaultFormValues = {
 };
 
 const statusOptions = [
-  { label: "Da giu cho", value: "reserved" },
+  { label: "Đang thanh toán", value: "payment_pending", disabled: true },
+  { label: "Đã giữ chỗ", value: "reserved" },
   { label: "Còn trống", value: "available" },
   { label: "Đang thuê", value: "occupied" },
   { label: "Bảo trì", value: "maintenance" },
 ];
 
 const statusMeta = {
-  reserved: { color: "gold", label: "Da giu cho" },
+  payment_pending: { color: "processing", label: "Đang thanh toán" },
+  reserved: { color: "gold", label: "Đã giữ chỗ" },
   available: { color: "success", label: "Còn trống" },
   occupied: { color: "blue", label: "Đang thuê" },
   maintenance: { color: "warning", label: "Bảo trì" },
@@ -119,7 +121,9 @@ const RoomManagementPage = () => {
     () =>
       statusOptions.map((option) => ({
         ...option,
-        disabled: editingRoom?.status === "occupied" && option.value === "available",
+        disabled:
+          option.disabled ||
+          (editingRoom?.status === "occupied" && option.value === "available"),
       })),
     [editingRoom]
   );
@@ -479,6 +483,14 @@ const RoomManagementPage = () => {
                   {statusMeta[detailRoom.status]?.label}
                 </Tag>
               </Descriptions.Item>
+              {detailRoom.status === "payment_pending" ? (
+                <Descriptions.Item label="Khóa thanh toán đến">
+                  {formatDate(detailRoom.paymentHoldExpiresAt)}{" "}
+                  {detailRoom.paymentHoldExpiresAt
+                    ? new Date(detailRoom.paymentHoldExpiresAt).toLocaleTimeString("vi-VN")
+                    : ""}
+                </Descriptions.Item>
+              ) : null}
             </Descriptions>
 
             <Divider orientation="left">Vị trí phòng</Divider>

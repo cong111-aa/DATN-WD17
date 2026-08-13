@@ -15,6 +15,7 @@ import {
 import { Avatar, Dropdown, Layout, Typography } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import NotificationBell from "../../components/NotificationBell";
 import http from "../../api/http";
 import { useAuth } from "../../context/AuthContext";
 
@@ -124,7 +125,7 @@ const UserLayout = () => {
       {
         key: "/user/room-requests",
         icon: <CreditCardOutlined style={{ color: "#0284c7" }} />,
-        label: "Yêu cầu & Cọc",
+        label: "Phòng đã cọc",
       },
       {
         key: "/user/interested-rooms",
@@ -164,6 +165,8 @@ const UserLayout = () => {
           <span>TRO PLUS</span>
           <span className="brand-badge">Tenant Portal</span>
         </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <NotificationBell />
         <Dropdown
           menu={{ items: userMenuItems, onClick: handleUserMenuClick }}
           overlayClassName="user-dropdown-popover"
@@ -181,6 +184,7 @@ const UserLayout = () => {
             <DownOutlined style={{ fontSize: 11, opacity: 0.8 }} />
           </div>
         </Dropdown>
+        </div>
       </Header>
       <Content className="app-content">
         <Outlet context={{ refreshBadgeCounts: fetchBadgeCounts }} />
