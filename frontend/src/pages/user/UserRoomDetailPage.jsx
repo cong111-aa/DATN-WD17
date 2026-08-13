@@ -14,9 +14,10 @@ import {
   SafetyCertificateOutlined,
   ThunderboltOutlined,
   ToolOutlined,
+  UploadOutlined,
   UserOutlined,
 } from "@ant-design/icons";
-import { Avatar, Button, Card, Descriptions, Dropdown, Form, Image, Input, InputNumber, Layout, Modal, Space, Tag, Typography, message } from "antd";
+import { Avatar, Button, Card, Descriptions, Dropdown, Form, Image, Input, InputNumber, Layout, Modal, Space, Tag, Typography, Upload, message } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import http from "../../api/http";
@@ -39,7 +40,9 @@ const UserRoomDetailPage = () => {
   const [roomRequestModalOpen, setRoomRequestModalOpen] = useState(false);
   const [roomRequestSubmitting, setRoomRequestSubmitting] = useState(false);
   const [roomRequestType, setRoomRequestType] = useState("hold_deposit");
+  const [roomRequestPaymentProvider, setRoomRequestPaymentProvider] = useState("manual_qr");
   const [paymentRequest, setPaymentRequest] = useState(null);
+  const [vnpaySubmitting, setVnpaySubmitting] = useState(false);
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
 
   const fetchRoom = async () => {
@@ -120,6 +123,8 @@ const UserRoomDetailPage = () => {
     try {
       const payload = {
         message: values.message,
+        paymentProofImages: values.paymentProofImages || [],
+        paymentProvider: values.paymentProvider || roomRequestPaymentProvider,
         room: id,
       };
 
@@ -138,12 +143,103 @@ const UserRoomDetailPage = () => {
       message.success("Đã gửi yêu cầu phòng thành công");
       closeRoomRequestModal();
       setPaymentRequest(data);
+
+      if ((values.paymentProvider || roomRequestPaymentProvider) === "vnpay") {
+        await handleCreateVnpayPayment(data);
+      }
     } catch (error) {
       message.error(error.response?.data?.message || "Gửi yêu cầu phòng thất bại");
     } finally {
       setRoomRequestSubmitting(false);
     }
   };
+
+  const handleCreateVnpayPayment = async (request = paymentRequest) => {
+    if (!request?.id) {
+      return;
+    }
+
+    setVnpaySubmitting(true);
+    try {
+      const { data } = await http.post("/payments/vnpay/create", {
+        targetId: request.id,
+        targetType: "room_request",
+      });
+
+      if (data.paymentUrl) {
+        window.location.href = data.paymentUrl;
+      }
+    } catch (error) {
+      message.error(error.response?.data?.message || "Không tạo được giao dịch VNPay");
+    } finally {
+      setVnpaySubmitting(false);
+    }
+  };
+
+  const handleIdentityUpload = async ({ file, onError, onSuccess }, fieldPath) => {
+    const formData = new FormData();
+    formData.append("images", file);
+
+    try {
+      const { data } = await http.post("/uploads/identity", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      const uploadedUrl = data.urls?.[0] || "";
+
+      roomRequestForm.setFieldValue(fieldPath, uploadedUrl);
+      onSuccess?.(data);
+      message.success("Đã tải ảnh CCCD");
+    } catch (error) {
+      onError?.(error);
+      message.error(error.response?.data?.message || "Tải ảnh CCCD thất bại");
+    }
+  };
+
+  const handlePaymentProofUpload = async ({ file, onError, onSuccess }) => {
+    const formData = new FormData();
+    formData.append("images", file);
+
+    try {
+      const { data } = await http.post("/uploads/payment-proofs", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      const currentImages = paymentRequest?.id
+        ? paymentRequest.paymentProofImages || []
+        : roomRequestForm.getFieldValue("paymentProofImages") || [];
+      const uploadedUrls = data.urls || [];
+      const nextImages = [...currentImages, ...uploadedUrls];
+
+      roomRequestForm.setFieldValue("paymentProofImages", nextImages);
+
+      if (paymentRequest?.id) {
+        const { data: updatedRequest } = await http.patch(
+          `/me/room-requests/${paymentRequest.id}/payment-proof`,
+          { paymentProofImages: nextImages }
+        );
+        setPaymentRequest(updatedRequest);
+      }
+
+      onSuccess?.(data);
+      message.success("Đã tải ảnh biên lai");
+    } catch (error) {
+      onError?.(error);
+      message.error(error.response?.data?.message || "Tải ảnh biên lai thất bại");
+    }
+  };
+
+  const submitRoomRequestWithProvider = async (provider) => {
+    setRoomRequestPaymentProvider(provider);
+    roomRequestForm.setFieldValue("paymentProvider", provider);
+
+    try {
+      await roomRequestForm.validateFields();
+      roomRequestForm.submit();
+    } catch (error) {
+      // Ant Design will show field errors
+    }
+  };
+
+  const roomImages = (room?.images || []).filter(Boolean);
 
   const userMenuItems = useMemo(
     () => [
@@ -180,7 +276,7 @@ const UserRoomDetailPage = () => {
       {
         key: "room-requests",
         icon: <CreditCardOutlined style={{ color: "#0284c7" }} />,
-        label: "Yêu cầu & Cọc",
+        label: "Phòng đã cọc",
       },
       {
         key: "interested-rooms",
@@ -300,7 +396,7 @@ const UserRoomDetailPage = () => {
                   </div>
 
                   {/* Image Preview Gallery */}
-                  {(room.images || []).length > 0 ? (
+                  {roomImages.length > 0 ? (
                     <Image.PreviewGroup>
                       <div
                         style={{
@@ -310,9 +406,9 @@ const UserRoomDetailPage = () => {
                           marginBottom: 24,
                         }}
                       >
-                        {room.images.map((image, index) => (
+                        {roomImages.map((image, index) => (
                           <Image
-                            key={image}
+                            key={`${image}-${index}`}
                             src={toImageUrl(image)}
                             height={180}
                             style={{ borderRadius: 12, objectFit: "cover", width: "100%", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}
@@ -424,12 +520,30 @@ const UserRoomDetailPage = () => {
         title={roomRequestType === "hold_deposit" ? "Đặt Cọc Giữ Phòng Trọ" : "Yêu Cầu Đăng Ký Thuê Phòng"}
         open={roomRequestModalOpen}
         onCancel={closeRoomRequestModal}
-        onOk={() => roomRequestForm.submit()}
-        confirmLoading={roomRequestSubmitting}
-        okText="Gửi yêu cầu"
         cancelText="Hủy"
+        footer={[
+          <Button key="cancel" onClick={closeRoomRequestModal} style={{ borderRadius: 8 }}>
+            Hủy
+          </Button>,
+          <Button
+            key="manual"
+            loading={roomRequestSubmitting && roomRequestPaymentProvider === "manual_qr"}
+            onClick={() => submitRoomRequestWithProvider("manual_qr")}
+            style={{ borderRadius: 8 }}
+          >
+            Thanh toán thủ công bằng QR
+          </Button>,
+          <Button
+            key="vnpay"
+            type="primary"
+            loading={roomRequestSubmitting && roomRequestPaymentProvider === "vnpay"}
+            onClick={() => submitRoomRequestWithProvider("vnpay")}
+            style={{ background: "#0f766e", borderRadius: 8 }}
+          >
+            Thanh toán online / VNPay
+          </Button>,
+        ]}
         width={780}
-        okButtonProps={{ style: { background: "#0f766e", borderColor: "#0f766e" } }}
       >
         {room && (
           <Space direction="vertical" size={16} style={{ width: "100%" }}>
@@ -453,6 +567,9 @@ const UserRoomDetailPage = () => {
             </Descriptions>
 
             <Form form={roomRequestForm} layout="vertical" onFinish={handleRoomRequestSubmit}>
+              <Form.Item name="paymentProvider" hidden initialValue="manual_qr">
+                <Input />
+              </Form.Item>
               {roomRequestType === "rent" ? (
                 <>
                   <div className="form-grid">
@@ -491,6 +608,48 @@ const UserRoomDetailPage = () => {
                               <Form.Item {...field} name={[field.name, "identityNumber"]} label="Số CCCD" rules={[{ required: true, message: "Vui lòng nhập CCCD" }]}>
                                 <Input style={{ borderRadius: 6 }} />
                               </Form.Item>
+                              <Form.Item label="CCCD mặt trước" required>
+                                <Upload
+                                  accept="image/jpeg,image/png,image/webp"
+                                  customRequest={(options) =>
+                                    handleIdentityUpload(options, ["occupants", field.name, "identityFrontImage"])
+                                  }
+                                  maxCount={1}
+                                >
+                                  <Button icon={<UploadOutlined />} style={{ borderRadius: 6 }}>
+                                    Tải ảnh mặt trước
+                                  </Button>
+                                </Upload>
+                              </Form.Item>
+                              <Form.Item label="CCCD mặt sau" required>
+                                <Upload
+                                  accept="image/jpeg,image/png,image/webp"
+                                  customRequest={(options) =>
+                                    handleIdentityUpload(options, ["occupants", field.name, "identityBackImage"])
+                                  }
+                                  maxCount={1}
+                                >
+                                  <Button icon={<UploadOutlined />} style={{ borderRadius: 6 }}>
+                                    Tải ảnh mặt sau
+                                  </Button>
+                                </Upload>
+                              </Form.Item>
+                              <Form.Item
+                                {...field}
+                                name={[field.name, "identityFrontImage"]}
+                                hidden
+                                rules={[{ required: true, message: "Vui lòng tải ảnh CCCD mặt trước" }]}
+                              >
+                                <Input />
+                              </Form.Item>
+                              <Form.Item
+                                {...field}
+                                name={[field.name, "identityBackImage"]}
+                                hidden
+                                rules={[{ required: true, message: "Vui lòng tải ảnh CCCD mặt sau" }]}
+                              >
+                                <Input />
+                              </Form.Item>
                             </div>
                           </Card>
                         ))}
@@ -514,9 +673,21 @@ const UserRoomDetailPage = () => {
         open={Boolean(paymentRequest)}
         onCancel={() => setPaymentRequest(null)}
         footer={[
-          <Button key="close" type="primary" onClick={() => setPaymentRequest(null)} style={{ background: "#0f766e", borderRadius: 8 }}>
+          <Button key="close" onClick={() => setPaymentRequest(null)} style={{ borderRadius: 8 }}>
             Đã chuyển khoản / Đóng
           </Button>,
+          paymentRequest?.paymentProvider === "vnpay" ? (
+            <Button
+              key="vnpay"
+              type="primary"
+              loading={vnpaySubmitting}
+              disabled={paymentRequest?.paymentStatus === "paid"}
+              onClick={() => handleCreateVnpayPayment()}
+              style={{ background: "#0f766e", borderRadius: 8 }}
+            >
+              Thanh toán VNPay
+            </Button>
+          ) : null,
         ]}
         width={720}
       >
@@ -547,6 +718,43 @@ const UserRoomDetailPage = () => {
                   Quét mã QR bằng ứng dụng ngân hàng để chuyển khoản chính xác nội dung & số tiền.
                 </Paragraph>
               </div>
+            ) : null}
+
+            {paymentRequest.paymentProvider !== "vnpay" ? (
+              <Card size="small" title="Biên lai chuyển khoản QR thủ công" style={{ borderRadius: 12 }}>
+                <Space direction="vertical" size={12} style={{ width: "100%" }}>
+                  <Paragraph type="secondary" style={{ marginBottom: 0 }}>
+                    Sau khi quét QR và chuyển khoản, hãy tải ảnh giao dịch thành công để admin đối soát và xác nhận.
+                  </Paragraph>
+                  <Upload
+                    accept="image/jpeg,image/png,image/webp"
+                    customRequest={handlePaymentProofUpload}
+                    maxCount={5}
+                    multiple
+                  >
+                    <Button icon={<UploadOutlined />} style={{ borderRadius: 8 }}>
+                      Tải ảnh biên lai
+                    </Button>
+                  </Upload>
+                  {(paymentRequest.paymentProofImages || []).length > 0 ? (
+                    <Image.PreviewGroup>
+                      <Space wrap>
+                        {paymentRequest.paymentProofImages.map((image) => (
+                          <Image
+                            key={image}
+                            src={toImageUrl(image)}
+                            width={112}
+                            height={78}
+                            style={{ objectFit: "cover", borderRadius: 8 }}
+                          />
+                        ))}
+                      </Space>
+                    </Image.PreviewGroup>
+                  ) : (
+                    <Text type="secondary">Chưa có ảnh biên lai.</Text>
+                  )}
+                </Space>
+              </Card>
             ) : null}
           </Space>
         )}

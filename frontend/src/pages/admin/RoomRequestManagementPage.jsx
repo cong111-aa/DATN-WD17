@@ -50,6 +50,38 @@ const paymentStatusMeta = {
   cancelled: { color: "default", label: "Da huy" },
 };
 
+const paymentProviderMeta = {
+  manual_qr: { color: "cyan", label: "QR thu cong" },
+  vnpay: { color: "blue", label: "VNPay" },
+};
+
+const getPaymentStateMeta = (record) => {
+  if (record.paymentProvider === "vnpay") {
+    if (record.paymentStatus === "paid") {
+      return { color: "success", label: "Thanh toan thanh cong" };
+    }
+
+    if (["failed", "cancelled"].includes(record.paymentStatus)) {
+      return { color: "error", label: "Thanh toan that bai" };
+    }
+
+    return { color: "processing", label: "Dang thanh toan" };
+  }
+
+  if (record.paymentStatus === "paid") {
+    return { color: "success", label: "Da xac nhan" };
+  }
+
+  if (["failed", "cancelled"].includes(record.paymentStatus)) {
+    return { color: "error", label: "That bai" };
+  }
+
+  return { color: "warning", label: "Cho xac nhan" };
+};
+
+const getPaymentProviderMeta = (provider) =>
+  provider === "vnpay" ? paymentProviderMeta.vnpay : paymentProviderMeta.manual_qr;
+
 const RoomRequestManagementPage = () => {
   const [processForm] = Form.useForm();
   const [requests, setRequests] = useState([]);
@@ -178,15 +210,12 @@ const RoomRequestManagementPage = () => {
 
   const columns = [
     {
-      title: "Ma yeu cau",
-      dataIndex: "requestCode",
-      key: "requestCode",
+      title: "Khach hang",
+      key: "customer",
       render: (value, record) => (
         <Space direction="vertical" size={0}>
-          <Typography.Text strong>{value}</Typography.Text>
-          <Typography.Text type="secondary">
-            {record.userName || "-"} - {record.userPhone || "-"}
-          </Typography.Text>
+          <Typography.Text strong>{record.userName || "-"}</Typography.Text>
+          <Typography.Text type="secondary">{record.userPhone || record.userEmail || "-"}</Typography.Text>
         </Space>
       ),
     },
@@ -217,19 +246,18 @@ const RoomRequestManagementPage = () => {
     },
     {
       title: "Thanh toan",
-      dataIndex: "paymentStatus",
-      key: "paymentStatus",
-      render: (status) => {
-        const meta = paymentStatusMeta[status] || paymentStatusMeta.unpaid;
+      dataIndex: "paymentProvider",
+      key: "paymentProvider",
+      render: (provider) => {
+        const meta = getPaymentProviderMeta(provider);
         return <Tag color={meta.color}>{meta.label}</Tag>;
       },
     },
     {
       title: "Trang thai",
-      dataIndex: "status",
-      key: "status",
-      render: (status) => {
-        const meta = requestStatusMeta[status] || requestStatusMeta.pending;
+      key: "paymentState",
+      render: (_, record) => {
+        const meta = getPaymentStateMeta(record);
         return <Tag color={meta.color}>{meta.label}</Tag>;
       },
     },
@@ -247,31 +275,20 @@ const RoomRequestManagementPage = () => {
           <Button icon={<EyeOutlined />} onClick={() => setDetailRequest(record)}>
             Chi tiet
           </Button>
-          <Button
-            type="primary"
-            icon={<CheckCircleOutlined />}
-            onClick={() => openProcessModal("approve", record)}
-            disabled={record.status !== "pending" || record.paymentStatus !== "paid"}
-          >
-            Xac nhan
-          </Button>
-          <Button onClick={() => handleOpenContractFile(record)} disabled={!record.contract}>
-            Hop dong
-          </Button>
-          <Button
-            onClick={() => setPaymentConfirmRequest(record)}
-            disabled={record.status !== "pending" || record.paymentStatus === "paid"}
-          >
-            Da nhan tien
-          </Button>
-          <Button
-            danger
-            icon={<CloseCircleOutlined />}
-            onClick={() => openProcessModal("reject", record)}
-            disabled={record.status !== "pending"}
-          >
-            Tu choi
-          </Button>
+          {record.paymentProvider !== "vnpay" ? (
+            <Button
+              type="primary"
+              icon={<CheckCircleOutlined />}
+              onClick={() => setPaymentConfirmRequest(record)}
+              disabled={
+                record.status !== "pending" ||
+                record.paymentStatus === "paid" ||
+                !(record.paymentProofImages || []).length
+              }
+            >
+              Xac nhan da nhan tien
+            </Button>
+          ) : null}
         </Space>
       ),
     },
@@ -388,9 +405,14 @@ const RoomRequestManagementPage = () => {
               <Descriptions.Item label="So tien can thanh toan">
                 {formatCurrency(detailRequest.amount)}
               </Descriptions.Item>
-              <Descriptions.Item label="Thanh toan">
-                <Tag color={paymentStatusMeta[detailRequest.paymentStatus]?.color}>
-                  {paymentStatusMeta[detailRequest.paymentStatus]?.label}
+              <Descriptions.Item label="Phuong thuc thanh toan">
+                <Tag color={getPaymentProviderMeta(detailRequest.paymentProvider).color}>
+                  {getPaymentProviderMeta(detailRequest.paymentProvider).label}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Trang thai thanh toan">
+                <Tag color={getPaymentStateMeta(detailRequest).color}>
+                  {getPaymentStateMeta(detailRequest).label}
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="Ngan hang">{detailRequest.paymentBankName || "-"}</Descriptions.Item>
@@ -463,6 +485,27 @@ const RoomRequestManagementPage = () => {
                     Kiem tra sao ke theo dung so tien va noi dung chuyen khoan truoc khi xac nhan thanh toan.
                   </Typography.Text>
                 </Space>
+              </Card>
+            ) : null}
+            {detailRequest.paymentProvider !== "vnpay" ? (
+              <Card size="small" title="Anh bien lai chuyen khoan">
+                {(detailRequest.paymentProofImages || []).length > 0 ? (
+                  <Image.PreviewGroup>
+                    <Space wrap>
+                      {detailRequest.paymentProofImages.map((image) => (
+                        <Image
+                          key={image}
+                          src={toImageUrl(image)}
+                          width={132}
+                          height={92}
+                          style={{ objectFit: "cover", borderRadius: 8 }}
+                        />
+                      ))}
+                    </Space>
+                  </Image.PreviewGroup>
+                ) : (
+                  <Typography.Text type="secondary">Khach hang chua tai anh bien lai.</Typography.Text>
+                )}
               </Card>
             ) : null}
           </Space>

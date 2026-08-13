@@ -8,9 +8,14 @@ const uploadRepairRequestImages = (req, res) => {
   res.status(201).json({ urls });
 };
 
+const uploadPaymentProofImages = (req, res) => {
+  const urls = (req.files || []).map((file) => `/uploads/payment-proofs/${file.filename}`);
+  res.status(201).json({ urls });
+};
+
 const uploadIdentityImages = (req, res) => {
   const urls = (req.files || []).map((file) => `/uploads/identity/${file.filename}`);
   res.status(201).json({ urls });
 };
 
-module.exports = { uploadIdentityImages, uploadRepairRequestImages, uploadRoomImages };
+module.exports = { uploadIdentityImages, uploadPaymentProofImages, uploadRepairRequestImages, uploadRoomImages };

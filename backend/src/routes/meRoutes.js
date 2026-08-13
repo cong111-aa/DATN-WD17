@@ -4,6 +4,7 @@ const {
   cancelMyRoomRequest,
   createMyHoldDepositRequest,
   createMyRentRequest,
+  createMyRentRequestFromHoldDeposit,
   createMyRepairRequest,
   deleteMyRepairRequest,
   getAvailableRoomById,
@@ -15,10 +16,12 @@ const {
   getMyInvoices,
   getMyRepairRequestById,
   getMyRepairRequests,
+  getMyRoomRequestById,
   getMyRoomRequests,
   getMyTenancies,
   removeMyInterestedRoom,
   updateMyRepairRequest,
+  updateMyRoomRequestPaymentProof,
 } = require("../controllers/meController");
 const { protect } = require("../middlewares/authMiddleware");
 
@@ -31,8 +34,11 @@ router.get("/interested-rooms", protect, getMyInterestedRooms);
 router.post("/interested-rooms", protect, addMyInterestedRoom);
 router.delete("/interested-rooms/:roomId", protect, removeMyInterestedRoom);
 router.get("/room-requests", protect, getMyRoomRequests);
+router.get("/room-requests/:id", protect, getMyRoomRequestById);
 router.post("/room-requests/hold-deposit", protect, createMyHoldDepositRequest);
 router.post("/room-requests/rent", protect, createMyRentRequest);
+router.post("/room-requests/:id/rent", protect, createMyRentRequestFromHoldDeposit);
+router.patch("/room-requests/:id/payment-proof", protect, updateMyRoomRequestPaymentProof);
 router.patch("/room-requests/:id/cancel", protect, cancelMyRoomRequest);
 router.get("/contracts", protect, getMyContracts);
 router.get("/contracts/:id/file", protect, getMyContractFile);

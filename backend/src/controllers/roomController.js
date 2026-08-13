@@ -2,7 +2,7 @@ const Room = require("../models/Room");
 const RoomRequest = require("../models/RoomRequest");
 const Tenant = require("../models/Tenant");
 
-const roomStatuses = ["available", "reserved", "occupied", "maintenance"];
+const roomStatuses = ["available", "payment_pending", "reserved", "occupied", "maintenance"];
 
 const toRoomResponse = (room) => ({
   id: room._id,
@@ -22,6 +22,9 @@ const toRoomResponse = (room) => ({
   description: room.description,
   images: room.images || [],
   status: room.status,
+  paymentHoldBy: room.paymentHoldBy,
+  paymentHoldRequest: room.paymentHoldRequest,
+  paymentHoldExpiresAt: room.paymentHoldExpiresAt,
   createdAt: room.createdAt,
   updatedAt: room.updatedAt,
 });

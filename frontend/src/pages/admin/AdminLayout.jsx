@@ -12,6 +12,7 @@ import {
 } from "@ant-design/icons";
 import { Button, Layout, Menu, Space, Typography } from "antd";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import NotificationBell from "../../components/NotificationBell";
 import { useAuth } from "../../context/AuthContext";
 
 const { Content, Header, Sider } = Layout;
@@ -114,6 +115,7 @@ const AdminLayout = () => {
         <Header className="app-header">
           <div className="brand">Tro Plus</div>
           <Space>
+            <NotificationBell />
             <Typography.Text className="header-user">{user?.name}</Typography.Text>
             <Button icon={<LogoutOutlined />} onClick={handleLogout}>
               Dang xuat

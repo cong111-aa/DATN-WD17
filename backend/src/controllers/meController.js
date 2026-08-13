@@ -7,6 +7,8 @@ const RoomRequest = require("../models/RoomRequest");
 const Tenant = require("../models/Tenant");
 const renderContractHtml = require("../utils/renderContractHtml");
 const { buildBankTransferPayment, buildPaymentContent, buildVietQrUrl } = require("../utils/paymentQr");
+const { notifyAdmins } = require("../services/notificationService");
+const { acquireRoomPaymentLock, clearExpiredRoomPaymentLock } = require("../utils/roomPaymentLock");
 const { toRepairRequestResponse } = require("./repairRequestController");
 
 const tenantPopulate = [
@@ -77,7 +79,7 @@ const toAvailableRoomResponse = (room) => ({
   waterPrice: room.waterPrice,
   serviceFee: room.serviceFee,
   description: room.description,
-  images: room.images || [],
+  images: (room.images || []).filter(Boolean),
   status: room.status,
   createdAt: room.createdAt,
 });
@@ -131,8 +133,11 @@ const toRoomRequestResponse = (roomRequest) => ({
   paymentStatus: roomRequest.paymentStatus,
   paymentOrderCode: roomRequest.paymentOrderCode,
   paymentCheckoutUrl: roomRequest.paymentCheckoutUrl,
+  paymentProofImages: roomRequest.paymentProofImages || [],
   ...buildBankTransferPayment(roomRequest),
   paidAt: roomRequest.paidAt,
+  sourceHoldRequest: roomRequest.sourceHoldRequest?._id || roomRequest.sourceHoldRequest,
+  depositCreditAmount: roomRequest.depositCreditAmount || 0,
   tenantRecord: roomRequest.tenantRecord?._id || roomRequest.tenantRecord,
   contract: roomRequest.contract?._id || roomRequest.contract,
   contractCode: roomRequest.contract?.contractCode,
@@ -236,11 +241,16 @@ const buildPaymentFields = (requestCode, amount) => {
 
   return {
     paymentOrderCode: content,
-    paymentProvider: "vietqr",
+    paymentProvider: "manual_qr",
     paymentQrCode: buildVietQrUrl({ amount, content }),
     paymentStatus: "unpaid",
   };
 };
+
+const normalizePaymentProvider = (provider) => (provider === "vnpay" ? "vnpay" : "manual_qr");
+
+const normalizePaymentProofImages = (images = []) =>
+  Array.isArray(images) ? images.map((image) => String(image || "").trim()).filter(Boolean) : [];
 
 const normalizeOccupants = (occupants = []) =>
   occupants.map((occupant) => ({
@@ -367,14 +377,50 @@ const getMyRoomRequests = async (req, res, next) => {
   }
 };
 
+const getMyRoomRequestById = async (req, res, next) => {
+  try {
+    const roomRequest = await RoomRequest.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    }).populate(roomRequestPopulate);
+
+    if (!roomRequest) {
+      res.status(404);
+      throw new Error("Room request not found");
+    }
+
+    res.json(toRoomRequestResponse(roomRequest));
+  } catch (error) {
+    next(error);
+  }
+};
+
 const ensureRoomCanBeRequested = async (userId, roomId) => {
   if (!roomId) {
     throw new Error("Room is required");
   }
 
+  await clearExpiredRoomPaymentLock(roomId);
+
   const room = await Room.findOne({ _id: roomId, status: "available" });
 
   if (!room) {
+    const lockedRoom = await Room.findById(roomId)
+      .populate("paymentHoldBy", "name")
+      .select("status paymentHoldBy paymentHoldExpiresAt");
+
+    if (
+      lockedRoom?.status === "payment_pending" &&
+      lockedRoom.paymentHoldExpiresAt &&
+      lockedRoom.paymentHoldExpiresAt > new Date()
+    ) {
+      const holderName = lockedRoom.paymentHoldBy?.name;
+      const suffix = holderName
+        ? ` bởi khách hàng ${holderName}`
+        : " bởi khách hàng khác";
+      throw new Error(`Phòng này đang được giữ thanh toán${suffix}. Vui lòng thử lại sau ít phút.`);
+    }
+
     throw new Error("Room is not available");
   }
 
@@ -385,18 +431,31 @@ const ensureRoomCanBeRequested = async (userId, roomId) => {
   });
 
   if (existingRequest) {
-    throw new Error("You already have a pending request for this room");
+    return { existingRequest, room };
   }
 
-  return room;
+  return { room };
 };
 
 const createMyHoldDepositRequest = async (req, res, next) => {
   try {
-    const { message = "", room: roomId } = req.body;
-    const room = await ensureRoomCanBeRequested(req.user._id, roomId);
+    const {
+      message = "",
+      paymentProofImages = [],
+      paymentProvider = "manual_qr",
+      room: roomId,
+    } = req.body;
+    const { existingRequest, room } = await ensureRoomCanBeRequested(req.user._id, roomId);
+
+    if (existingRequest) {
+      await existingRequest.populate(roomRequestPopulate);
+      return res.json(toRoomRequestResponse(existingRequest));
+    }
+
     const requestCode = generateRoomRequestCode("hold_deposit");
     const amount = Math.ceil(Number(room.price || 0) / 3);
+    const normalizedPaymentProvider = normalizePaymentProvider(paymentProvider);
+    const normalizedPaymentProofImages = normalizePaymentProofImages(paymentProofImages);
 
     const roomRequest = await RoomRequest.create({
       requestCode,
@@ -408,11 +467,29 @@ const createMyHoldDepositRequest = async (req, res, next) => {
       amount,
       holdExpiresAt: addDays(new Date(), 7),
       ...buildPaymentFields(requestCode, amount),
+      paymentProvider: normalizedPaymentProvider,
+      paymentProofImages: normalizedPaymentProofImages,
+      paymentStatus: normalizedPaymentProvider === "manual_qr" ? "pending" : "unpaid",
       status: "pending",
       message,
     });
 
+    if (normalizedPaymentProvider === "manual_qr") {
+      await acquireRoomPaymentLock({
+        requestId: roomRequest._id,
+        roomId: room._id,
+        userId: req.user._id,
+      });
+    }
+
     const populatedRequest = await roomRequest.populate(roomRequestPopulate);
+    await notifyAdmins({
+      link: "/admin/room-requests",
+      message: `${req.user.name} vừa gửi yêu cầu giữ phòng ${room.roomNumber}.`,
+      metadata: { room: room._id, roomRequest: roomRequest._id, user: req.user._id },
+      title: "Yêu cầu giữ phòng mới",
+      type: "room_request_created",
+    });
     res.status(201).json(toRoomRequestResponse(populatedRequest));
   } catch (error) {
     if (!res.statusCode || res.statusCode < 400) {
@@ -425,8 +502,21 @@ const createMyHoldDepositRequest = async (req, res, next) => {
 
 const createMyRentRequest = async (req, res, next) => {
   try {
-    const { durationMonths, message = "", occupants = [], room: roomId } = req.body;
-    const room = await ensureRoomCanBeRequested(req.user._id, roomId);
+    const {
+      durationMonths,
+      message = "",
+      occupants = [],
+      paymentProofImages = [],
+      paymentProvider = "manual_qr",
+      room: roomId,
+    } = req.body;
+    const { existingRequest, room } = await ensureRoomCanBeRequested(req.user._id, roomId);
+
+    if (existingRequest) {
+      await existingRequest.populate(roomRequestPopulate);
+      return res.json(toRoomRequestResponse(existingRequest));
+    }
+
     const normalizedOccupants = normalizeOccupants(occupants);
 
     if (!Number(durationMonths) || Number(durationMonths) < 1) {
@@ -452,6 +542,8 @@ const createMyRentRequest = async (req, res, next) => {
 
     const requestCode = generateRoomRequestCode("rent");
     const amount = Number(room.price || 0);
+    const normalizedPaymentProvider = normalizePaymentProvider(paymentProvider);
+    const normalizedPaymentProofImages = normalizePaymentProofImages(paymentProofImages);
 
     const roomRequest = await RoomRequest.create({
       requestCode,
@@ -463,12 +555,210 @@ const createMyRentRequest = async (req, res, next) => {
       occupants: normalizedOccupants,
       amount,
       ...buildPaymentFields(requestCode, amount),
+      paymentProvider: normalizedPaymentProvider,
+      paymentProofImages: normalizedPaymentProofImages,
+      paymentStatus: normalizedPaymentProvider === "manual_qr" ? "pending" : "unpaid",
+      status: "pending",
+      message,
+    });
+
+    if (normalizedPaymentProvider === "manual_qr") {
+      await acquireRoomPaymentLock({
+        requestId: roomRequest._id,
+        roomId: room._id,
+        userId: req.user._id,
+      });
+    }
+
+    const populatedRequest = await roomRequest.populate(roomRequestPopulate);
+    await notifyAdmins({
+      link: "/admin/room-requests",
+      message: `${req.user.name} vừa gửi yêu cầu thuê phòng ${room.roomNumber}.`,
+      metadata: { room: room._id, roomRequest: roomRequest._id, user: req.user._id },
+      title: "Yêu cầu thuê phòng mới",
+      type: "room_request_created",
+    });
+    res.status(201).json(toRoomRequestResponse(populatedRequest));
+  } catch (error) {
+    if (!res.statusCode || res.statusCode < 400) {
+      res.status(400);
+    }
+
+    next(error);
+  }
+};
+
+const createMyRentRequestFromHoldDeposit = async (req, res, next) => {
+  try {
+    const {
+      durationMonths,
+      message = "",
+      occupants = [],
+      paymentProofImages = [],
+      paymentProvider = "manual_qr",
+    } = req.body;
+
+    const holdRequest = await RoomRequest.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+      type: "hold_deposit",
+    }).populate("room", "roomNumber name floor area capacity price deposit electricityPrice waterPrice serviceFee description status images");
+
+    if (!holdRequest) {
+      res.status(404);
+      throw new Error("Hold deposit request not found");
+    }
+
+    if (holdRequest.paymentStatus !== "paid") {
+      res.status(400);
+      throw new Error("Hold deposit must be paid before renting this room");
+    }
+
+    if (holdRequest.status !== "pending") {
+      res.status(400);
+      throw new Error("Only active hold deposit requests can be converted to rent");
+    }
+
+    if (!holdRequest.holdExpiresAt || new Date(holdRequest.holdExpiresAt) <= new Date()) {
+      holdRequest.status = "expired";
+      await holdRequest.save();
+      res.status(400);
+      throw new Error("Hold deposit has expired");
+    }
+
+    const room = holdRequest.room;
+
+    if (!room || room.status !== "reserved") {
+      res.status(400);
+      throw new Error("Room is not reserved for this hold deposit");
+    }
+
+    const existingRentRequest = await RoomRequest.findOne({
+      sourceHoldRequest: holdRequest._id,
+      type: "rent",
+      status: "pending",
+    });
+
+    if (existingRentRequest) {
+      await existingRentRequest.populate(roomRequestPopulate);
+      return res.json(toRoomRequestResponse(existingRentRequest));
+    }
+
+    const normalizedOccupants = normalizeOccupants(occupants);
+
+    if (!Number(durationMonths) || Number(durationMonths) < 1) {
+      throw new Error("Duration months must be greater than 0");
+    }
+
+    if (normalizedOccupants.length === 0) {
+      throw new Error("At least one occupant is required");
+    }
+
+    const missingOccupantInfo = normalizedOccupants.some(
+      (occupant) =>
+        !occupant.name ||
+        !occupant.phone ||
+        !occupant.identityNumber ||
+        !occupant.identityFrontImage ||
+        !occupant.identityBackImage
+    );
+
+    if (missingOccupantInfo) {
+      throw new Error("Occupant information is incomplete");
+    }
+
+    const requestCode = generateRoomRequestCode("rent");
+    const depositCreditAmount = Number(holdRequest.amount || 0);
+    const amount = Math.max(Number(room.price || 0) - depositCreditAmount, 0);
+    const normalizedPaymentProvider = normalizePaymentProvider(paymentProvider);
+    const normalizedPaymentProofImages = normalizePaymentProofImages(paymentProofImages);
+
+    const roomRequest = await RoomRequest.create({
+      requestCode,
+      user: req.user._id,
+      room: room._id,
+      type: "rent",
+      durationMonths: Number(durationMonths),
+      occupantCount: Math.max(Number(req.body.occupantCount || 0), normalizedOccupants.length),
+      occupants: normalizedOccupants,
+      amount,
+      ...buildPaymentFields(requestCode, amount),
+      depositCreditAmount,
+      paymentProvider: normalizedPaymentProvider,
+      paymentProofImages: normalizedPaymentProofImages,
+      paymentStatus: amount <= 0 ? "paid" : normalizedPaymentProvider === "manual_qr" ? "pending" : "unpaid",
+      paidAt: amount <= 0 ? new Date() : undefined,
+      sourceHoldRequest: holdRequest._id,
       status: "pending",
       message,
     });
 
     const populatedRequest = await roomRequest.populate(roomRequestPopulate);
+    await notifyAdmins({
+      link: "/admin/room-requests",
+      message: `${req.user.name} vua tao yeu cau thue tiep tu phong da coc ${room.roomNumber}.`,
+      metadata: { room: room._id, roomRequest: roomRequest._id, sourceHoldRequest: holdRequest._id, user: req.user._id },
+      title: "Yeu cau thue phong tu coc giu phong",
+      type: "room_request_created_from_hold",
+    });
+
     res.status(201).json(toRoomRequestResponse(populatedRequest));
+  } catch (error) {
+    if (!res.statusCode || res.statusCode < 400) {
+      res.status(400);
+    }
+
+    next(error);
+  }
+};
+
+const updateMyRoomRequestPaymentProof = async (req, res, next) => {
+  try {
+    const paymentProofImages = normalizePaymentProofImages(req.body.paymentProofImages);
+
+    if (paymentProofImages.length === 0) {
+      throw new Error("Payment proof image is required");
+    }
+
+    const roomRequest = await RoomRequest.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+    });
+
+    if (!roomRequest) {
+      res.status(404);
+      throw new Error("Room request not found");
+    }
+
+    if (roomRequest.status !== "pending") {
+      res.status(400);
+      throw new Error("Only pending room requests can update payment proof");
+    }
+
+    if (roomRequest.paymentProvider !== "manual_qr") {
+      res.status(400);
+      throw new Error("Only manual QR payments can upload payment proof");
+    }
+
+    if (roomRequest.paymentStatus === "paid") {
+      res.status(400);
+      throw new Error("This room request is already paid");
+    }
+
+    roomRequest.paymentProofImages = paymentProofImages;
+    roomRequest.paymentStatus = "pending";
+    await roomRequest.save();
+    await roomRequest.populate(roomRequestPopulate);
+
+    await notifyAdmins({
+      link: "/admin/room-requests",
+      message: `${req.user.name} vua tai bien lai thanh toan QR cho phong ${roomRequest.room?.roomNumber || "-"}.`,
+      metadata: { room: roomRequest.room?._id, roomRequest: roomRequest._id, user: req.user._id },
+      title: "Bien lai thanh toan QR moi",
+      type: "room_request_payment_proof_uploaded",
+    });
+
+    res.json(toRoomRequestResponse(roomRequest));
   } catch (error) {
     if (!res.statusCode || res.statusCode < 400) {
       res.status(400);
@@ -750,6 +1040,7 @@ module.exports = {
   cancelMyRoomRequest,
   createMyHoldDepositRequest,
   createMyRentRequest,
+  createMyRentRequestFromHoldDeposit,
   createMyRepairRequest,
   deleteMyRepairRequest,
   getAvailableRoomById,
@@ -762,7 +1053,9 @@ module.exports = {
   getMyRepairRequestById,
   getMyRepairRequests,
   getMyRoomRequests,
+  getMyRoomRequestById,
   getMyTenancies,
   removeMyInterestedRoom,
   updateMyRepairRequest,
+  updateMyRoomRequestPaymentProof,
 };

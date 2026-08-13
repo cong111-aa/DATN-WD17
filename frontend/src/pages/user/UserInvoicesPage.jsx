@@ -1,5 +1,5 @@
 import { FileTextOutlined } from "@ant-design/icons";
-import { Button, Descriptions, Modal, Space, Table, Tag, Typography } from "antd";
+import { Button, Descriptions, Modal, Space, Table, Tag, Typography, message } from "antd";
 import { useEffect, useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import http from "../../api/http";
@@ -22,17 +22,14 @@ const UserInvoicesPage = () => {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(false);
   const [detailInvoice, setDetailInvoice] = useState(null);
+  const [payingId, setPayingId] = useState("");
 
   const fetchInvoices = async () => {
     setLoading(true);
     try {
       const { data } = await http.get("/me/invoices");
       setInvoices(data || []);
-      if (outletContext?.refreshBadgeCounts) {
-        outletContext.refreshBadgeCounts();
-      }
-    } catch (err) {
-      // Handled by interceptor
+      outletContext?.refreshBadgeCounts?.();
     } finally {
       setLoading(false);
     }
@@ -42,7 +39,25 @@ const UserInvoicesPage = () => {
     fetchInvoices();
   }, []);
 
-  const invoiceColumns = [
+  const handleCreateVnpayPayment = async (record) => {
+    setPayingId(record.id);
+    try {
+      const { data } = await http.post("/payments/vnpay/create", {
+        targetId: record.id,
+        targetType: "invoice",
+      });
+
+      if (data.paymentUrl) {
+        window.location.href = data.paymentUrl;
+      }
+    } catch (error) {
+      message.error(error.response?.data?.message || "Không tạo được giao dịch VNPay");
+    } finally {
+      setPayingId("");
+    }
+  };
+
+  const columns = [
     {
       title: "Mã hóa đơn",
       dataIndex: "invoiceCode",
@@ -50,19 +65,17 @@ const UserInvoicesPage = () => {
       render: (value, record) => (
         <Space direction="vertical" size={0}>
           <Text strong style={{ color: "#0f766e" }}>{value}</Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            Phòng {record.roomNumber || "-"}
-          </Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>Phòng {record.roomNumber || "-"}</Text>
         </Space>
       ),
     },
     {
-      title: "Kỳ HĐ",
+      title: "Kỳ hóa đơn",
       key: "period",
       render: (_, record) => `Tháng ${record.month}/${record.year}`,
     },
     {
-      title: "Điện / Nước",
+      title: "Điện / nước",
       key: "utility",
       render: (_, record) => (
         <Text type="secondary" style={{ fontSize: 13 }}>
@@ -74,16 +87,14 @@ const UserInvoicesPage = () => {
       title: "Tổng tiền",
       dataIndex: "totalAmount",
       key: "totalAmount",
-      render: (val) => <Text strong>{formatCurrency(val)}</Text>,
+      render: (value) => <Text strong>{formatCurrency(value)}</Text>,
     },
     {
       title: "Còn lại",
       dataIndex: "remainingAmount",
       key: "remainingAmount",
-      render: (val) => (
-        <Text type={val > 0 ? "danger" : "success"} strong>
-          {formatCurrency(val)}
-        </Text>
+      render: (value) => (
+        <Text type={value > 0 ? "danger" : "success"} strong>{formatCurrency(value)}</Text>
       ),
     },
     {
@@ -105,9 +116,21 @@ const UserInvoicesPage = () => {
       title: "Thao tác",
       key: "actions",
       render: (_, record) => (
-        <Button size="small" onClick={() => setDetailInvoice(record)} style={{ borderRadius: 6 }}>
-          Chi tiết
-        </Button>
+        <Space wrap>
+          <Button size="small" onClick={() => setDetailInvoice(record)} style={{ borderRadius: 6 }}>
+            Chi tiết
+          </Button>
+          <Button
+            size="small"
+            type="primary"
+            loading={payingId === record.id}
+            disabled={record.status === "paid" || Number(record.remainingAmount || 0) <= 0}
+            onClick={() => handleCreateVnpayPayment(record)}
+            style={{ background: "#0f766e", borderRadius: 6 }}
+          >
+            Thanh toán VNPay
+          </Button>
+        </Space>
       ),
     },
   ];
@@ -118,27 +141,39 @@ const UserInvoicesPage = () => {
         <div className="portal-section-header">
           <div className="portal-section-title">
             <div className="portal-section-icon"><FileTextOutlined /></div>
-            <span>Hóa đơn điện nước hàng tháng</span>
+            <span>Hóa đơn điện nước hằng tháng</span>
           </div>
-          <Button onClick={() => navigate("/user")} style={{ borderRadius: 6 }}>← Về trang chủ</Button>
+          <Button onClick={() => navigate("/user")} style={{ borderRadius: 6 }}>Về trang chủ</Button>
         </div>
 
         <Table
           rowKey="id"
-          columns={invoiceColumns}
+          columns={columns}
           dataSource={invoices}
           loading={loading}
           pagination={{ pageSize: 8 }}
           scroll={{ x: 1200 }}
-          locale={{ emptyText: "Chưa có hóa đơn điện nước" }}
+          locale={{ emptyText: "Chưa có hóa đơn" }}
         />
       </div>
 
       <Modal
-        title="Chi Tiết Hóa Đơn Hàng Tháng"
+        title="Chi tiết hóa đơn"
         open={Boolean(detailInvoice)}
         onCancel={() => setDetailInvoice(null)}
-        footer={[<Button key="close" onClick={() => setDetailInvoice(null)} style={{ borderRadius: 6 }}>Đóng</Button>]}
+        footer={[
+          <Button key="close" onClick={() => setDetailInvoice(null)} style={{ borderRadius: 6 }}>Đóng</Button>,
+          <Button
+            key="vnpay"
+            type="primary"
+            loading={detailInvoice && payingId === detailInvoice.id}
+            disabled={!detailInvoice || detailInvoice.status === "paid" || Number(detailInvoice.remainingAmount || 0) <= 0}
+            onClick={() => handleCreateVnpayPayment(detailInvoice)}
+            style={{ background: "#0f766e", borderRadius: 6 }}
+          >
+            Thanh toán VNPay
+          </Button>,
+        ]}
         width={820}
       >
         {detailInvoice && (
@@ -146,19 +181,25 @@ const UserInvoicesPage = () => {
             <Descriptions bordered size="small" column={2} style={{ background: "#f8fafc" }}>
               <Descriptions.Item label="Mã hóa đơn">{detailInvoice.invoiceCode}</Descriptions.Item>
               <Descriptions.Item label="Trạng thái">
-                <Tag color={invoiceStatusMeta[detailInvoice.status]?.color}>{invoiceStatusMeta[detailInvoice.status]?.label}</Tag>
+                <Tag color={invoiceStatusMeta[detailInvoice.status]?.color}>
+                  {invoiceStatusMeta[detailInvoice.status]?.label}
+                </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="Phòng">Phòng {detailInvoice.roomNumber} - {detailInvoice.roomName}</Descriptions.Item>
               <Descriptions.Item label="Kỳ hóa đơn">Tháng {detailInvoice.month}/{detailInvoice.year}</Descriptions.Item>
               <Descriptions.Item label="Hạn thanh toán">{formatDate(detailInvoice.dueDate)}</Descriptions.Item>
-              <Descriptions.Item label="Ngày xuất HĐ">{formatDate(detailInvoice.createdAt)}</Descriptions.Item>
+              <Descriptions.Item label="Ngày xuất hóa đơn">{formatDate(detailInvoice.createdAt)}</Descriptions.Item>
             </Descriptions>
             <Descriptions title="Chỉ số điện nước" bordered size="small" column={2}>
-              <Descriptions.Item label="Điện cũ → mới">{detailInvoice.electricityOld ?? 0} → {detailInvoice.electricityNew ?? 0}</Descriptions.Item>
-              <Descriptions.Item label="Tiêu thụ">{detailInvoice.electricityUsage ?? 0} kWh</Descriptions.Item>
+              <Descriptions.Item label="Điện cũ -> mới">
+                {detailInvoice.electricityOld ?? 0} {"->"} {detailInvoice.electricityNew ?? 0}
+              </Descriptions.Item>
+              <Descriptions.Item label="Tiêu thụ điện">{detailInvoice.electricityUsage ?? 0} kWh</Descriptions.Item>
               <Descriptions.Item label="Tiền điện">{formatCurrency(detailInvoice.electricityAmount)}</Descriptions.Item>
-              <Descriptions.Item label="Nước cũ → mới">{detailInvoice.waterOld ?? 0} → {detailInvoice.waterNew ?? 0}</Descriptions.Item>
-              <Descriptions.Item label="Tiêu thụ">{detailInvoice.waterUsage ?? 0} m³</Descriptions.Item>
+              <Descriptions.Item label="Nước cũ -> mới">
+                {detailInvoice.waterOld ?? 0} {"->"} {detailInvoice.waterNew ?? 0}
+              </Descriptions.Item>
+              <Descriptions.Item label="Tiêu thụ nước">{detailInvoice.waterUsage ?? 0} m3</Descriptions.Item>
               <Descriptions.Item label="Tiền nước">{formatCurrency(detailInvoice.waterAmount)}</Descriptions.Item>
             </Descriptions>
             <Descriptions title="Tổng kết chi phí" bordered size="small" column={2}>
