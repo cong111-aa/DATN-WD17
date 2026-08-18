@@ -14,10 +14,37 @@ const contractSchema = new mongoose.Schema(
     monthlyRent: { type: Number, required: true, min: 0 }, // Gia thue
     deposit: { type: Number, default: 0, min: 0 }, // Tien coc
     terms: { type: String, default: "", trim: true }, // Dieu khoan
+    signatureImage: { type: String, default: "", trim: true },
+    signatureMethod: {
+      type: String,
+      enum: ["", "drawn", "auto_generated"],
+      default: "",
+    },
+    signedAt: { type: Date },
+    signIp: { type: String, default: "", trim: true },
+    signUserAgent: { type: String, default: "", trim: true },
+    contentHash: { type: String, default: "", trim: true },
+    contractHtmlSnapshot: { type: String, default: "" },
+    lockedAt: { type: Date },
+    version: { type: Number, default: 1, min: 1 },
+    revisionRequests: [
+      {
+        message: { type: String, required: true, trim: true },
+        requestedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+        requestedAt: { type: Date, default: Date.now },
+        resolvedAt: { type: Date },
+        adminResponse: { type: String, default: "", trim: true },
+        status: {
+          type: String,
+          enum: ["pending", "resolved", "rejected"],
+          default: "pending",
+        },
+      },
+    ],
     status: {
       type: String,
-      enum: ["active", "expired", "terminated"],
-      default: "active",
+      enum: ["pending_user_signature", "revision_requested", "active", "expired", "terminated"],
+      default: "pending_user_signature",
     }, // Trang thai hop dong
   },
   { timestamps: true }

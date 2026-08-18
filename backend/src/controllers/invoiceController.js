@@ -3,6 +3,7 @@ const MeterReading = require("../models/MeterReading");
 const Room = require("../models/Room");
 const Tenant = require("../models/Tenant");
 const User = require("../models/User");
+const { createNotification } = require("../services/notificationService");
 
 const invoiceStatuses = ["unpaid", "partial", "paid", "overdue"];
 const moneyFields = [
@@ -216,6 +217,20 @@ const getPreviousMeterReadingForPeriod = async (room, month, year) => {
   };
 };
 
+const findActiveRoomRepresentative = async (room) => {
+  const representative = await Tenant.findOne({
+    room,
+    status: "active",
+    roomRole: "representative",
+  }).populate("user", "name email phone role");
+
+  if (!representative?.user || representative.user.role !== "user") {
+    throw new Error("Room does not have an active representative tenant");
+  }
+
+  return representative;
+};
+
 const ensureInvoiceRepresentative = async (tenant, room) => {
   const representative = await Tenant.findOne({
     user: tenant,
@@ -238,8 +253,8 @@ const validatePaidAmount = (paidAmount, totalAmount) => {
 const validateInvoicePayload = async (payload, isCreate) => {
   const { invoiceCode, room, tenant, month, year, status } = payload;
 
-  if (isCreate && (!invoiceCode || !room || !tenant || !month || !year)) {
-    throw new Error("Invoice code, room, tenant, month and year are required");
+  if (isCreate && (!invoiceCode || !room || !month || !year)) {
+    throw new Error("Invoice code, room, month and year are required");
   }
 
   if (month !== undefined && (Number(month) < 1 || Number(month) > 12)) {
@@ -289,6 +304,27 @@ const validateInvoicePayload = async (payload, isCreate) => {
   if (isCreate && room && tenant) {
     await ensureInvoiceRepresentative(tenant, room);
   }
+};
+
+const notifyInvoiceCreated = async (invoice) => {
+  await invoice.populate([
+    { path: "tenant", select: "name" },
+    { path: "room", select: "roomNumber name" },
+  ]);
+
+  const roomLabel = invoice.room?.roomNumber || invoice.room?.name || "-";
+
+  await createNotification({
+    link: "/user/invoices",
+    message: `Ban co hoa don thang ${invoice.month}/${invoice.year} cho phong ${roomLabel}, tong tien ${Number(
+      invoice.totalAmount || 0
+    ).toLocaleString("vi-VN")} VND.`,
+    metadata: { invoice: invoice._id, room: invoice.room?._id },
+    recipient: invoice.tenant?._id || invoice.tenant,
+    recipientRole: "user",
+    title: "Hoa don moi",
+    type: "invoice_created",
+  });
 };
 
 const getInvoices = async (req, res, next) => {
@@ -394,6 +430,8 @@ const createInvoice = async (req, res, next) => {
     const payload = req.body;
 
     await validateInvoicePayload(payload, true);
+    const representative = await findActiveRoomRepresentative(payload.room);
+    payload.tenant = representative.user._id;
 
     const existingCode = await Invoice.findOne({ invoiceCode: payload.invoiceCode });
 
@@ -430,6 +468,7 @@ const createInvoice = async (req, res, next) => {
     });
 
     const populatedInvoice = await populateInvoice(Invoice.findById(invoice._id));
+    await notifyInvoiceCreated(populatedInvoice);
     res.status(201).json(toInvoiceResponse(populatedInvoice));
   } catch (error) {
     if (!res.statusCode || res.statusCode < 400) {
@@ -463,8 +502,12 @@ const updateInvoice = async (req, res, next) => {
       invoice.invoiceCode = payload.invoiceCode;
     }
 
-    const nextTenant = payload.tenant ?? invoice.tenant;
     const nextRoom = payload.room ?? invoice.room;
+    const nextRepresentative =
+      String(nextRoom) !== String(invoice.room)
+        ? await findActiveRoomRepresentative(nextRoom)
+        : null;
+    const nextTenant = nextRepresentative?.user?._id || payload.tenant || invoice.tenant;
     const nextMonth = payload.month ?? invoice.month;
     const nextYear = payload.year ?? invoice.year;
 
@@ -501,6 +544,9 @@ const updateInvoice = async (req, res, next) => {
     invoice.serviceAmount = payload.serviceAmount ?? invoice.serviceAmount;
     invoice.otherAmount = payload.otherAmount ?? invoice.otherAmount;
     invoice.discountAmount = payload.discountAmount ?? invoice.discountAmount;
+    if (payload.dueDate && String(new Date(payload.dueDate)) !== String(invoice.dueDate)) {
+      invoice.dueSoonNotifiedAt = undefined;
+    }
     invoice.dueDate = payload.dueDate ?? invoice.dueDate;
     invoice.note = payload.note ?? invoice.note;
 

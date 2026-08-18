@@ -37,11 +37,12 @@ const markRoomRequestPaid = async (roomRequest, paidAt = new Date()) => {
   const roomLabel = roomRequest.room?.roomNumber || roomRequest.room?.name || "-";
   const userName = roomRequest.user?.name || "Khách hàng";
   const isHoldDeposit = roomRequest.type === "hold_deposit";
+  const paidAmount = Number(roomRequest.amount || 0).toLocaleString("vi-VN");
   const adminMessage = isHoldDeposit
     ? `${userName} vừa thanh toán giữ phòng ${roomLabel} thành công. Hạn giữ đến ${
         roomRequest.holdExpiresAt ? new Date(roomRequest.holdExpiresAt).toLocaleDateString("vi-VN") : "-"
       }.`
-    : `${userName} vừa thanh toán cọc thuê phòng ${roomLabel}. Vui lòng kiểm tra và tạo hợp đồng.`;
+    : `${userName} đã thanh toán tiền thuê phòng ${roomLabel} (${paidAmount} đ). Vui lòng tạo hợp đồng.`;
   const userMessage = isHoldDeposit
     ? `Bạn đã thanh toán giữ phòng ${roomLabel} thành công. Hạn giữ đến ${
         roomRequest.holdExpiresAt ? new Date(roomRequest.holdExpiresAt).toLocaleDateString("vi-VN") : "-"
@@ -52,8 +53,13 @@ const markRoomRequestPaid = async (roomRequest, paidAt = new Date()) => {
     notifyAdmins({
       link: "/admin/room-requests",
       message: adminMessage,
-      metadata: { room: roomRequest.room?._id, roomRequest: roomRequest._id, user: roomRequest.user?._id },
-      title: isHoldDeposit ? "Thanh toán giữ phòng thành công" : "Thanh toán cọc thuê phòng thành công",
+      metadata: {
+        amount: roomRequest.amount,
+        room: roomRequest.room?._id,
+        roomRequest: roomRequest._id,
+        user: roomRequest.user?._id,
+      },
+      title: isHoldDeposit ? "Thanh toán giữ phòng thành công" : "Khách đã thanh toán tiền thuê phòng",
       type: "room_request_paid",
     }),
     createNotification({
@@ -285,7 +291,10 @@ const completeVnpayPayment = async (query) => {
     if (payment.targetType === "room_request" && payment.roomRequest) {
       const roomRequest = await RoomRequest.findByIdAndUpdate(
         payment.roomRequest,
-        { paymentStatus: "failed" },
+        {
+          $set: { paymentStatus: "failed" },
+          $unset: { holdExpiresAt: "" },
+        },
         { new: true }
       );
 

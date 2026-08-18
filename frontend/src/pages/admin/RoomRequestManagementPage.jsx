@@ -289,6 +289,20 @@ const RoomRequestManagementPage = () => {
               Xac nhan da nhan tien
             </Button>
           ) : null}
+          {record.type === "rent" && record.paymentStatus === "paid" && record.status === "pending" ? (
+            <Button
+              type="primary"
+              onClick={() => openProcessModal("approve", record)}
+              style={{ background: "#7c3aed", borderColor: "#7c3aed" }}
+            >
+              Tao hop dong
+            </Button>
+          ) : null}
+          {record.contract ? (
+            <Button onClick={() => handleOpenContractFile(record)}>
+              Hop dong
+            </Button>
+          ) : null}
         </Space>
       ),
     },

@@ -20,6 +20,8 @@ const {
   getMyRoomRequests,
   getMyTenancies,
   removeMyInterestedRoom,
+  requestMyContractRevision,
+  signMyContract,
   updateMyRepairRequest,
   updateMyRoomRequestPaymentProof,
 } = require("../controllers/meController");
@@ -41,6 +43,8 @@ router.post("/room-requests/:id/rent", protect, createMyRentRequestFromHoldDepos
 router.patch("/room-requests/:id/payment-proof", protect, updateMyRoomRequestPaymentProof);
 router.patch("/room-requests/:id/cancel", protect, cancelMyRoomRequest);
 router.get("/contracts", protect, getMyContracts);
+router.patch("/contracts/:id/revision-request", protect, requestMyContractRevision);
+router.patch("/contracts/:id/sign", protect, signMyContract);
 router.get("/contracts/:id/file", protect, getMyContractFile);
 router.get("/invoices", protect, getMyInvoices);
 router.get("/invoices/:id", protect, getMyInvoiceById);

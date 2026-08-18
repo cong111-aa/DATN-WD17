@@ -18,6 +18,7 @@ const invoiceSchema = new mongoose.Schema(
     totalAmount: { type: Number, default: 0, min: 0 }, // Tong tien
     paidAmount: { type: Number, default: 0, min: 0 }, // Da thanh toan
     dueDate: { type: Date }, // Han thanh toan
+    dueSoonNotifiedAt: { type: Date }, // Da gui thong bao sap het han
     status: {
       type: String,
       enum: ["unpaid", "partial", "paid", "overdue"],

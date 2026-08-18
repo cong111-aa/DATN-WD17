@@ -1,9 +1,10 @@
 const Contract = require("../models/Contract");
 const Room = require("../models/Room");
 const Tenant = require("../models/Tenant");
+const { createNotification } = require("../services/notificationService");
 const renderContractHtml = require("../utils/renderContractHtml");
 
-const contractStatuses = ["active", "expired", "terminated"];
+const contractStatuses = ["pending_user_signature", "revision_requested", "active", "expired", "terminated"];
 
 const contractPopulate = [
   { path: "tenant", select: "name email phone identityNumber address" },
@@ -34,6 +35,12 @@ const toContractResponse = (contract) => ({
   startDate: contract.startDate,
   endDate: contract.endDate,
   terms: contract.terms,
+  signatureMethod: contract.signatureMethod,
+  signedAt: contract.signedAt,
+  contentHash: contract.contentHash,
+  lockedAt: contract.lockedAt,
+  version: contract.version,
+  revisionRequests: contract.revisionRequests || [],
   status: contract.status,
   createdAt: contract.createdAt,
   updatedAt: contract.updatedAt,
@@ -118,7 +125,7 @@ const buildContractFromPayload = async (payload, existingContract) => {
       monthlyRent: payload.monthlyRent ?? existingContract?.monthlyRent ?? room.price,
       deposit: payload.deposit ?? existingContract?.deposit ?? room.deposit,
       terms: payload.terms ?? existingContract?.terms,
-      status: payload.status ?? existingContract?.status ?? "active",
+      status: payload.status ?? existingContract?.status ?? "pending_user_signature",
     },
   };
 };
@@ -172,7 +179,10 @@ const createContract = async (req, res, next) => {
       throw new Error("Contract code already exists");
     }
 
-    const activeContract = await Contract.findOne({ room: req.body.room, status: "active" });
+    const activeContract = await Contract.findOne({
+      room: req.body.room,
+      status: { $in: ["pending_user_signature", "active"] },
+    });
 
     if (activeContract) {
       res.status(400);
@@ -221,7 +231,7 @@ const updateContract = async (req, res, next) => {
       const activeContract = await Contract.findOne({
         _id: { $ne: contract._id },
         room: nextRoom,
-        status: "active",
+        status: { $in: ["pending_user_signature", "active"] },
       });
 
       if (activeContract) {
@@ -231,10 +241,45 @@ const updateContract = async (req, res, next) => {
     }
 
     const { data } = await buildContractFromPayload(req.body, contract);
+    const wasRevisionRequested = contract.status === "revision_requested";
     Object.assign(contract, data);
+
+    if (wasRevisionRequested) {
+      contract.status = "pending_user_signature";
+      contract.version = Number(contract.version || 1) + 1;
+      contract.contractHtmlSnapshot = "";
+      contract.contentHash = "";
+      contract.lockedAt = undefined;
+      contract.signatureImage = "";
+      contract.signatureMethod = "";
+      contract.signedAt = undefined;
+      contract.revisionRequests = (contract.revisionRequests || []).map((revision) => {
+        if (revision.status !== "pending") {
+          return revision;
+        }
+
+        revision.status = "resolved";
+        revision.resolvedAt = new Date();
+        revision.adminResponse = req.body.revisionResponse || "Hop dong da duoc cap nhat theo yeu cau.";
+        return revision;
+      });
+    }
 
     const updatedContract = await contract.save();
     const populatedContract = await populateContract(Contract.findById(updatedContract._id));
+
+    if (wasRevisionRequested) {
+      await createNotification({
+        link: "/user/contracts",
+        message: `Hop dong ${populatedContract.contractCode} da duoc cap nhat. Vui long kiem tra va ky xac nhan.`,
+        metadata: { contract: populatedContract._id, room: populatedContract.room?._id || populatedContract.room },
+        recipient: populatedContract.tenant?._id || populatedContract.tenant,
+        recipientRole: "user",
+        title: "Hop dong da duoc cap nhat",
+        type: "contract_revision_resolved",
+      });
+    }
+
     res.json(toContractResponse(populatedContract));
   } catch (error) {
     if (!res.statusCode || res.statusCode < 400) {
@@ -276,7 +321,7 @@ const getContractFile = async (req, res, next) => {
     }
 
     const members = await getActiveMembers(contract.room?._id || contract.room);
-    const html = renderContractHtml({ contract, members });
+    const html = contract.contractHtmlSnapshot || renderContractHtml({ contract, members });
 
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.send(html);

@@ -52,6 +52,14 @@ const getPaymentStatusMeta = (record) => {
 };
 
 const getHoldTimeMeta = (record) => {
+  const hasEffectiveHold =
+    record.type === "hold_deposit" &&
+    record.paymentStatus === "paid" &&
+    record.status === "pending";
+
+  if (!hasEffectiveHold) {
+    return { expired: true, label: "Khong con hieu luc" };
+  }
   if (!record.holdExpiresAt) {
     return { expired: true, label: "Quá hạn" };
   }

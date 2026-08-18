@@ -42,12 +42,16 @@ import { useEffect, useMemo, useState } from "react";
 import http from "../../api/http";
 
 const statusOptions = [
+  { label: "Cho khach ky", value: "pending_user_signature" },
+  { label: "Khach yeu cau sua", value: "revision_requested" },
   { label: "Dang hieu luc", value: "active" },
   { label: "Het han", value: "expired" },
   { label: "Da cham dut", value: "terminated" },
 ];
 
 const statusMeta = {
+  pending_user_signature: { color: "warning", label: "Cho khach ky" },
+  revision_requested: { color: "orange", label: "Khach yeu cau sua" },
   active: { color: "success", label: "Dang hieu luc" },
   expired: { color: "default", label: "Het han" },
   terminated: { color: "error", label: "Da cham dut" },
@@ -55,7 +59,7 @@ const statusMeta = {
 
 const defaultFormValues = {
   durationMonths: 12,
-  status: "active",
+  status: "pending_user_signature",
 };
 
 const panelStyle = {
@@ -494,6 +498,11 @@ const ContractManagementPage = () => {
           <Form.Item name="terms" label="Dieu khoan / ghi chu">
             <Input.TextArea rows={4} />
           </Form.Item>
+          {editingContract?.status === "revision_requested" ? (
+            <Form.Item name="revisionResponse" label="Phan hoi yeu cau chinh sua">
+              <Input.TextArea rows={3} placeholder="VD: Da cap nhat dieu khoan theo noi dung khach yeu cau" />
+            </Form.Item>
+          ) : null}
         </Form>
       </Modal>
 
@@ -542,6 +551,11 @@ const ContractManagementPage = () => {
             <Descriptions.Item label="Dieu khoan" span={2}>
               {detailContract.terms || "-"}
             </Descriptions.Item>
+            {detailContract.revisionRequests?.length ? (
+              <Descriptions.Item label="Yeu cau chinh sua gan nhat" span={2}>
+                {detailContract.revisionRequests[detailContract.revisionRequests.length - 1]?.message || "-"}
+              </Descriptions.Item>
+            ) : null}
           </Descriptions>
           </>
         )}

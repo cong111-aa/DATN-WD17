@@ -1,6 +1,9 @@
+const Contract = require("../models/Contract");
+const Invoice = require("../models/Invoice");
 const Room = require("../models/Room");
 const RoomRequest = require("../models/RoomRequest");
 const Tenant = require("../models/Tenant");
+const { clearExpiredHoldDeposits } = require("../utils/roomPaymentLock");
 
 const roomStatuses = ["available", "payment_pending", "reserved", "occupied", "maintenance"];
 
@@ -27,6 +30,78 @@ const toRoomResponse = (room) => ({
   paymentHoldExpiresAt: room.paymentHoldExpiresAt,
   createdAt: room.createdAt,
   updatedAt: room.updatedAt,
+});
+
+const toTenantDetailResponse = (tenant) => ({
+  id: tenant._id,
+  user: tenant.user?._id || tenant.user,
+  userName: tenant.user?.name,
+  userEmail: tenant.user?.email,
+  userPhone: tenant.user?.phone,
+  userIdentityNumber: tenant.user?.identityNumber,
+  roomRole: tenant.roomRole,
+  moveInDate: tenant.moveInDate,
+  moveOutDate: tenant.moveOutDate,
+  status: tenant.status,
+  note: tenant.note,
+});
+
+const toContractDetailResponse = (contract) =>
+  contract
+    ? {
+        id: contract._id,
+        contractCode: contract.contractCode,
+        tenant: contract.tenant?._id || contract.tenant,
+        tenantName: contract.tenant?.name,
+        tenantEmail: contract.tenant?.email,
+        tenantPhone: contract.tenant?.phone,
+        tenantIdentityNumber: contract.tenant?.identityNumber,
+        memberCount: contract.memberCount,
+        monthlyRent: contract.monthlyRent,
+        deposit: contract.deposit,
+        moveInDate: contract.moveInDate,
+        durationMonths: contract.durationMonths,
+        startDate: contract.startDate,
+        endDate: contract.endDate,
+        signedAt: contract.signedAt,
+        status: contract.status,
+      }
+    : null;
+
+const toHoldRequestDetailResponse = (request) =>
+  request
+    ? {
+        id: request._id,
+        requestCode: request.requestCode,
+        user: request.user?._id || request.user,
+        userName: request.user?.name,
+        userEmail: request.user?.email,
+        userPhone: request.user?.phone,
+        userIdentityNumber: request.user?.identityNumber,
+        amount: request.amount,
+        holdExpiresAt: request.holdExpiresAt,
+        paymentProvider: request.paymentProvider,
+        paymentStatus: request.paymentStatus,
+        paidAt: request.paidAt,
+        status: request.status,
+        createdAt: request.createdAt,
+      }
+    : null;
+
+const toInvoiceDetailResponse = (invoice) => ({
+  id: invoice._id,
+  invoiceCode: invoice.invoiceCode,
+  tenant: invoice.tenant?._id || invoice.tenant,
+  tenantName: invoice.tenant?.name,
+  tenantEmail: invoice.tenant?.email,
+  tenantPhone: invoice.tenant?.phone,
+  month: invoice.month,
+  year: invoice.year,
+  totalAmount: invoice.totalAmount,
+  paidAmount: invoice.paidAmount,
+  dueDate: invoice.dueDate,
+  status: invoice.status,
+  createdAt: invoice.createdAt,
 });
 
 const validateNonNegativeNumber = (value, fieldName) => {
@@ -109,11 +184,14 @@ const ensureRoomCanBeMarkedAvailable = async (room, res) => {
     throw new Error("Cannot mark room as available while it has active tenant");
   }
 
+  await clearExpiredHoldDeposits();
+
   const paidHoldRequest = await RoomRequest.findOne({
     room: room._id,
     type: "hold_deposit",
     paymentStatus: "paid",
     status: { $in: ["pending", "approved"] },
+    holdExpiresAt: { $gt: new Date() },
   });
 
   if (paidHoldRequest) {
@@ -124,6 +202,8 @@ const ensureRoomCanBeMarkedAvailable = async (room, res) => {
 
 const getRooms = async (req, res, next) => {
   try {
+    await clearExpiredHoldDeposits();
+
     const rooms = await Room.find().sort({ createdAt: -1 });
 
     res.json(rooms.map(toRoomResponse));
@@ -134,6 +214,8 @@ const getRooms = async (req, res, next) => {
 
 const getRoomById = async (req, res, next) => {
   try {
+    await clearExpiredHoldDeposits();
+
     const room = await Room.findById(req.params.id);
 
     if (!room) {
@@ -142,6 +224,58 @@ const getRoomById = async (req, res, next) => {
     }
 
     res.json(toRoomResponse(room));
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getRoomDetail = async (req, res, next) => {
+  try {
+    await clearExpiredHoldDeposits();
+
+    const room = await Room.findById(req.params.id);
+
+    if (!room) {
+      res.status(404);
+      throw new Error("Room not found");
+    }
+
+    const [tenants, activeContract, recentInvoices] = await Promise.all([
+      Tenant.find({ room: room._id, status: "active" })
+        .populate("user", "name email phone identityNumber")
+        .sort({ roomRole: -1, moveInDate: 1 }),
+      Contract.findOne({
+        room: room._id,
+        status: { $in: ["pending_user_signature", "revision_requested", "active"] },
+      })
+        .populate("tenant", "name email phone identityNumber")
+        .sort({ createdAt: -1 }),
+      Invoice.find({ room: room._id })
+        .populate("tenant", "name email phone")
+        .sort({ year: -1, month: -1, createdAt: -1 })
+        .limit(6),
+    ]);
+    const canShowHoldRequest =
+      room.status === "reserved" && tenants.length === 0 && !activeContract;
+    const holdRequest = canShowHoldRequest
+      ? await RoomRequest.findOne({
+          room: room._id,
+          type: "hold_deposit",
+          paymentStatus: "paid",
+          status: "pending",
+          holdExpiresAt: { $gt: new Date() },
+        })
+          .populate("user", "name email phone identityNumber")
+          .sort({ createdAt: -1 })
+      : null;
+
+    res.json({
+      activeContract: toContractDetailResponse(activeContract),
+      holdRequest: toHoldRequestDetailResponse(holdRequest),
+      recentInvoices: recentInvoices.map(toInvoiceDetailResponse),
+      room: toRoomResponse(room),
+      tenants: tenants.map(toTenantDetailResponse),
+    });
   } catch (error) {
     next(error);
   }
@@ -369,6 +503,7 @@ module.exports = {
   createRoom,
   deleteRoom,
   getRoomById,
+  getRoomDetail,
   getRooms,
   toRoomResponse,
   updateRoom,
