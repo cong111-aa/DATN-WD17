@@ -2,6 +2,7 @@ const Contract = require("../models/Contract");
 const Room = require("../models/Room");
 const RoomRequest = require("../models/RoomRequest");
 const Tenant = require("../models/Tenant");
+const { createNotification, notifyAdmins } = require("../services/notificationService");
 const { buildBankTransferPayment } = require("../utils/paymentQr");
 const { markRoomReservedFromPaymentLock } = require("../utils/roomPaymentLock");
 
@@ -124,7 +125,10 @@ const createTenancyAndContractFromRentRequest = async (request) => {
     throw new Error("Room is not available for rent");
   }
 
-  const activeContract = await Contract.findOne({ room: request.room, status: "active" });
+  const activeContract = await Contract.findOne({
+    room: request.room,
+    status: { $in: ["pending_user_signature", "active"] },
+  });
 
   if (activeContract) {
     throw new Error("Room already has active contract");
@@ -173,10 +177,10 @@ const createTenancyAndContractFromRentRequest = async (request) => {
     monthlyRent: Number(room.price || 0),
     deposit: Number(request.amount || room.price || 0),
     terms: `Hop dong duoc tao tu yeu cau thue phong ${request.requestCode}.`,
-    status: "active",
+    status: "pending_user_signature",
   });
 
-  await Room.findByIdAndUpdate(request.room, { status: "occupied" });
+  await Room.findByIdAndUpdate(request.room, { status: "reserved" });
 
   return { contract, tenantRecord };
 };
@@ -239,7 +243,43 @@ const processRoomRequest = async (req, res, next, status) => {
     request.contract = createdRecords.contract?._id || request.contract;
 
     const updatedRequest = await request.save();
+
+    if (status === "approved" && request.type === "rent" && request.sourceHoldRequest) {
+      await RoomRequest.updateOne(
+        {
+          _id: request.sourceHoldRequest,
+          type: "hold_deposit",
+          status: "pending",
+        },
+        {
+          $set: {
+            adminNote: "Da chuyen sang yeu cau thue phong",
+            processedAt: new Date(),
+            processedBy: req.user._id,
+            status: "approved",
+          },
+          $unset: { holdExpiresAt: "" },
+        }
+      );
+    }
+
     const populatedRequest = await populateRoomRequest(RoomRequest.findById(updatedRequest._id));
+
+    if (status === "approved" && createdRecords.contract) {
+      await createNotification({
+        link: "/user/contracts",
+        message: `Hop dong phong ${populatedRequest.room?.roomNumber || "-"} da duoc tao. Vui long kiem tra va ky xac nhan.`,
+        metadata: {
+          contract: createdRecords.contract._id,
+          room: populatedRequest.room?._id,
+          roomRequest: populatedRequest._id,
+        },
+        recipient: populatedRequest.user?._id || populatedRequest.user,
+        recipientRole: "user",
+        title: "Hop dong dang cho ban ky",
+        type: "contract_waiting_signature",
+      });
+    }
 
     res.json(toRoomRequestResponse(populatedRequest));
   } catch (error) {
@@ -292,6 +332,32 @@ const markRoomRequestPaid = async (req, res, next) => {
     });
 
     const populatedRequest = await populateRoomRequest(RoomRequest.findById(updatedRequest._id));
+    const roomLabel = populatedRequest.room?.roomNumber || populatedRequest.room?.name || "-";
+    const userName = populatedRequest.user?.name || "Khach hang";
+    const paidAmount = Number(populatedRequest.amount || 0).toLocaleString("vi-VN");
+
+    await notifyAdmins({
+      link: "/admin/room-requests",
+      message:
+        populatedRequest.type === "rent"
+          ? `${userName} da thanh toan tien thue phong ${roomLabel} (${paidAmount} d). Vui long tao hop dong.`
+          : `${userName} da thanh toan giu phong ${roomLabel} (${paidAmount} d). Han giu phong den ${
+              populatedRequest.holdExpiresAt
+                ? new Date(populatedRequest.holdExpiresAt).toLocaleDateString("vi-VN")
+                : "-"
+            }.`,
+      metadata: {
+        amount: populatedRequest.amount,
+        room: populatedRequest.room?._id,
+        roomRequest: populatedRequest._id,
+        user: populatedRequest.user?._id,
+      },
+      title:
+        populatedRequest.type === "rent"
+          ? "Khach da thanh toan tien thue phong"
+          : "Thanh toan giu phong thanh cong",
+      type: "room_request_paid",
+    });
 
     res.json(toRoomRequestResponse(populatedRequest));
   } catch (error) {

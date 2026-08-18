@@ -69,6 +69,7 @@ const tenantStatusMeta = {
 };
 
 const contractStatusMeta = {
+  pending_user_signature: { color: "gold", label: "Chờ khách ký" },
   active: { color: "blue", label: "Đang hiệu lực" },
   expired: { color: "default", label: "Hết hạn" },
   terminated: { color: "error", label: "Đã chấm dứt" },

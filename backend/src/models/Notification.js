@@ -13,6 +13,8 @@ const notificationSchema = new mongoose.Schema(
       enum: [
         "room_request_created",
         "room_request_paid",
+        "invoice_created",
+        "invoice_due_soon",
         "invoice_paid",
         "invoice_overdue",
         "system",

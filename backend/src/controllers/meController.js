@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const Contract = require("../models/Contract");
 const InterestedRoom = require("../models/InterestedRoom");
 const Invoice = require("../models/Invoice");
@@ -174,6 +175,12 @@ const toContractResponse = (contract) => ({
   startDate: contract.startDate,
   endDate: contract.endDate,
   terms: contract.terms,
+  signatureMethod: contract.signatureMethod,
+  signedAt: contract.signedAt,
+  contentHash: contract.contentHash,
+  lockedAt: contract.lockedAt,
+  version: contract.version,
+  revisionRequests: contract.revisionRequests || [],
   status: contract.status,
   createdAt: contract.createdAt,
   updatedAt: contract.updatedAt,
@@ -818,6 +825,117 @@ const getMyContracts = async (req, res, next) => {
   }
 };
 
+const signMyContract = async (req, res, next) => {
+  try {
+    const { acceptedTerms, signatureDataUrl = "", signatureMethod = "drawn" } = req.body;
+
+    if (!acceptedTerms) {
+      throw new Error("You must accept contract terms before signing");
+    }
+
+    if (!["drawn", "auto_generated"].includes(signatureMethod)) {
+      throw new Error("Invalid signature method");
+    }
+
+    if (!signatureDataUrl || !String(signatureDataUrl).startsWith("data:image/")) {
+      throw new Error("Signature image is required");
+    }
+
+    const contract = await Contract.findOne({
+      _id: req.params.id,
+      tenant: req.user._id,
+    }).populate(contractPopulate);
+
+    if (!contract) {
+      res.status(404);
+      throw new Error("Contract not found");
+    }
+
+    if (contract.status !== "pending_user_signature") {
+      res.status(400);
+      throw new Error("Only contracts waiting for signature can be signed");
+    }
+
+    const members = await getActiveMembers(contract.room?._id || contract.room);
+    const signedAt = new Date();
+
+    contract.signatureImage = String(signatureDataUrl);
+    contract.signatureMethod = signatureMethod;
+    contract.signedAt = signedAt;
+    contract.signIp = req.ip || req.headers["x-forwarded-for"] || "";
+    contract.signUserAgent = req.headers["user-agent"] || "";
+    contract.lockedAt = signedAt;
+
+    const unsignedSnapshot = renderContractHtml({ contract, members });
+    contract.contentHash = crypto.createHash("sha256").update(unsignedSnapshot, "utf8").digest("hex");
+    contract.contractHtmlSnapshot = renderContractHtml({ contract, members });
+    contract.status = "active";
+    await contract.save();
+
+    await Room.findByIdAndUpdate(contract.room?._id || contract.room, { status: "occupied" });
+
+    await contract.populate(contractPopulate);
+    res.json(toContractResponse(contract));
+  } catch (error) {
+    if (!res.statusCode || res.statusCode < 400) {
+      res.status(400);
+    }
+
+    next(error);
+  }
+};
+
+const requestMyContractRevision = async (req, res, next) => {
+  try {
+    const message = String(req.body.message || "").trim();
+
+    if (!message) {
+      throw new Error("Revision request content is required");
+    }
+
+    const contract = await Contract.findOne({
+      _id: req.params.id,
+      tenant: req.user._id,
+    }).populate(contractPopulate);
+
+    if (!contract) {
+      res.status(404);
+      throw new Error("Contract not found");
+    }
+
+    if (contract.status !== "pending_user_signature") {
+      res.status(400);
+      throw new Error("Only contracts waiting for signature can request revision");
+    }
+
+    contract.revisionRequests.push({
+      message,
+      requestedBy: req.user._id,
+      requestedAt: new Date(),
+      status: "pending",
+    });
+    contract.status = "revision_requested";
+    await contract.save();
+
+    await notifyAdmins({
+      link: "/admin/contracts",
+      message: `${req.user.name} yeu cau chinh sua hop dong ${contract.contractCode}. Noi dung: ${message}`,
+      metadata: { contract: contract._id, room: contract.room?._id || contract.room, user: req.user._id },
+      title: "Khach yeu cau chinh sua hop dong",
+      type: "contract_revision_requested",
+    });
+
+    await contract.populate(contractPopulate);
+    res.json(toContractResponse(contract));
+  } catch (error) {
+    if (!res.statusCode || res.statusCode < 400) {
+      res.status(400);
+    }
+
+    next(error);
+  }
+};
+
 const getMyInvoices = async (req, res, next) => {
   try {
     const invoices = await Invoice.find({ tenant: req.user._id })
@@ -1026,7 +1144,7 @@ const getMyContractFile = async (req, res, next) => {
     }
 
     const members = await getActiveMembers(contract.room?._id || contract.room);
-    const html = renderContractHtml({ contract, members });
+    const html = contract.contractHtmlSnapshot || renderContractHtml({ contract, members });
 
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.send(html);
@@ -1056,6 +1174,8 @@ module.exports = {
   getMyRoomRequestById,
   getMyTenancies,
   removeMyInterestedRoom,
+  requestMyContractRevision,
+  signMyContract,
   updateMyRepairRequest,
   updateMyRoomRequestPaymentProof,
 };

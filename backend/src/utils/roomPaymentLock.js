@@ -1,5 +1,7 @@
+const Contract = require("../models/Contract");
 const Room = require("../models/Room");
 const RoomRequest = require("../models/RoomRequest");
+const Tenant = require("../models/Tenant");
 
 const PAYMENT_LOCK_DURATION_MINUTES = 15;
 
@@ -16,6 +18,7 @@ const markExpiredPaymentRequestFailed = async (requestId) => {
     },
     {
       $set: { paymentStatus: "failed" },
+      $unset: { holdExpiresAt: "" },
     }
   );
 };
@@ -95,6 +98,69 @@ const clearExpiredRoomPaymentLock = async (roomId) => {
     },
     { new: true }
   );
+};
+
+const clearExpiredHoldDeposits = async () => {
+  const now = new Date();
+  const expiredHoldRequests = await RoomRequest.find({
+    type: "hold_deposit",
+    paymentStatus: "paid",
+    status: { $in: ["pending", "approved", "expired"] },
+    holdExpiresAt: { $lte: now },
+  }).select("_id room");
+
+  let expiredRequestCount = 0;
+  let releasedRoomCount = 0;
+
+  for (const request of expiredHoldRequests) {
+    const expiredRequestResult = await RoomRequest.updateOne(
+      { _id: request._id, status: { $in: ["pending", "approved"] } },
+      { $set: { status: "expired" } }
+    );
+    expiredRequestCount += expiredRequestResult.modifiedCount || 0;
+
+    const [activeTenant, activeContract, activeRentRequest, activeHoldRequest] =
+      await Promise.all([
+        Tenant.exists({ room: request.room, status: "active" }),
+        Contract.exists({
+          room: request.room,
+          status: { $in: ["pending_user_signature", "revision_requested", "active"] },
+        }),
+        RoomRequest.exists({
+          room: request.room,
+          type: "rent",
+          status: { $in: ["pending", "approved"] },
+          paymentStatus: { $in: ["unpaid", "pending", "paid"] },
+        }),
+        RoomRequest.exists({
+          _id: { $ne: request._id },
+          room: request.room,
+          type: "hold_deposit",
+          paymentStatus: "paid",
+          status: { $in: ["pending", "approved"] },
+          holdExpiresAt: { $gt: now },
+        }),
+      ]);
+
+    if (activeTenant || activeContract || activeRentRequest || activeHoldRequest) {
+      continue;
+    }
+
+    const result = await Room.updateOne(
+      { _id: request.room, status: "reserved" },
+      {
+        $set: { status: "available" },
+        $unset: {
+          paymentHoldBy: "",
+          paymentHoldExpiresAt: "",
+          paymentHoldRequest: "",
+        },
+      }
+    );
+    releasedRoomCount += result.modifiedCount || 0;
+  }
+
+  return { expiredRequestCount, releasedRoomCount };
 };
 
 const acquireRoomPaymentLock = async ({ requestId, roomId, userId }) => {
@@ -188,13 +254,18 @@ const markRoomReservedFromPaymentLock = async ({ requestId, roomId }) =>
   );
 
 const startExpiredPaymentLockReleaser = () => {
-  clearExpiredRoomPaymentLocks().catch((error) => {
-    console.error("Failed to clear expired room payment locks:", error);
+  const clearExpiredRoomStates = async () => {
+    await clearExpiredRoomPaymentLocks();
+    await clearExpiredHoldDeposits();
+  };
+
+  clearExpiredRoomStates().catch((error) => {
+    console.error("Failed to clear expired room states:", error);
   });
 
   return setInterval(() => {
-    clearExpiredRoomPaymentLocks().catch((error) => {
-      console.error("Failed to clear expired room payment locks:", error);
+    clearExpiredRoomStates().catch((error) => {
+      console.error("Failed to clear expired room states:", error);
     });
   }, 60 * 1000);
 };
@@ -202,6 +273,7 @@ const startExpiredPaymentLockReleaser = () => {
 module.exports = {
   PAYMENT_LOCK_DURATION_MINUTES,
   acquireRoomPaymentLock,
+  clearExpiredHoldDeposits,
   clearExpiredRoomPaymentLock,
   clearExpiredRoomPaymentLocks,
   markRoomReservedFromPaymentLock,

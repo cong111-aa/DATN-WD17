@@ -139,7 +139,6 @@ const InvoiceManagementPage = () => {
   const [form] = Form.useForm();
   const [invoices, setInvoices] = useState([]);
   const [rooms, setRooms] = useState([]);
-  const [tenants, setTenants] = useState([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -160,19 +159,6 @@ const InvoiceManagementPage = () => {
         value: room.id,
       })),
     [rooms]
-  );
-
-  const tenantOptions = useMemo(
-    () =>
-      tenants
-        .filter((tenant) => tenant.status === "active" && tenant.roomRole === "representative")
-        .map((tenant) => ({
-          label: `${tenant.userName} - ${tenant.roomNumber || "Chua co phong"} (dai dien phong)`,
-          room: tenant.room,
-          user: tenant.user,
-          value: `${tenant.user}-${tenant.room}-${tenant.id}`,
-        })),
-    [tenants]
   );
 
   const selectedRoom = useMemo(
@@ -229,12 +215,7 @@ const InvoiceManagementPage = () => {
 
   const fetchOptions = async () => {
     try {
-      const [{ data: tenantData }, { data: roomData }] = await Promise.all([
-        http.get("/tenants"),
-        http.get("/rooms"),
-      ]);
-
-      setTenants(tenantData);
+      const { data: roomData } = await http.get("/rooms");
       setRooms(roomData);
     } catch (error) {
       message.error(error.response?.data?.message || "Khong tai duoc du lieu lua chon");
@@ -318,23 +299,6 @@ const InvoiceManagementPage = () => {
     setModalOpen(false);
     setEditingInvoice(null);
     form.resetFields();
-  };
-
-  const handleTenantChange = (value) => {
-    const selectedTenant = tenantOptions.find((item) => item.value === value);
-    const nextRoom = rooms.find((room) => room.id === selectedTenant?.room);
-
-    form.setFieldsValue({
-      room: selectedTenant?.room,
-      tenant: selectedTenant?.user,
-      rentAmount: nextRoom?.price ?? form.getFieldValue("rentAmount"),
-      serviceAmount: nextRoom?.serviceFee ?? form.getFieldValue("serviceAmount"),
-    });
-    loadMeterReadingSeed(
-      selectedTenant?.room,
-      form.getFieldValue("month"),
-      form.getFieldValue("year")
-    );
   };
 
   const handleRoomChange = (roomId) => {
@@ -767,18 +731,6 @@ const InvoiceManagementPage = () => {
             <Typography.Text strong>Thong tin hoa don</Typography.Text>
           </Space>
           <Divider style={{ margin: "12px 0 16px" }} />
-          <Form.Item name="tenantPicker" label="Chon nguoi dai dien phong">
-            <Select
-              options={tenantOptions}
-              placeholder="Chon nguoi dai dien de tu dien phong"
-              showSearch
-              optionFilterProp="label"
-              onChange={handleTenantChange}
-            />
-          </Form.Item>
-          <Form.Item name="tenant" hidden rules={[{ required: true }]}>
-            <Input />
-          </Form.Item>
           <Row gutter={16}>
             <Col xs={24} md={12}>
               <Form.Item name="room" label="Phong" rules={[{ required: true }]}>

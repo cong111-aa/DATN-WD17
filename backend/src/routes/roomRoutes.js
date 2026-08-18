@@ -3,6 +3,7 @@ const {
   createRoom,
   deleteRoom,
   getRoomById,
+  getRoomDetail,
   getRooms,
   updateRoom,
   updateRoomStatus,
@@ -13,6 +14,7 @@ const router = express.Router();
 
 router.get("/", protect, adminOnly, getRooms);
 router.post("/", protect, adminOnly, createRoom);
+router.get("/:id/detail", protect, adminOnly, getRoomDetail);
 router.get("/:id", protect, adminOnly, getRoomById);
 router.put("/:id", protect, adminOnly, updateRoom);
 router.patch("/:id/status", protect, adminOnly, updateRoomStatus);

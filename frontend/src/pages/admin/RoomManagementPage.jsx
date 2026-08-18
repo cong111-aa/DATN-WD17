@@ -40,8 +40,6 @@ const defaultFormValues = {
   serviceFee: 0,
   images: [],
   address: "",
-  latitude: null,
-  longitude: null,
   status: "available",
   waterPrice: 15000,
 };
@@ -78,6 +76,46 @@ const formatDate = (value) => (value ? new Date(value).toLocaleDateString("vi-VN
 const apiOrigin = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/api\/?$/, "");
 const toAbsoluteImageUrl = (url) => (url?.startsWith("http") ? url : `${apiOrigin}${url}`);
 
+const contractStatusMeta = {
+  pending_user_signature: { color: "gold", label: "Cho khach ky" },
+  revision_requested: { color: "orange", label: "Khach yeu cau sua" },
+  active: { color: "success", label: "Dang hieu luc" },
+  expired: { color: "default", label: "Het han" },
+  terminated: { color: "error", label: "Da cham dut" },
+};
+
+const invoiceStatusMeta = {
+  unpaid: { color: "error", label: "Chua thanh toan" },
+  partial: { color: "warning", label: "Thanh toan mot phan" },
+  paid: { color: "success", label: "Da thanh toan" },
+  overdue: { color: "error", label: "Qua han" },
+};
+
+const paymentProviderMeta = {
+  manual_qr: { color: "cyan", label: "QR thu cong" },
+  vnpay: { color: "blue", label: "VNPay" },
+};
+
+const getRemainingTimeLabel = (value) => {
+  if (!value) return "Qua han";
+
+  const diffMs = new Date(value).getTime() - Date.now();
+
+  if (diffMs <= 0) return "Qua han";
+
+  const totalMinutes = Math.floor(diffMs / 60000);
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+  const parts = [];
+
+  if (days) parts.push(`${days} ngay`);
+  if (hours) parts.push(`${hours} gio`);
+  if (!days && minutes) parts.push(`${minutes} phut`);
+
+  return parts.join(" ") || "Duoi 1 phut";
+};
+
 const toUploadFileList = (images = []) =>
   images.map((url, index) => ({
     uid: `${url}-${index}`,
@@ -108,9 +146,9 @@ const RoomManagementPage = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState(null);
+  const [detailData, setDetailData] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [detailRoom, setDetailRoom] = useState(null);
-  const [detailTenants, setDetailTenants] = useState([]);
-  const [detailTenantsLoading, setDetailTenantsLoading] = useState(false);
   const [imageFileList, setImageFileList] = useState([]);
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -186,17 +224,18 @@ const RoomManagementPage = () => {
 
   const openDetailModal = async (record) => {
     setDetailRoom(record);
-    setDetailTenants([]);
+    setDetailData(null);
     setDetailOpen(true);
-    setDetailTenantsLoading(true);
+    setDetailLoading(true);
 
     try {
-      const { data } = await http.get("/tenants", { params: { room: record.id } });
-      setDetailTenants(data);
+      const { data } = await http.get(`/rooms/${record.id}/detail`);
+      setDetailRoom(data.room || record);
+      setDetailData(data);
     } catch (error) {
-      message.error(error.response?.data?.message || "Không tải được danh sách người thuê");
+      message.error(error.response?.data?.message || "Không tải được chi tiết phòng");
     } finally {
-      setDetailTenantsLoading(false);
+      setDetailLoading(false);
     }
   };
 
@@ -264,6 +303,25 @@ const RoomManagementPage = () => {
       const blob = new Blob([data], { type: "text/html;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       window.open(url, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      message.error(error.response?.data?.message || "Không mở được hợp đồng của phòng");
+    }
+  };
+
+  const handleOpenContractFile = async (contractId) => {
+    if (!contractId) {
+      message.info("Phòng này chưa có hợp đồng");
+      return;
+    }
+
+    try {
+      const { data } = await http.get(`/contracts/${contractId}/file`, {
+        responseType: "text",
+      });
+      const blob = new Blob([data], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
     } catch (error) {
       message.error(error.response?.data?.message || "Không mở được hợp đồng của phòng");
     }
@@ -418,17 +476,9 @@ const RoomManagementPage = () => {
           </div>
 
           <div className="modal-section">Vị trí phòng</div>
-          <div className="form-grid">
-            <Form.Item name="address" label="Địa chỉ phòng" style={{ gridColumn: "1 / -1" }}>
-              <Input placeholder="VD: Số 12 ngõ 34 Cầu Giấy, Hà Nội" />
-            </Form.Item>
-            <Form.Item name="latitude" label="Vĩ độ">
-              <InputNumber min={-90} max={90} precision={6} className="full-width-input" placeholder="VD: 21.036236" />
-            </Form.Item>
-            <Form.Item name="longitude" label="Kinh độ">
-              <InputNumber min={-180} max={180} precision={6} className="full-width-input" placeholder="VD: 105.790583" />
-            </Form.Item>
-          </div>
+          <Form.Item name="address" label="Địa chỉ phòng">
+            <Input placeholder="VD: Số 12 ngõ 34 Cầu Giấy, Hà Nội" />
+          </Form.Item>
 
           <div className="modal-section">Mô tả và hình ảnh</div>
           <Form.Item name="description" label="Mô tả">
@@ -496,8 +546,6 @@ const RoomManagementPage = () => {
             <Divider orientation="left">Vị trí phòng</Divider>
             <Descriptions bordered size="small" column={2}>
               <Descriptions.Item label="Địa chỉ" span={2}>{detailRoom.address || "-"}</Descriptions.Item>
-              <Descriptions.Item label="Vĩ độ">{detailRoom.latitude ?? "-"}</Descriptions.Item>
-              <Descriptions.Item label="Kinh độ">{detailRoom.longitude ?? "-"}</Descriptions.Item>
             </Descriptions>
 
             <Divider orientation="left">Giá và dịch vụ</Divider>
@@ -516,8 +564,8 @@ const RoomManagementPage = () => {
             <Divider orientation="left">Người thuê phòng</Divider>
             <List
               bordered
-              dataSource={detailTenants}
-              loading={detailTenantsLoading}
+              dataSource={detailData?.tenants || []}
+              loading={detailLoading}
               locale={{ emptyText: "Chưa có người thuê trong phòng" }}
               renderItem={(tenant) => {
                 const roleMeta = roomRoleMeta[tenant.roomRole] || roomRoleMeta.member;
@@ -534,6 +582,98 @@ const RoomManagementPage = () => {
                       <Typography.Text type="secondary">
                         {tenant.userPhone || tenant.userEmail || "-"} | Vào: {formatDate(tenant.moveInDate)} | Rời:{" "}
                         {formatDate(tenant.moveOutDate)}
+                      </Typography.Text>
+                    </Space>
+                  </List.Item>
+                );
+              }}
+            />
+
+            <Divider orientation="left">Hợp đồng</Divider>
+            {detailData?.activeContract ? (
+              <Descriptions bordered size="small" column={2}>
+                <Descriptions.Item label="Mã hợp đồng">
+                  {detailData.activeContract.contractCode}
+                </Descriptions.Item>
+                <Descriptions.Item label="Trạng thái">
+                  <Tag color={contractStatusMeta[detailData.activeContract.status]?.color}>
+                    {contractStatusMeta[detailData.activeContract.status]?.label || detailData.activeContract.status}
+                  </Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="Người đại diện">
+                  {detailData.activeContract.tenantName || "-"}
+                </Descriptions.Item>
+                <Descriptions.Item label="Điện thoại">
+                  {detailData.activeContract.tenantPhone || detailData.activeContract.tenantEmail || "-"}
+                </Descriptions.Item>
+                <Descriptions.Item label="Ngày bắt đầu">
+                  {formatDate(detailData.activeContract.startDate)}
+                </Descriptions.Item>
+                <Descriptions.Item label="Ngày kết thúc">
+                  {formatDate(detailData.activeContract.endDate)}
+                </Descriptions.Item>
+                <Descriptions.Item label="Hiệu lực còn lại">
+                  {getRemainingTimeLabel(detailData.activeContract.endDate)}
+                </Descriptions.Item>
+                <Descriptions.Item label="Xem hợp đồng">
+                  <Button size="small" onClick={() => handleOpenContractFile(detailData.activeContract.id)}>
+                    Xem hợp đồng
+                  </Button>
+                </Descriptions.Item>
+              </Descriptions>
+            ) : (
+              <Typography.Text type="secondary">Chưa có hợp đồng cho phòng này.</Typography.Text>
+            )}
+
+            <Divider orientation="left">Khách giữ phòng</Divider>
+            {detailData?.holdRequest ? (
+              <Descriptions bordered size="small" column={2}>
+                <Descriptions.Item label="Khách giữ phòng">
+                  {detailData.holdRequest.userName || "-"}
+                </Descriptions.Item>
+                <Descriptions.Item label="Liên hệ">
+                  {detailData.holdRequest.userPhone || detailData.holdRequest.userEmail || "-"}
+                </Descriptions.Item>
+                <Descriptions.Item label="Số tiền đã cọc">
+                  {formatCurrency(detailData.holdRequest.amount)}
+                </Descriptions.Item>
+                <Descriptions.Item label="Thanh toán">
+                  <Tag color={paymentProviderMeta[detailData.holdRequest.paymentProvider]?.color}>
+                    {paymentProviderMeta[detailData.holdRequest.paymentProvider]?.label || detailData.holdRequest.paymentProvider}
+                  </Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="Ngày thanh toán">
+                  {formatDate(detailData.holdRequest.paidAt)}
+                </Descriptions.Item>
+                <Descriptions.Item label="Hiệu lực giữ phòng">
+                  {getRemainingTimeLabel(detailData.holdRequest.holdExpiresAt)}
+                </Descriptions.Item>
+              </Descriptions>
+            ) : (
+              <Typography.Text type="secondary">Chưa có khách giữ phòng đang hiệu lực.</Typography.Text>
+            )}
+
+            <Divider orientation="left">Hóa đơn gần đây</Divider>
+            <List
+              bordered
+              dataSource={detailData?.recentInvoices || []}
+              loading={detailLoading}
+              locale={{ emptyText: "Chưa có hóa đơn cho phòng này" }}
+              renderItem={(invoice) => {
+                const meta = invoiceStatusMeta[invoice.status] || invoiceStatusMeta.unpaid;
+
+                return (
+                  <List.Item>
+                    <Space direction="vertical" size={4} className="page-stack">
+                      <Space wrap>
+                        <Typography.Text strong>
+                          {invoice.invoiceCode} - Tháng {invoice.month}/{invoice.year}
+                        </Typography.Text>
+                        <Tag color={meta.color}>{meta.label}</Tag>
+                      </Space>
+                      <Typography.Text type="secondary">
+                        Người thuê: {invoice.tenantName || "-"} | Tổng tiền: {formatCurrency(invoice.totalAmount)} | Đã thanh toán:{" "}
+                        {formatCurrency(invoice.paidAmount)} | Hạn: {formatDate(invoice.dueDate)}
                       </Typography.Text>
                     </Space>
                   </List.Item>

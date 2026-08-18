@@ -20,6 +20,9 @@ const renderContractHtml = ({ contract, members = [] }) => {
   const representative = contract.tenant || {};
   const room = contract.room || {};
   const contractCreatedDate = new Date(contract.createdAt || Date.now());
+  const signatureImage = contract.signatureImage || "";
+  const signedAt = contract.signedAt ? new Date(contract.signedAt) : null;
+  const lockedAt = contract.lockedAt ? new Date(contract.lockedAt) : null;
 
   return `<!doctype html>
 <html lang="vi">
@@ -42,6 +45,9 @@ const renderContractHtml = ({ contract, members = [] }) => {
     th { background: #f8fafc; }
     .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; margin-top: 42px; text-align: center; }
     .signature-title { font-weight: 700; text-transform: uppercase; }
+    .signature-image { max-width: 220px; max-height: 90px; object-fit: contain; }
+    .legal-proof { margin-top: 28px; border: 1px solid #94a3b8; border-radius: 6px; padding: 12px 14px; background: #f8fafc; font-family: Arial, sans-serif; }
+    .legal-proof p { font-size: 12px; line-height: 1.45; margin: 5px 0; word-break: break-all; }
     .muted { color: #4b5563; font-style: italic; }
     @media print {
       body { background: #fff; }
@@ -214,10 +220,19 @@ const renderContractHtml = ({ contract, members = [] }) => {
       <div>
         <p class="signature-title">Ben thue</p>
         <p class="muted">(Ky va ghi ro ho ten)</p>
-        <br /><br /><br />
+        ${signatureImage ? `<img class="signature-image" src="${escapeHtml(signatureImage)}" alt="Chu ky ben thue" />` : "<br /><br /><br />"}
         <p><strong>${escapeHtml(representative.name || "")}</strong></p>
+        ${signedAt ? `<p class="muted">Da ky luc: ${escapeHtml(signedAt.toLocaleString("vi-VN"))}</p>` : ""}
       </div>
     </div>
+
+    ${contract.contentHash || lockedAt ? `<div class="legal-proof">
+      <p><strong>Thong tin khoa hop dong dien tu</strong></p>
+      <p>Ma bam SHA-256: ${escapeHtml(contract.contentHash || "")}</p>
+      <p>Thoi gian khoa: ${escapeHtml(lockedAt ? lockedAt.toLocaleString("vi-VN") : "")}</p>
+      <p>Phuong thuc ky: ${escapeHtml(contract.signatureMethod || "")}</p>
+      <p>Phien ban hop dong: ${escapeHtml(contract.version || 1)}</p>
+    </div>` : ""}
   </main>
 </body>
 </html>`;
