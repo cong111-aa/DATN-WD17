@@ -57,55 +57,55 @@ const AdminLayout = () => {
             {
               key: "/admin",
               icon: <DashboardOutlined />,
-              label: "Tong quan",
+              label: "Tổng quan",
               onClick: () => navigate("/admin"),
             },
             {
               key: "/admin/users",
               icon: <TeamOutlined />,
-              label: "Quan ly tai khoan",
+              label: "Quản lý tài khoản",
               onClick: () => navigate("/admin/users"),
             },
             {
               key: "/admin/rooms",
               icon: <HomeOutlined />,
-              label: "Quan ly phong",
+              label: "Quản lý phòng",
               onClick: () => navigate("/admin/rooms"),
             },
             {
               key: "/admin/invoices",
               icon: <FileTextOutlined />,
-              label: "Quan ly hoa don",
+              label: "Quản lý hóa đơn",
               onClick: () => navigate("/admin/invoices"),
             },
             {
               key: "/admin/contracts",
               icon: <FileProtectOutlined />,
-              label: "Quan ly hop dong",
+              label: "Quản lý hợp đồng",
               onClick: () => navigate("/admin/contracts"),
             },
             {
               key: "/admin/operating-expenses",
               icon: <DollarOutlined />,
-              label: "Quan ly chi phi",
+              label: "Quản lý chi phí",
               onClick: () => navigate("/admin/operating-expenses"),
             },
             {
               key: "/admin/repair-requests",
               icon: <ToolOutlined />,
-              label: "Quan ly su co",
+              label: "Quản lý sự cố",
               onClick: () => navigate("/admin/repair-requests"),
             },
             {
               key: "/admin/room-requests",
               icon: <SolutionOutlined />,
-              label: "Yeu cau phong",
+              label: "Yêu cầu phòng",
               onClick: () => navigate("/admin/room-requests"),
             },
             {
               key: "/admin/tenants",
               icon: <UserSwitchOutlined />,
-              label: "Quan ly khach thue",
+              label: "Quản lý khách thuê",
               onClick: () => navigate("/admin/tenants"),
             },
           ]}
@@ -118,7 +118,7 @@ const AdminLayout = () => {
             <NotificationBell />
             <Typography.Text className="header-user">{user?.name}</Typography.Text>
             <Button icon={<LogoutOutlined />} onClick={handleLogout}>
-              Dang xuat
+              Đăng xuất
             </Button>
           </Space>
         </Header>

@@ -77,31 +77,31 @@ const apiOrigin = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").
 const toAbsoluteImageUrl = (url) => (url?.startsWith("http") ? url : `${apiOrigin}${url}`);
 
 const contractStatusMeta = {
-  pending_user_signature: { color: "gold", label: "Cho khach ky" },
-  revision_requested: { color: "orange", label: "Khach yeu cau sua" },
-  active: { color: "success", label: "Dang hieu luc" },
-  expired: { color: "default", label: "Het han" },
-  terminated: { color: "error", label: "Da cham dut" },
+  pending_user_signature: { color: "gold", label: "Chờ khách ký" },
+  revision_requested: { color: "orange", label: "Khách yêu cầu sửa" },
+  active: { color: "success", label: "Đang hiệu lực" },
+  expired: { color: "default", label: "Hết hạn" },
+  terminated: { color: "error", label: "Đã chấm dứt" },
 };
 
 const invoiceStatusMeta = {
-  unpaid: { color: "error", label: "Chua thanh toan" },
-  partial: { color: "warning", label: "Thanh toan mot phan" },
-  paid: { color: "success", label: "Da thanh toan" },
-  overdue: { color: "error", label: "Qua han" },
+  unpaid: { color: "error", label: "Chưa thanh toán" },
+  partial: { color: "warning", label: "Thanh toán một phần" },
+  paid: { color: "success", label: "Đã thanh toán" },
+  overdue: { color: "error", label: "Quá hạn" },
 };
 
 const paymentProviderMeta = {
-  manual_qr: { color: "cyan", label: "QR thu cong" },
+  manual_qr: { color: "cyan", label: "QR thủ công" },
   vnpay: { color: "blue", label: "VNPay" },
 };
 
 const getRemainingTimeLabel = (value) => {
-  if (!value) return "Qua han";
+  if (!value) return "Quá hạn";
 
   const diffMs = new Date(value).getTime() - Date.now();
 
-  if (diffMs <= 0) return "Qua han";
+  if (diffMs <= 0) return "Quá hạn";
 
   const totalMinutes = Math.floor(diffMs / 60000);
   const days = Math.floor(totalMinutes / 1440);
@@ -109,11 +109,11 @@ const getRemainingTimeLabel = (value) => {
   const minutes = totalMinutes % 60;
   const parts = [];
 
-  if (days) parts.push(`${days} ngay`);
-  if (hours) parts.push(`${hours} gio`);
-  if (!days && minutes) parts.push(`${minutes} phut`);
+  if (days) parts.push(`${days} ngày`);
+  if (hours) parts.push(`${hours} giờ`);
+  if (!days && minutes) parts.push(`${minutes} phút`);
 
-  return parts.join(" ") || "Duoi 1 phut";
+  return parts.join(" ") || "Dưới 1 phút";
 };
 
 const toUploadFileList = (images = []) =>

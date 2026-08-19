@@ -30,53 +30,53 @@ const formatDate = (value) => (value ? new Date(value).toLocaleDateString("vi-VN
 const toImageUrl = (url) => (url?.startsWith("http") ? url : `${apiOrigin}${url}`);
 
 const requestTypeMeta = {
-  hold_deposit: { color: "gold", label: "Giu phong" },
-  rent: { color: "blue", label: "Thue phong" },
+  hold_deposit: { color: "gold", label: "Giữ phòng" },
+  rent: { color: "blue", label: "Thuê phòng" },
 };
 
 const requestStatusMeta = {
-  pending: { color: "processing", label: "Cho xac nhan" },
-  approved: { color: "success", label: "Da xac nhan" },
-  rejected: { color: "error", label: "Tu choi" },
-  cancelled: { color: "default", label: "Da huy" },
-  expired: { color: "warning", label: "Het han" },
+  pending: { color: "processing", label: "Chờ xác nhận" },
+  approved: { color: "success", label: "Đã xác nhận" },
+  rejected: { color: "error", label: "Từ chối" },
+  cancelled: { color: "default", label: "Đã hủy" },
+  expired: { color: "warning", label: "Hết hạn" },
 };
 
 const paymentStatusMeta = {
-  unpaid: { color: "default", label: "Chua thanh toan" },
-  pending: { color: "processing", label: "Dang thanh toan" },
-  paid: { color: "success", label: "Da thanh toan" },
-  failed: { color: "error", label: "That bai" },
-  cancelled: { color: "default", label: "Da huy" },
+  unpaid: { color: "default", label: "Chưa thanh toán" },
+  pending: { color: "processing", label: "Đang thanh toán" },
+  paid: { color: "success", label: "Đã thanh toán" },
+  failed: { color: "error", label: "Thất bại" },
+  cancelled: { color: "default", label: "Đã hủy" },
 };
 
 const paymentProviderMeta = {
-  manual_qr: { color: "cyan", label: "QR thu cong" },
+  manual_qr: { color: "cyan", label: "QR thủ công" },
   vnpay: { color: "blue", label: "VNPay" },
 };
 
 const getPaymentStateMeta = (record) => {
   if (record.paymentProvider === "vnpay") {
     if (record.paymentStatus === "paid") {
-      return { color: "success", label: "Thanh toan thanh cong" };
+      return { color: "success", label: "Thanh toán thành công" };
     }
 
     if (["failed", "cancelled"].includes(record.paymentStatus)) {
-      return { color: "error", label: "Thanh toan that bai" };
+      return { color: "error", label: "Thanh toán thất bại" };
     }
 
-    return { color: "processing", label: "Dang thanh toan" };
+    return { color: "processing", label: "Đang thanh toán" };
   }
 
   if (record.paymentStatus === "paid") {
-    return { color: "success", label: "Da xac nhan" };
+    return { color: "success", label: "Đã xác nhận" };
   }
 
   if (["failed", "cancelled"].includes(record.paymentStatus)) {
-    return { color: "error", label: "That bai" };
+    return { color: "error", label: "Thất bại" };
   }
 
-  return { color: "warning", label: "Cho xac nhan" };
+  return { color: "warning", label: "Chờ xác nhận" };
 };
 
 const getPaymentProviderMeta = (provider) =>
@@ -121,7 +121,7 @@ const RoomRequestManagementPage = () => {
       const { data } = await http.get("/room-requests");
       setRequests(data);
     } catch (error) {
-      message.error(error.response?.data?.message || "Khong tai duoc danh sach yeu cau phong");
+      message.error(error.response?.data?.message || "Không tải được danh sách yêu cầu phòng");
     } finally {
       setLoading(false);
     }
@@ -158,11 +158,11 @@ const RoomRequestManagementPage = () => {
       await http.patch(`/room-requests/${paymentConfirmRequest.id}/payment/paid`, {
         adminNote: values.adminNote,
       });
-      message.success("Da xac nhan thanh toan");
+      message.success("Đã xác nhận thanh toán");
       closePaymentConfirmModal();
       fetchRequests();
     } catch (error) {
-      message.error(error.response?.data?.message || "Xac nhan thanh toan that bai");
+      message.error(error.response?.data?.message || "Xác nhận thanh toán thất bại");
     } finally {
       setProcessLoading(false);
     }
@@ -179,11 +179,11 @@ const RoomRequestManagementPage = () => {
       await http.patch(`/room-requests/${processingRequest.id}/${processAction}`, {
         adminNote: values.adminNote,
       });
-      message.success(processAction === "approve" ? "Da xac nhan yeu cau" : "Da tu choi yeu cau");
+      message.success(processAction === "approve" ? "Đã xác nhận yêu cầu" : "Đã từ chối yêu cầu");
       closeProcessModal();
       fetchRequests();
     } catch (error) {
-      message.error(error.response?.data?.message || "Xu ly yeu cau that bai");
+      message.error(error.response?.data?.message || "Xử lý yêu cầu thất bại");
     } finally {
       setProcessLoading(false);
     }
@@ -191,7 +191,7 @@ const RoomRequestManagementPage = () => {
 
   const handleOpenContractFile = async (request) => {
     if (!request.contract) {
-      message.warning("Yeu cau nay chua tao hop dong");
+      message.warning("Yêu cầu này chưa tạo hợp đồng");
       return;
     }
 
@@ -204,13 +204,13 @@ const RoomRequestManagementPage = () => {
       window.open(url, "_blank", "noopener,noreferrer");
       setTimeout(() => URL.revokeObjectURL(url), 30000);
     } catch (error) {
-      message.error(error.response?.data?.message || "Khong mo duoc hop dong");
+      message.error(error.response?.data?.message || "Không mở được hợp đồng");
     }
   };
 
   const columns = [
     {
-      title: "Khach hang",
+      title: "Khách hàng",
       key: "customer",
       render: (value, record) => (
         <Space direction="vertical" size={0}>
@@ -220,7 +220,7 @@ const RoomRequestManagementPage = () => {
       ),
     },
     {
-      title: "Phong",
+      title: "Phòng",
       key: "room",
       render: (_, record) => (
         <Space direction="vertical" size={0}>
@@ -230,7 +230,7 @@ const RoomRequestManagementPage = () => {
       ),
     },
     {
-      title: "Loai",
+      title: "Loại",
       dataIndex: "type",
       key: "type",
       render: (type) => {
@@ -239,13 +239,13 @@ const RoomRequestManagementPage = () => {
       },
     },
     {
-      title: "So tien",
+      title: "Số tiền",
       dataIndex: "amount",
       key: "amount",
       render: (value) => <Typography.Text strong>{formatCurrency(value)}</Typography.Text>,
     },
     {
-      title: "Thanh toan",
+      title: "Thanh toán",
       dataIndex: "paymentProvider",
       key: "paymentProvider",
       render: (provider) => {
@@ -254,7 +254,7 @@ const RoomRequestManagementPage = () => {
       },
     },
     {
-      title: "Trang thai",
+      title: "Trạng thái",
       key: "paymentState",
       render: (_, record) => {
         const meta = getPaymentStateMeta(record);
@@ -262,18 +262,18 @@ const RoomRequestManagementPage = () => {
       },
     },
     {
-      title: "Ngay gui",
+      title: "Ngày gửi",
       dataIndex: "createdAt",
       key: "createdAt",
       render: formatDate,
     },
     {
-      title: "Thao tac",
+      title: "Thao tác",
       key: "actions",
       render: (_, record) => (
         <Space wrap>
           <Button icon={<EyeOutlined />} onClick={() => setDetailRequest(record)}>
-            Chi tiet
+            Chi tiết
           </Button>
           {record.paymentProvider !== "vnpay" ? (
             <Button
@@ -286,7 +286,7 @@ const RoomRequestManagementPage = () => {
                 !(record.paymentProofImages || []).length
               }
             >
-              Xac nhan da nhan tien
+              Xác nhận đã nhận tiền
             </Button>
           ) : null}
           {record.type === "rent" && record.paymentStatus === "paid" && record.status === "pending" ? (
@@ -295,12 +295,12 @@ const RoomRequestManagementPage = () => {
               onClick={() => openProcessModal("approve", record)}
               style={{ background: "#7c3aed", borderColor: "#7c3aed" }}
             >
-              Tao hop dong
+              Tạo hợp đồng
             </Button>
           ) : null}
           {record.contract ? (
             <Button onClick={() => handleOpenContractFile(record)}>
-              Hop dong
+              Hợp đồng
             </Button>
           ) : null}
         </Space>
@@ -312,28 +312,28 @@ const RoomRequestManagementPage = () => {
     <Space direction="vertical" size={16} className="page-stack">
       <div className="page-toolbar">
         <div className="page-title">
-          <Typography.Title level={3}>Quan ly yeu cau phong</Typography.Title>
+          <Typography.Title level={3}>Quản lý yêu cầu phòng</Typography.Title>
           <Typography.Text type="secondary">
-            Xem, xac nhan hoac tu choi yeu cau dat coc giu phong va thue phong cua nguoi dung.
+            Xem, xác nhận hoặc từ chối yêu cầu đặt cọc giữ phòng và thuê phòng của người dùng.
           </Typography.Text>
         </div>
         <Button icon={<ReloadOutlined />} onClick={fetchRequests} loading={loading}>
-          Tai lai
+          Tải lại
         </Button>
       </div>
 
       <div className="stats-grid">
         <Card>
-          <Statistic title="Tong yeu cau" value={stats.total} />
+          <Statistic title="Tổng yêu cầu" value={stats.total} />
         </Card>
         <Card>
-          <Statistic title="Cho xac nhan" value={stats.pending} />
+          <Statistic title="Chờ xác nhận" value={stats.pending} />
         </Card>
         <Card>
-          <Statistic title="Da xac nhan" value={stats.approved} />
+          <Statistic title="Đã xác nhận" value={stats.approved} />
         </Card>
         <Card>
-          <Statistic title="Tu choi" value={stats.rejected} />
+          <Statistic title="Từ chối" value={stats.rejected} />
         </Card>
       </div>
 
@@ -344,12 +344,12 @@ const RoomRequestManagementPage = () => {
             onChange={setStatusFilter}
             style={{ width: 180 }}
             options={[
-              { label: "Tat ca trang thai", value: "all" },
-              { label: "Cho xac nhan", value: "pending" },
-              { label: "Da xac nhan", value: "approved" },
-              { label: "Tu choi", value: "rejected" },
-              { label: "Da huy", value: "cancelled" },
-              { label: "Het han", value: "expired" },
+              { label: "Tất cả trạng thái", value: "all" },
+              { label: "Chờ xác nhận", value: "pending" },
+              { label: "Đã xác nhận", value: "approved" },
+              { label: "Từ chối", value: "rejected" },
+              { label: "Đã hủy", value: "cancelled" },
+              { label: "Hết hạn", value: "expired" },
             ]}
           />
           <Select
@@ -357,9 +357,9 @@ const RoomRequestManagementPage = () => {
             onChange={setTypeFilter}
             style={{ width: 180 }}
             options={[
-              { label: "Tat ca loai", value: "all" },
-              { label: "Giu phong", value: "hold_deposit" },
-              { label: "Thue phong", value: "rent" },
+              { label: "Tất cả loại", value: "all" },
+              { label: "Giữ phòng", value: "hold_deposit" },
+              { label: "Thuê phòng", value: "rent" },
             ]}
           />
         </Space>
@@ -374,12 +374,12 @@ const RoomRequestManagementPage = () => {
       </Card>
 
       <Modal
-        title="Chi tiet yeu cau phong"
+        title="Chi tiết yêu cầu phòng"
         open={Boolean(detailRequest)}
         onCancel={() => setDetailRequest(null)}
         footer={[
           <Button key="close" onClick={() => setDetailRequest(null)}>
-            Dong
+            Đóng
           </Button>,
         ]}
         width={920}
@@ -402,49 +402,49 @@ const RoomRequestManagementPage = () => {
               </Image.PreviewGroup>
             ) : null}
             <Descriptions bordered size="small" column={2}>
-              <Descriptions.Item label="Ma yeu cau">{detailRequest.requestCode}</Descriptions.Item>
-              <Descriptions.Item label="Loai">
+              <Descriptions.Item label="Mã yêu cầu">{detailRequest.requestCode}</Descriptions.Item>
+              <Descriptions.Item label="Loại">
                 <Tag color={requestTypeMeta[detailRequest.type]?.color}>
                   {requestTypeMeta[detailRequest.type]?.label}
                 </Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="Nguoi gui">{detailRequest.userName || "-"}</Descriptions.Item>
-              <Descriptions.Item label="So dien thoai">{detailRequest.userPhone || "-"}</Descriptions.Item>
+              <Descriptions.Item label="Người gửi">{detailRequest.userName || "-"}</Descriptions.Item>
+              <Descriptions.Item label="Số điện thoại">{detailRequest.userPhone || "-"}</Descriptions.Item>
               <Descriptions.Item label="Email">{detailRequest.userEmail || "-"}</Descriptions.Item>
               <Descriptions.Item label="CCCD">{detailRequest.userIdentityNumber || "-"}</Descriptions.Item>
-              <Descriptions.Item label="Phong">
+              <Descriptions.Item label="Phòng">
                 {detailRequest.roomNumber} - {detailRequest.roomName}
               </Descriptions.Item>
-              <Descriptions.Item label="Gia phong">{formatCurrency(detailRequest.roomPrice)}</Descriptions.Item>
-              <Descriptions.Item label="So tien can thanh toan">
+              <Descriptions.Item label="Giá phòng">{formatCurrency(detailRequest.roomPrice)}</Descriptions.Item>
+              <Descriptions.Item label="Số tiền cần thanh toán">
                 {formatCurrency(detailRequest.amount)}
               </Descriptions.Item>
-              <Descriptions.Item label="Phuong thuc thanh toan">
+              <Descriptions.Item label="Phương thức thanh toán">
                 <Tag color={getPaymentProviderMeta(detailRequest.paymentProvider).color}>
                   {getPaymentProviderMeta(detailRequest.paymentProvider).label}
                 </Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="Trang thai thanh toan">
+              <Descriptions.Item label="Trạng thái thanh toán">
                 <Tag color={getPaymentStateMeta(detailRequest).color}>
                   {getPaymentStateMeta(detailRequest).label}
                 </Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="Ngan hang">{detailRequest.paymentBankName || "-"}</Descriptions.Item>
-              <Descriptions.Item label="So tai khoan">
+              <Descriptions.Item label="Ngân hàng">{detailRequest.paymentBankName || "-"}</Descriptions.Item>
+              <Descriptions.Item label="Số tài khoản">
                 <Typography.Text copyable>{detailRequest.paymentBankAccountNumber || "-"}</Typography.Text>
               </Descriptions.Item>
-              <Descriptions.Item label="Chu tai khoan">{detailRequest.paymentBankAccountName || "-"}</Descriptions.Item>
-              <Descriptions.Item label="Noi dung CK">
+              <Descriptions.Item label="Chủ tài khoản">{detailRequest.paymentBankAccountName || "-"}</Descriptions.Item>
+              <Descriptions.Item label="Nội dung CK">
                 <Typography.Text copyable strong>
                   {detailRequest.paymentContent || detailRequest.paymentOrderCode || detailRequest.requestCode}
                 </Typography.Text>
               </Descriptions.Item>
-              <Descriptions.Item label="Trang thai">
+              <Descriptions.Item label="Trạng thái">
                 <Tag color={requestStatusMeta[detailRequest.status]?.color}>
                   {requestStatusMeta[detailRequest.status]?.label}
                 </Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="Hop dong">
+              <Descriptions.Item label="Hợp đồng">
                 {detailRequest.contractCode ? (
                   <Button type="link" onClick={() => handleOpenContractFile(detailRequest)}>
                     {detailRequest.contractCode}
@@ -453,36 +453,36 @@ const RoomRequestManagementPage = () => {
                   "-"
                 )}
               </Descriptions.Item>
-              <Descriptions.Item label="Han giu phong">{formatDate(detailRequest.holdExpiresAt)}</Descriptions.Item>
-              <Descriptions.Item label="Thoi han thue">{detailRequest.durationMonths || "-"} thang</Descriptions.Item>
-              <Descriptions.Item label="So nguoi o">{detailRequest.occupantCount || "-"}</Descriptions.Item>
-              <Descriptions.Item label="Loi nhan" span={2}>
+              <Descriptions.Item label="Hạn giữ phòng">{formatDate(detailRequest.holdExpiresAt)}</Descriptions.Item>
+              <Descriptions.Item label="Thời hạn thuê">{detailRequest.durationMonths || "-"} tháng</Descriptions.Item>
+              <Descriptions.Item label="Số người ở">{detailRequest.occupantCount || "-"}</Descriptions.Item>
+              <Descriptions.Item label="Lời nhắn" span={2}>
                 {detailRequest.message || "-"}
               </Descriptions.Item>
-              <Descriptions.Item label="Ghi chu admin" span={2}>
+              <Descriptions.Item label="Ghi chú admin" span={2}>
                 {detailRequest.adminNote || "-"}
               </Descriptions.Item>
             </Descriptions>
 
             {detailRequest.type === "rent" ? (
-              <Card size="small" title="Thong tin nguoi o">
+              <Card size="small" title="Thông tin người ở">
                 <Table
                   rowKey={(_, index) => index}
                   dataSource={detailRequest.occupants || []}
                   pagination={false}
                   scroll={{ x: 900 }}
                   columns={[
-                    { title: "Ho ten", dataIndex: "name", key: "name" },
-                    { title: "So dien thoai", dataIndex: "phone", key: "phone" },
-                    { title: "So CCCD", dataIndex: "identityNumber", key: "identityNumber" },
+                    { title: "Họ tên", dataIndex: "name", key: "name" },
+                    { title: "Số điện thoại", dataIndex: "phone", key: "phone" },
+                    { title: "Số CCCD", dataIndex: "identityNumber", key: "identityNumber" },
                     {
-                      title: "CCCD mat truoc",
+                      title: "CCCD mặt trước",
                       dataIndex: "identityFrontImage",
                       key: "identityFrontImage",
                       render: (value) => (value ? <Image src={toImageUrl(value)} width={76} height={52} style={{ objectFit: "cover" }} /> : "-"),
                     },
                     {
-                      title: "CCCD mat sau",
+                      title: "CCCD mặt sau",
                       dataIndex: "identityBackImage",
                       key: "identityBackImage",
                       render: (value) => (value ? <Image src={toImageUrl(value)} width={76} height={52} style={{ objectFit: "cover" }} /> : "-"),
@@ -492,17 +492,17 @@ const RoomRequestManagementPage = () => {
               </Card>
             ) : null}
             {detailRequest.paymentQrCode ? (
-              <Card size="small" title="QR thanh toan">
+              <Card size="small" title="QR thanh toán">
                 <Space direction="vertical" align="center" className="page-stack">
                   <Image src={detailRequest.paymentQrCode} width={260} />
                   <Typography.Text type="secondary">
-                    Kiem tra sao ke theo dung so tien va noi dung chuyen khoan truoc khi xac nhan thanh toan.
+                    Kiểm tra sao kê theo đúng số tiền và nội dung chuyển khoản trước khi xác nhận thanh toán.
                   </Typography.Text>
                 </Space>
               </Card>
             ) : null}
             {detailRequest.paymentProvider !== "vnpay" ? (
-              <Card size="small" title="Anh bien lai chuyen khoan">
+              <Card size="small" title="Ảnh biên lai chuyển khoản">
                 {(detailRequest.paymentProofImages || []).length > 0 ? (
                   <Image.PreviewGroup>
                     <Space wrap>
@@ -518,7 +518,7 @@ const RoomRequestManagementPage = () => {
                     </Space>
                   </Image.PreviewGroup>
                 ) : (
-                  <Typography.Text type="secondary">Khach hang chua tai anh bien lai.</Typography.Text>
+                  <Typography.Text type="secondary">Khách hàng chưa tải ảnh biên lai.</Typography.Text>
                 )}
               </Card>
             ) : null}
@@ -527,21 +527,21 @@ const RoomRequestManagementPage = () => {
       </Modal>
 
       <Modal
-        title="Xac nhan da nhan tien"
+        title="Xác nhận đã nhận tiền"
         open={Boolean(paymentConfirmRequest)}
         onCancel={closePaymentConfirmModal}
         onOk={() => processForm.submit()}
         confirmLoading={processLoading}
-        okText="Xac nhan thanh toan"
-        cancelText="Dong"
+        okText="Xác nhận thanh toán"
+        cancelText="Đóng"
       >
         <Form form={processForm} layout="vertical" onFinish={handleConfirmPayment}>
           <Typography.Paragraph type="secondary">
             {paymentConfirmRequest?.requestCode} - {formatCurrency(paymentConfirmRequest?.amount)}
           </Typography.Paragraph>
           <Descriptions bordered size="small" column={1} style={{ marginBottom: 16 }}>
-            <Descriptions.Item label="Nguoi gui">{paymentConfirmRequest?.userName || "-"}</Descriptions.Item>
-            <Descriptions.Item label="Noi dung CK">
+            <Descriptions.Item label="Người gửi">{paymentConfirmRequest?.userName || "-"}</Descriptions.Item>
+            <Descriptions.Item label="Nội dung CK">
               <Typography.Text copyable strong>
                 {paymentConfirmRequest?.paymentContent ||
                   paymentConfirmRequest?.paymentOrderCode ||
@@ -549,28 +549,28 @@ const RoomRequestManagementPage = () => {
               </Typography.Text>
             </Descriptions.Item>
           </Descriptions>
-          <Form.Item name="adminNote" label="Ghi chu admin">
-            <Input.TextArea rows={4} placeholder="VD: Da doi soat sao ke ngan hang" />
+          <Form.Item name="adminNote" label="Ghi chú admin">
+            <Input.TextArea rows={4} placeholder="VD: Đã đối soát sao kê ngân hàng" />
           </Form.Item>
         </Form>
       </Modal>
 
       <Modal
-        title={processAction === "approve" ? "Xac nhan yeu cau" : "Tu choi yeu cau"}
+        title={processAction === "approve" ? "Xác nhận yêu cầu" : "Từ chối yêu cầu"}
         open={Boolean(processingRequest)}
         onCancel={closeProcessModal}
         onOk={() => processForm.submit()}
         confirmLoading={processLoading}
-        okText={processAction === "approve" ? "Xac nhan" : "Tu choi"}
+        okText={processAction === "approve" ? "Xác nhận" : "Từ chối"}
         okButtonProps={{ danger: processAction === "reject" }}
-        cancelText="Dong"
+        cancelText="Đóng"
       >
         <Form form={processForm} layout="vertical" onFinish={handleProcessRequest}>
           <Typography.Paragraph type="secondary">
             {processingRequest?.requestCode} - {processingRequest?.roomNumber} - {processingRequest?.roomName}
           </Typography.Paragraph>
-          <Form.Item name="adminNote" label="Ghi chu admin">
-            <Input.TextArea rows={4} placeholder="Nhap ghi chu xu ly neu can" />
+          <Form.Item name="adminNote" label="Ghi chú admin">
+            <Input.TextArea rows={4} placeholder="Nhập ghi chú xử lý nếu cần" />
           </Form.Item>
         </Form>
       </Modal>

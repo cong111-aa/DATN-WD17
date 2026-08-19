@@ -21,15 +21,15 @@ const AdminHomePage = () => {
         <Space>
           <Typography.Text className="header-user">{user?.name}</Typography.Text>
           <Button icon={<LogoutOutlined />} onClick={handleLogout}>
-            Dang xuat
+            Đăng xuất
           </Button>
         </Space>
       </Header>
       <Content className="app-content">
         <Card>
-          <Typography.Title level={3}>Trang quan tri</Typography.Title>
+          <Typography.Title level={3}>Trang quản trị</Typography.Title>
           <Typography.Paragraph type="secondary">
-            Dang nhap admin thanh cong. Cac chuc nang quan ly se duoc phat trien rieng o cac buoc tiep theo.
+            Đăng nhập admin thành công. Các chức năng quản lý sẽ được phát triển riêng ở các bước tiếp theo.
           </Typography.Paragraph>
         </Card>
       </Content>
