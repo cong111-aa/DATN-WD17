@@ -48,30 +48,30 @@ const defaultFormValues = {
 
 const categoryOptions = [
   { label: "Internet", value: "internet" },
-  { label: "Ve sinh", value: "cleaning" },
-  { label: "Bao tri", value: "maintenance" },
-  { label: "Bao ve", value: "security" },
-  { label: "Dien chung", value: "common_electricity" },
-  { label: "Nuoc chung", value: "common_water" },
-  { label: "Rac thai", value: "garbage" },
-  { label: "Quan ly", value: "management" },
-  { label: "Khac", value: "other" },
+  { label: "Vệ sinh", value: "cleaning" },
+  { label: "Bảo trì", value: "maintenance" },
+  { label: "Bảo vệ", value: "security" },
+  { label: "Điện chung", value: "common_electricity" },
+  { label: "Nước chung", value: "common_water" },
+  { label: "Rác thải", value: "garbage" },
+  { label: "Quản lý", value: "management" },
+  { label: "Khác", value: "other" },
 ];
 
 const statusOptions = [
-  { label: "Cho chi", value: "pending" },
-  { label: "Da chi", value: "paid" },
-  { label: "Da huy", value: "cancelled" },
+  { label: "Chờ chi", value: "pending" },
+  { label: "Đã chi", value: "paid" },
+  { label: "Đã hủy", value: "cancelled" },
 ];
 
 const statusMeta = {
-  pending: { bg: "#fef3c7", color: "#b45309", label: "Cho chi" },
-  paid: { bg: "#dcfce7", color: "#15803d", label: "Da chi" },
-  cancelled: { bg: "#f1f5f9", color: "#64748b", label: "Da huy" },
+  pending: { bg: "#fef3c7", color: "#b45309", label: "Chờ chi" },
+  paid: { bg: "#dcfce7", color: "#15803d", label: "Đã chi" },
+  cancelled: { bg: "#f1f5f9", color: "#64748b", label: "Đã hủy" },
 };
 
 const monthOptions = Array.from({ length: 12 }, (_, index) => ({
-  label: `Thang ${index + 1}`,
+  label: `Tháng ${index + 1}`,
   value: index + 1,
 }));
 
@@ -153,7 +153,7 @@ const createDefaultExpenseItems = (month = now.getMonth() + 1, year = now.getFul
     amount: 0,
     category: option.value,
     note: "",
-    title: `${option.label} thang ${month}/${year}`,
+    title: `${option.label} tháng ${month}/${year}`,
   }));
 
 const normalizeText = (value) => String(value || "").trim().toLowerCase();
@@ -180,7 +180,7 @@ function OperatingExpenseManagementPage() {
       const { data } = await http.get("/operating-expenses");
       setExpenses(data.data || data || []);
     } catch (error) {
-      message.error(error.response?.data?.message || "Khong tai duoc danh sach chi phi");
+      message.error(error.response?.data?.message || "Không tải được danh sách chi phí");
     } finally {
       setLoading(false);
     }
@@ -318,7 +318,7 @@ function OperatingExpenseManagementPage() {
     try {
       if (editingExpense) {
         await http.put(`/operating-expenses/${editingExpense._id}`, toPayload(values));
-        message.success("Da cap nhat chi phi");
+        message.success("Đã cập nhật chi phí");
       } else {
         const items = (values.items || [])
           .filter((item) => Number(item.amount || 0) > 0)
@@ -330,12 +330,12 @@ function OperatingExpenseManagementPage() {
             year: values.year,
           }));
         if (!items.length) {
-          message.warning("Can nhap it nhat mot khoan chi co so tien lon hon 0");
+          message.warning("Cần nhập ít nhất một khoản chi có số tiền lớn hơn 0");
           return;
         }
 
         await http.post("/operating-expenses/bulk", { items });
-        message.success("Da tao danh sach chi phi");
+        message.success("Đã tạo danh sách chi phí");
       }
 
       setModalOpen(false);
@@ -343,7 +343,7 @@ function OperatingExpenseManagementPage() {
       form.resetFields();
       fetchExpenses();
     } catch (error) {
-      message.error(error.response?.data?.message || "Khong luu duoc chi phi");
+      message.error(error.response?.data?.message || "Không lưu được chi phí");
     } finally {
       setSubmitting(false);
     }
@@ -352,10 +352,10 @@ function OperatingExpenseManagementPage() {
   const handleDelete = async (record) => {
     try {
       await http.delete(`/operating-expenses/${record._id}`);
-      message.success("Da xoa chi phi");
+      message.success("Đã xóa chi phí");
       fetchExpenses();
     } catch (error) {
-      message.error(error.response?.data?.message || "Khong xoa duoc chi phi");
+      message.error(error.response?.data?.message || "Không xóa được chi phí");
     }
   };
 
@@ -366,47 +366,47 @@ function OperatingExpenseManagementPage() {
       render: (_, record) => (
         <Space direction="vertical" size={2}>
           <Typography.Text strong style={{ color: "#0f172a" }}>
-            Thang {record.month}/{record.year}
+            Tháng {record.month}/{record.year}
           </Typography.Text>
-          <Typography.Text style={mutedTextStyle}>Ky chi phi van hanh</Typography.Text>
+          <Typography.Text style={mutedTextStyle}>Kỳ chi phí vận hành</Typography.Text>
         </Space>
       ),
-      title: "KY CHI PHI",
+      title: "KỲ CHI PHÍ",
       width: 220,
     },
     {
       dataIndex: "itemCount",
       key: "itemCount",
       render: (value) => <Typography.Text strong>{value}</Typography.Text>,
-      title: "SO KHOAN",
+      title: "SỐ KHOẢN",
       width: 120,
     },
     {
       dataIndex: "totalAmount",
       key: "totalAmount",
       render: (value) => <Typography.Text strong>{currencyFormatter(value)}</Typography.Text>,
-      title: "TONG CHI",
+      title: "TỔNG CHI",
       width: 170,
     },
     {
       dataIndex: "pendingAmount",
       key: "pendingAmount",
       render: (value) => <Typography.Text style={{ color: "#b45309" }}>{currencyFormatter(value)}</Typography.Text>,
-      title: "CHO CHI",
+      title: "CHỜ CHI",
       width: 150,
     },
     {
       dataIndex: "cancelledAmount",
       key: "cancelledAmount",
       render: (value) => <Typography.Text style={mutedTextStyle}>{currencyFormatter(value)}</Typography.Text>,
-      title: "DA HUY",
+      title: "ĐÃ HỦY",
       width: 150,
     },
     {
       fixed: "right",
       key: "actions",
       render: (_, record) => (
-        <Tooltip title="Chi tiet chi phi">
+        <Tooltip title="Chi tiết chi phí">
           <Button
             icon={<EyeOutlined />}
             onClick={() => handleViewDetail(record)}
@@ -416,7 +416,7 @@ function OperatingExpenseManagementPage() {
           />
         </Tooltip>
       ),
-      title: "THAO TAC",
+      title: "THAO TÁC",
       width: 110,
     },
   ];
@@ -430,7 +430,7 @@ function OperatingExpenseManagementPage() {
           {getCategoryLabel(value)}
         </Tag>
       ),
-      title: "LOAI CHI PHI",
+      title: "LOẠI CHI PHÍ",
       width: 160,
     },
     {
@@ -442,35 +442,35 @@ function OperatingExpenseManagementPage() {
           {record.note ? <Typography.Text style={mutedTextStyle}>{record.note}</Typography.Text> : null}
         </Space>
       ),
-      title: "TIEU DE",
+      title: "TIÊU ĐỀ",
       width: 260,
     },
     {
       dataIndex: "amount",
       key: "amount",
       render: (value) => <Typography.Text strong>{currencyFormatter(value)}</Typography.Text>,
-      title: "SO TIEN",
+      title: "SỐ TIỀN",
       width: 150,
     },
     {
       dataIndex: "expenseDate",
       key: "expenseDate",
       render: formatDate,
-      title: "NGAY CHI",
+      title: "NGÀY CHI",
       width: 130,
     },
     {
       dataIndex: "status",
       key: "status",
       render: renderStatusTag,
-      title: "TRANG THAI",
+      title: "TRẠNG THÁI",
       width: 130,
     },
     {
       dataIndex: "createdByName",
       key: "createdByName",
       render: (value) => value || "-",
-      title: "NGUOI TAO",
+      title: "NGƯỜI TẠO",
       width: 150,
     },
     {
@@ -478,7 +478,7 @@ function OperatingExpenseManagementPage() {
       key: "actions",
       render: (_, record) => (
         <Space size={8}>
-          <Tooltip title="Sua chi phi">
+          <Tooltip title="Sửa chi phí">
             <Button
               icon={<EditOutlined />}
               onClick={() => openEditModal(record)}
@@ -488,13 +488,13 @@ function OperatingExpenseManagementPage() {
             />
           </Tooltip>
           <Popconfirm
-            cancelText="Huy"
+            cancelText="Hủy"
             disabled={record.status === "paid"}
-            okText="Xoa"
+            okText="Xóa"
             onConfirm={() => handleDelete(record)}
-            title="Xoa chi phi nay?"
+            title="Xóa chi phí này?"
           >
-            <Tooltip title={record.status === "paid" ? "Chi phi da chi khong the xoa" : "Xoa chi phi"}>
+            <Tooltip title={record.status === "paid" ? "Chi phí đã chi không thể xóa" : "Xóa chi phí"}>
               <Button
                 danger
                 disabled={record.status === "paid"}
@@ -506,7 +506,7 @@ function OperatingExpenseManagementPage() {
           </Popconfirm>
         </Space>
       ),
-      title: "THAO TAC",
+      title: "THAO TÁC",
       width: 120,
     },
   ];
@@ -530,10 +530,10 @@ function OperatingExpenseManagementPage() {
                 </span>
                 <div>
                   <Typography.Title level={3} style={{ color: "#fff", margin: 0 }}>
-                    Quan ly chi phi van hanh
+                    Quản lý chi phí vận hành
                   </Typography.Title>
                   <Typography.Text style={{ color: "rgba(255,255,255,0.78)" }}>
-                    Theo doi chi phi theo tung thang, xem chi tiet va cap nhat tung khoan chi.
+                    Theo dõi chi phí theo từng tháng, xem chi tiết và cập nhật từng khoản chi.
                   </Typography.Text>
                 </div>
               </Space>
@@ -543,7 +543,7 @@ function OperatingExpenseManagementPage() {
             <Row gutter={[12, 12]}>
               <Col xs={24} sm={8}>
                 <Card bodyStyle={{ padding: 14 }} style={{ background: "rgba(255,255,255,0.12)", border: 0, borderRadius: 8 }}>
-                  <Typography.Text style={{ color: "rgba(255,255,255,0.76)" }}>So khoan chi</Typography.Text>
+                  <Typography.Text style={{ color: "rgba(255,255,255,0.76)" }}>Số khoản chi</Typography.Text>
                   <Typography.Title level={3} style={{ color: "#fff", margin: "4px 0 0" }}>
                     {expenses.length}
                   </Typography.Title>
@@ -551,7 +551,7 @@ function OperatingExpenseManagementPage() {
               </Col>
               <Col xs={24} sm={8}>
                 <Card bodyStyle={{ padding: 14 }} style={{ background: "rgba(255,255,255,0.12)", border: 0, borderRadius: 8 }}>
-                  <Typography.Text style={{ color: "rgba(255,255,255,0.76)" }}>Tong chi</Typography.Text>
+                  <Typography.Text style={{ color: "rgba(255,255,255,0.76)" }}>Tổng chi</Typography.Text>
                   <Typography.Title level={4} style={{ color: "#fff", margin: "6px 0 0" }}>
                     {currencyFormatter(summary.total)}
                   </Typography.Title>
@@ -559,7 +559,7 @@ function OperatingExpenseManagementPage() {
               </Col>
               <Col xs={24} sm={8}>
                 <Card bodyStyle={{ padding: 14 }} style={{ background: "rgba(255,255,255,0.12)", border: 0, borderRadius: 8 }}>
-                  <Typography.Text style={{ color: "rgba(255,255,255,0.76)" }}>Cho chi</Typography.Text>
+                  <Typography.Text style={{ color: "rgba(255,255,255,0.76)" }}>Chờ chi</Typography.Text>
                   <Typography.Title level={4} style={{ color: "#fff", margin: "6px 0 0" }}>
                     {currencyFormatter(summary.pending)}
                   </Typography.Title>
@@ -576,7 +576,7 @@ function OperatingExpenseManagementPage() {
             <Input
               allowClear
               onChange={(event) => setSearchText(event.target.value)}
-              placeholder="Tim theo tieu de, ghi chu, nguoi tao..."
+              placeholder="Tìm theo tiêu đề, ghi chú, người tạo..."
               prefix={<SearchOutlined style={{ color: "#94a3b8" }} />}
               style={toolbarInputStyle}
               value={searchText}
@@ -585,7 +585,7 @@ function OperatingExpenseManagementPage() {
           <Col xs={24} sm={12} lg={4}>
             <Select
               onChange={setCategoryFilter}
-              options={[{ label: "Tat ca loai chi", value: "all" }, ...categoryOptions]}
+              options={[{ label: "Tất cả loại chi", value: "all" }, ...categoryOptions]}
               style={{ width: "100%" }}
               value={categoryFilter}
             />
@@ -593,7 +593,7 @@ function OperatingExpenseManagementPage() {
           <Col xs={24} sm={12} lg={4}>
             <Select
               onChange={setStatusFilter}
-              options={[{ label: "Tat ca trang thai", value: "all" }, ...statusOptions]}
+              options={[{ label: "Tất cả trạng thái", value: "all" }, ...statusOptions]}
               style={{ width: "100%" }}
               value={statusFilter}
             />
@@ -601,7 +601,7 @@ function OperatingExpenseManagementPage() {
           <Col xs={24} sm={12} lg={3}>
             <Select
               onChange={setMonthFilter}
-              options={[{ label: "Tat ca thang", value: "all" }, ...monthOptions]}
+              options={[{ label: "Tất cả tháng", value: "all" }, ...monthOptions]}
               style={{ width: "100%" }}
               value={monthFilter}
             />
@@ -610,21 +610,21 @@ function OperatingExpenseManagementPage() {
             <InputNumber
               min={2000}
               onChange={(value) => setYearFilter(value || "")}
-              placeholder="Nam"
+              placeholder="Năm"
               style={{ width: "100%" }}
               value={yearFilter || null}
             />
           </Col>
           <Col xs={24} lg={3}>
             <Space style={{ justifyContent: "flex-end", width: "100%" }}>
-              <Tooltip title="Xoa loc">
+              <Tooltip title="Xóa lọc">
                 <Button icon={<FilterOutlined />} onClick={resetFilters} shape="circle" />
               </Tooltip>
-              <Tooltip title="Tai lai">
+              <Tooltip title="Tải lại">
                 <Button icon={<ReloadOutlined />} onClick={fetchExpenses} shape="circle" />
               </Tooltip>
               <Button icon={<PlusOutlined />} onClick={openCreateModal} type="primary">
-                Them
+                Thêm
               </Button>
             </Space>
           </Col>
@@ -635,14 +635,14 @@ function OperatingExpenseManagementPage() {
         bodyStyle={{ padding: 0 }}
         extra={
           <Typography.Text style={mutedTextStyle}>
-            {groupedExpenses.length} ky / {filteredExpenses.length} khoan chi
+            {groupedExpenses.length} kỳ / {filteredExpenses.length} khoản chi
           </Typography.Text>
         }
         style={panelStyle}
         title={
           <Space size={10}>
             <DollarOutlined style={{ color: "#2563eb" }} />
-            <span>Danh sach chi phi</span>
+            <span>Danh sách chi phí</span>
           </Space>
         }
       >
@@ -650,7 +650,7 @@ function OperatingExpenseManagementPage() {
           columns={groupColumns}
           dataSource={groupedExpenses}
           loading={loading}
-          locale={{ emptyText: <Empty description="Chua co chi phi nao" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+          locale={{ emptyText: <Empty description="Chưa có chi phí nào" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
           pagination={{ pageSize: 8, showSizeChanger: false }}
           rowKey="key"
           scroll={{ x: 920 }}
@@ -669,7 +669,7 @@ function OperatingExpenseManagementPage() {
         title={
           <Space>
             <DollarOutlined style={{ color: "#2563eb" }} />
-            <Typography.Text strong>{editingExpense ? "Sua chi phi" : "Them chi phi"}</Typography.Text>
+            <Typography.Text strong>{editingExpense ? "Sửa chi phí" : "Thêm chi phí"}</Typography.Text>
           </Space>
         }
         width={editingExpense ? 760 : 980}
@@ -677,8 +677,8 @@ function OperatingExpenseManagementPage() {
         <Alert
           message={
             editingExpense
-              ? "Cap nhat thong tin khoan chi, trang thai va ngay phat sinh."
-              : "Nhap cac khoan chi trong cung mot ky. He thong chi tao nhung dong co so tien lon hon 0."
+              ? "Cập nhật thông tin khoản chi, trạng thái và ngày phát sinh."
+              : "Nhập các khoản chi trong cùng một kỳ. Hệ thống chỉ tạo những dòng có số tiền lớn hơn 0."
           }
           showIcon
           style={{ marginBottom: 18 }}
@@ -687,28 +687,28 @@ function OperatingExpenseManagementPage() {
 
         <Form form={form} initialValues={defaultFormValues} layout="vertical" onFinish={handleSubmit}>
           <Typography.Text strong style={sectionTitleStyle}>
-            Thong tin ky chi phi
+            Thông tin kỳ chi phí
           </Typography.Text>
           <Divider style={{ margin: "10px 0 18px" }} />
 
           <Row gutter={16}>
             <Col xs={24} md={8}>
-              <Form.Item label="Ngay phat sinh" name="expenseDate" rules={[{ required: true, message: "Chon ngay phat sinh" }]}>
+              <Form.Item label="Ngày phát sinh" name="expenseDate" rules={[{ required: true, message: "Chọn ngày phát sinh" }]}>
                 <DatePicker format="DD/MM/YYYY" style={{ width: "100%" }} />
               </Form.Item>
             </Col>
             <Col xs={24} md={8}>
-              <Form.Item label="Thang" name="month" rules={[{ required: true, message: "Chon thang" }]}>
+              <Form.Item label="Tháng" name="month" rules={[{ required: true, message: "Chọn tháng" }]}>
                 <Select options={monthOptions} />
               </Form.Item>
             </Col>
             <Col xs={24} md={8}>
-              <Form.Item label="Nam" name="year" rules={[{ required: true, message: "Nhap nam" }]}>
+              <Form.Item label="Năm" name="year" rules={[{ required: true, message: "Nhập năm" }]}>
                 <InputNumber min={2000} style={{ width: "100%" }} />
               </Form.Item>
             </Col>
             <Col xs={24} md={8}>
-              <Form.Item label="Trang thai" name="status" rules={[{ required: true, message: "Chon trang thai" }]}>
+              <Form.Item label="Trạng thái" name="status" rules={[{ required: true, message: "Chọn trạng thái" }]}>
                 <Select options={statusOptions} />
               </Form.Item>
             </Col>
@@ -717,29 +717,29 @@ function OperatingExpenseManagementPage() {
           {editingExpense ? (
             <>
               <Typography.Text strong style={sectionTitleStyle}>
-                Thong tin khoan chi
+                Thông tin khoản chi
               </Typography.Text>
               <Divider style={{ margin: "10px 0 18px" }} />
 
               <Row gutter={16}>
                 <Col xs={24} md={12}>
-                  <Form.Item label="Loai chi phi" name="category" rules={[{ required: true, message: "Chon loai chi phi" }]}>
+                  <Form.Item label="Loại chi phí" name="category" rules={[{ required: true, message: "Chọn loại chi phí" }]}>
                     <Select options={categoryOptions} />
                   </Form.Item>
                 </Col>
                 <Col xs={24} md={12}>
-                  <Form.Item label="Tieu de" name="title" rules={[{ required: true, message: "Nhap tieu de" }]}>
-                    <Input placeholder="VD: Tien internet thang nay" />
+                  <Form.Item label="Tiêu đề" name="title" rules={[{ required: true, message: "Nhập tiêu đề" }]}>
+                    <Input placeholder="VD: Tiền internet tháng này" />
                   </Form.Item>
                 </Col>
                 <Col xs={24} md={12}>
-                  <Form.Item label="So tien" name="amount" rules={[{ required: true, message: "Nhap so tien" }]}>
+                  <Form.Item label="Số tiền" name="amount" rules={[{ required: true, message: "Nhập số tiền" }]}>
                     <InputNumber min={0} style={{ width: "100%" }} />
                   </Form.Item>
                 </Col>
                 <Col xs={24}>
-                  <Form.Item label="Ghi chu" name="note">
-                    <Input.TextArea placeholder="Ghi chu them neu co" rows={3} />
+                  <Form.Item label="Ghi chú" name="note">
+                    <Input.TextArea placeholder="Ghi chú thêm nếu có" rows={3} />
                   </Form.Item>
                 </Col>
               </Row>
@@ -747,7 +747,7 @@ function OperatingExpenseManagementPage() {
           ) : (
             <>
               <Typography.Text strong style={sectionTitleStyle}>
-                Danh sach khoan chi
+                Danh sách khoản chi
               </Typography.Text>
               <Divider style={{ margin: "10px 0 18px" }} />
 
@@ -761,13 +761,13 @@ function OperatingExpenseManagementPage() {
                           render: (_, field) => (
                             <Form.Item
                               name={[field.name, "category"]}
-                              rules={[{ required: true, message: "Chon loai" }]}
+                              rules={[{ required: true, message: "Chọn loại" }]}
                               style={{ margin: 0 }}
                             >
                               <Select options={categoryOptions} />
                             </Form.Item>
                           ),
-                          title: "Loai chi phi",
+                          title: "Loại chi phí",
                           width: 180,
                         },
                         {
@@ -775,13 +775,13 @@ function OperatingExpenseManagementPage() {
                           render: (_, field) => (
                             <Form.Item
                               name={[field.name, "title"]}
-                              rules={[{ required: true, message: "Nhap tieu de" }]}
+                              rules={[{ required: true, message: "Nhập tiêu đề" }]}
                               style={{ margin: 0 }}
                             >
-                              <Input placeholder="Tieu de" />
+                              <Input placeholder="Tiêu đề" />
                             </Form.Item>
                           ),
-                          title: "Tieu de",
+                          title: "Tiêu đề",
                           width: 230,
                         },
                         {
@@ -791,17 +791,17 @@ function OperatingExpenseManagementPage() {
                               <InputNumber min={0} style={{ width: "100%" }} />
                             </Form.Item>
                           ),
-                          title: "So tien",
+                          title: "Số tiền",
                           width: 150,
                         },
                         {
                           key: "note",
                           render: (_, field) => (
                             <Form.Item name={[field.name, "note"]} style={{ margin: 0 }}>
-                              <Input placeholder="Ghi chu" />
+                              <Input placeholder="Ghi chú" />
                             </Form.Item>
                           ),
-                          title: "Ghi chu",
+                          title: "Ghi chú",
                         },
                         {
                           key: "actions",
@@ -818,7 +818,7 @@ function OperatingExpenseManagementPage() {
                       scroll={{ x: 760 }}
                     />
                     <Button block icon={<PlusOutlined />} onClick={() => add({ amount: 0 })}>
-                      Them dong chi phi
+                      Thêm dòng chi phí
                     </Button>
                   </Space>
                 )}
@@ -833,10 +833,10 @@ function OperatingExpenseManagementPage() {
                 form.resetFields();
               }}
             >
-              Huy
+              Hủy
             </Button>
             <Button htmlType="submit" loading={submitting} type="primary">
-              {editingExpense ? "Luu thay doi" : "Tao chi phi"}
+              {editingExpense ? "Lưu thay đổi" : "Tạo chi phí"}
             </Button>
           </Space>
         </Form>
@@ -849,7 +849,7 @@ function OperatingExpenseManagementPage() {
         title={
           <Space>
             <EyeOutlined style={{ color: "#2563eb" }} />
-            <Typography.Text strong>Chi tiet chi phi</Typography.Text>
+            <Typography.Text strong>Chi tiết chi phí</Typography.Text>
           </Space>
         }
         width={1050}
@@ -857,14 +857,14 @@ function OperatingExpenseManagementPage() {
         {detailGroup ? (
           <Space direction="vertical" size={18} style={{ width: "100%" }}>
             <Descriptions bordered column={{ md: 2, sm: 1, xs: 1 }} size="small">
-              <Descriptions.Item label="Ky chi phi">
-                Thang {detailGroup.month}/{detailGroup.year}
+              <Descriptions.Item label="Kỳ chi phí">
+                Tháng {detailGroup.month}/{detailGroup.year}
               </Descriptions.Item>
-              <Descriptions.Item label="So khoan chi">{detailGroup.itemCount}</Descriptions.Item>
-              <Descriptions.Item label="Tong chi">{currencyFormatter(detailGroup.totalAmount)}</Descriptions.Item>
-              <Descriptions.Item label="Da chi">{currencyFormatter(detailGroup.paidAmount)}</Descriptions.Item>
-              <Descriptions.Item label="Cho chi">{currencyFormatter(detailGroup.pendingAmount)}</Descriptions.Item>
-              <Descriptions.Item label="Da huy">{currencyFormatter(detailGroup.cancelledAmount)}</Descriptions.Item>
+              <Descriptions.Item label="Số khoản chi">{detailGroup.itemCount}</Descriptions.Item>
+              <Descriptions.Item label="Tổng chi">{currencyFormatter(detailGroup.totalAmount)}</Descriptions.Item>
+              <Descriptions.Item label="Đã chi">{currencyFormatter(detailGroup.paidAmount)}</Descriptions.Item>
+              <Descriptions.Item label="Chờ chi">{currencyFormatter(detailGroup.pendingAmount)}</Descriptions.Item>
+              <Descriptions.Item label="Đã hủy">{currencyFormatter(detailGroup.cancelledAmount)}</Descriptions.Item>
             </Descriptions>
 
             <Table
@@ -876,7 +876,7 @@ function OperatingExpenseManagementPage() {
             />
           </Space>
         ) : (
-          <Empty description="Khong tim thay chi tiet chi phi" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          <Empty description="Không tìm thấy chi tiết chi phí" image={Empty.PRESENTED_IMAGE_SIMPLE} />
         )}
       </Modal>
     </Space>

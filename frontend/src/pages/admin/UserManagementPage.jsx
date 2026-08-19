@@ -63,7 +63,7 @@ const toIdentityFileList = (url) =>
     : [];
 
 const roleOptions = [
-  { label: "Admin", value: "admin" },
+  { label: "Quản trị viên", value: "admin" },
   { label: "Người dùng", value: "user" },
 ];
 
@@ -346,7 +346,7 @@ const UserManagementPage = () => {
               padding: "3px 10px",
             }}
           >
-            {role === "admin" ? "Admin" : "Người dùng"}
+            {role === "admin" ? "Quản trị viên" : "Người dùng"}
           </Tag>
         ),
       },

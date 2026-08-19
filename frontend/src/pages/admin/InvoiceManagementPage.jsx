@@ -37,17 +37,17 @@ import { useEffect, useMemo, useState } from "react";
 import http from "../../api/http";
 
 const statusOptions = [
-  { label: "Chua thanh toan", value: "unpaid" },
-  { label: "Thanh toan mot phan", value: "partial" },
-  { label: "Da thanh toan", value: "paid" },
-  { label: "Qua han", value: "overdue" },
+  { label: "Chưa thanh toán", value: "unpaid" },
+  { label: "Thanh toán một phần", value: "partial" },
+  { label: "Đã thanh toán", value: "paid" },
+  { label: "Quá hạn", value: "overdue" },
 ];
 
 const statusMeta = {
-  unpaid: { bg: "#f1f5f9", color: "#64748b", label: "Chua thanh toan" },
-  partial: { bg: "#fef3c7", color: "#b45309", label: "Thanh toan mot phan" },
-  paid: { bg: "#dcfce7", color: "#15803d", label: "Da thanh toan" },
-  overdue: { bg: "#fee2e2", color: "#b91c1c", label: "Qua han" },
+  unpaid: { bg: "#f1f5f9", color: "#64748b", label: "Chưa thanh toán" },
+  partial: { bg: "#fef3c7", color: "#b45309", label: "Thanh toán một phần" },
+  paid: { bg: "#dcfce7", color: "#15803d", label: "Đã thanh toán" },
+  overdue: { bg: "#fee2e2", color: "#b91c1c", label: "Quá hạn" },
 };
 
 const defaultFormValues = {
@@ -109,7 +109,7 @@ const formatDate = (value) => (value ? new Date(value).toLocaleDateString("vi-VN
 const toNumber = (value) => Number(value || 0);
 
 const monthOptions = Array.from({ length: 12 }, (_, index) => ({
-  label: `Thang ${index + 1}`,
+  label: `Tháng ${index + 1}`,
   value: index + 1,
 }));
 
@@ -218,7 +218,7 @@ const InvoiceManagementPage = () => {
       const { data: roomData } = await http.get("/rooms");
       setRooms(roomData);
     } catch (error) {
-      message.error(error.response?.data?.message || "Khong tai duoc du lieu lua chon");
+      message.error(error.response?.data?.message || "Không tải được dữ liệu lựa chọn");
     }
   };
 
@@ -229,7 +229,7 @@ const InvoiceManagementPage = () => {
       const { data } = await http.get("/invoices");
       setInvoices(data);
     } catch (error) {
-      message.error(error.response?.data?.message || "Khong tai duoc danh sach hoa don");
+      message.error(error.response?.data?.message || "Không tải được danh sách hóa đơn");
     } finally {
       setLoading(false);
     }
@@ -277,7 +277,7 @@ const InvoiceManagementPage = () => {
         waterNew: data.waterNew ?? data.waterOld ?? 0,
       });
     } catch (error) {
-      message.error(error.response?.data?.message || "Khong tai duoc chi so cu cua ky hoa don");
+      message.error(error.response?.data?.message || "Không tải được chỉ số cũ của kỳ hóa đơn");
     }
   };
 
@@ -331,16 +331,16 @@ const InvoiceManagementPage = () => {
 
       if (editingInvoice) {
         await http.put(`/invoices/${editingInvoice.id}`, payload);
-        message.success("Da cap nhat hoa don");
+        message.success("Đã cập nhật hóa đơn");
       } else {
         await http.post("/invoices", payload);
-        message.success("Da tao hoa don");
+        message.success("Đã tạo hóa đơn");
       }
 
       closeModal();
       refreshAll();
     } catch (error) {
-      message.error(error.response?.data?.message || "Luu hoa don that bai");
+      message.error(error.response?.data?.message || "Lưu hóa đơn thất bại");
     } finally {
       setSubmitting(false);
     }
@@ -352,23 +352,23 @@ const InvoiceManagementPage = () => {
       setDetailInvoice(data);
       setDetailOpen(true);
     } catch (error) {
-      message.error(error.response?.data?.message || "Khong tai duoc chi tiet hoa don");
+      message.error(error.response?.data?.message || "Không tải được chi tiết hóa đơn");
     }
   };
 
   const handleDelete = async (record) => {
     try {
       await http.delete(`/invoices/${record.id}`);
-      message.success("Da xoa hoa don");
+      message.success("Đã xóa hóa đơn");
       fetchInvoices();
     } catch (error) {
-      message.error(error.response?.data?.message || "Xoa hoa don that bai");
+      message.error(error.response?.data?.message || "Xóa hóa đơn thất bại");
     }
   };
   const columns = useMemo(
     () => [
       {
-        title: "MA HOA DON",
+        title: "MÃ HÓA ĐƠN",
         dataIndex: "invoiceCode",
         key: "invoiceCode",
         width: 180,
@@ -383,14 +383,14 @@ const InvoiceManagementPage = () => {
               </Typography.Text>
               <br />
               <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                Ky {record.month}/{record.year}
+                Kỳ {record.month}/{record.year}
               </Typography.Text>
             </div>
           </Space>
         ),
       },
       {
-        title: "KHACH THUE",
+        title: "KHÁCH THUÊ",
         dataIndex: "tenantName",
         key: "tenantName",
         width: 230,
@@ -407,7 +407,7 @@ const InvoiceManagementPage = () => {
         ),
       },
       {
-        title: "PHONG",
+        title: "PHÒNG",
         dataIndex: "roomNumber",
         key: "roomNumber",
         width: 150,
@@ -418,17 +418,17 @@ const InvoiceManagementPage = () => {
         ),
       },
       {
-        title: "DIEN/NUOC",
+        title: "ĐIỆN/NƯỚC",
         key: "utilities",
         width: 150,
         render: (_, record) => (
           <Typography.Text style={{ color: "#475569" }}>
-            {record.electricityUsage ?? 0} so / {record.waterUsage ?? 0} khoi
+            {record.electricityUsage ?? 0} số / {record.waterUsage ?? 0} khối
           </Typography.Text>
         ),
       },
       {
-        title: "TONG TIEN",
+        title: "TỔNG TIỀN",
         dataIndex: "totalAmount",
         key: "totalAmount",
         width: 170,
@@ -439,7 +439,7 @@ const InvoiceManagementPage = () => {
         ),
       },
       {
-        title: "DA THANH TOAN",
+        title: "ĐÃ THANH TOÁN",
         dataIndex: "paidAmount",
         key: "paidAmount",
         width: 170,
@@ -450,7 +450,7 @@ const InvoiceManagementPage = () => {
         ),
       },
       {
-        title: "TRANG THAI",
+        title: "TRẠNG THÁI",
         dataIndex: "status",
         key: "status",
         width: 170,
@@ -474,7 +474,7 @@ const InvoiceManagementPage = () => {
         },
       },
       {
-        title: "NGAY TAO",
+        title: "NGÀY TẠO",
         dataIndex: "createdAt",
         key: "createdAt",
         width: 140,
@@ -485,14 +485,14 @@ const InvoiceManagementPage = () => {
         ),
       },
       {
-        title: "THAO TAC",
+        title: "THAO TÁC",
         key: "actions",
         fixed: "right",
         align: "center",
         width: 150,
         render: (_, record) => (
           <Space size={8}>
-            <Tooltip title="Chi tiet hoa don">
+            <Tooltip title="Chi tiết hóa đơn">
               <Button
                 size="small"
                 icon={<EyeOutlined />}
@@ -500,7 +500,7 @@ const InvoiceManagementPage = () => {
                 style={{ borderRadius: 8, height: 32, width: 32 }}
               />
             </Tooltip>
-            <Tooltip title="Sua hoa don">
+            <Tooltip title="Sửa hóa đơn">
               <Button
                 size="small"
                 icon={<EditOutlined />}
@@ -509,14 +509,14 @@ const InvoiceManagementPage = () => {
               />
             </Tooltip>
             <Popconfirm
-              title="Xoa hoa don nay?"
-              description="Chi xoa duoc hoa don chua co thanh toan."
-              okText="Xoa"
-              cancelText="Huy"
+              title="Xóa hóa đơn này?"
+              description="Chỉ xóa được hóa đơn chưa có thanh toán."
+              okText="Xóa"
+              cancelText="Hủy"
               onConfirm={() => handleDelete(record)}
               disabled={Number(record.paidAmount || 0) > 0}
             >
-              <Tooltip title="Xoa hoa don">
+              <Tooltip title="Xóa hóa đơn">
                 <Button
                   danger
                   size="small"
@@ -539,20 +539,20 @@ const InvoiceManagementPage = () => {
         <Row gutter={[18, 18]} align="middle" justify="space-between">
           <Col xs={24} lg={15}>
             <Typography.Text style={{ color: "rgba(255,255,255,0.78)", fontSize: 12, fontWeight: 800 }}>
-              TRO PLUS ADMIN
+              TRỌ PLUS ADMIN
             </Typography.Text>
             <Typography.Title level={2} style={{ color: "#ffffff", margin: "6px 0 8px", fontSize: 30 }}>
-              Quan ly hoa don
+              Quản lý hóa đơn
             </Typography.Title>
             <Typography.Paragraph style={{ color: "rgba(255,255,255,0.86)", marginBottom: 16, maxWidth: 680 }}>
-              Tao, cap nhat, xem chi tiet va xoa hoa don kem chi so dien nuoc, phi dich vu va tong ket thanh toan.
+              Tạo, cập nhật, xem chi tiết và xóa hóa đơn kèm chỉ số điện nước, phí dịch vụ và tổng kết thanh toán.
             </Typography.Paragraph>
             <Space wrap>
               <Tag bordered={false} style={{ background: "rgba(255,255,255,0.18)", borderRadius: 999, color: "#ffffff", fontWeight: 800, padding: "4px 14px" }}>
-                {invoiceStats.total} hoa don
+                {invoiceStats.total} hóa đơn
               </Tag>
               <Tag bordered={false} style={{ background: "rgba(255,255,255,0.18)", borderRadius: 999, color: "#ffffff", fontWeight: 800, padding: "4px 14px" }}>
-                {invoiceStats.paid} da thanh toan
+                {invoiceStats.paid} đã thanh toán
               </Tag>
               <Tag bordered={false} style={{ background: "rgba(255,255,255,0.18)", borderRadius: 999, color: "#ffffff", fontWeight: 800, padding: "4px 14px" }}>
                 {currencyFormatter(invoiceStats.totalAmountValue)}
@@ -562,7 +562,7 @@ const InvoiceManagementPage = () => {
           <Col xs={24} lg={9}>
             <Space wrap style={{ marginTop: 8, width: "100%", justifyContent: "flex-start" }}>
               <Button icon={<ReloadOutlined />} onClick={refreshAll} style={{ borderRadius: 8, fontWeight: 700, height: 40 }}>
-                Tai lai
+                Tải lại
               </Button>
               <Button
                 type="primary"
@@ -577,7 +577,7 @@ const InvoiceManagementPage = () => {
                   height: 40,
                 }}
               >
-                Them hoa don
+                Thêm hóa đơn
               </Button>
             </Space>
           </Col>
@@ -593,11 +593,11 @@ const InvoiceManagementPage = () => {
               </div>
               <div>
                 <Typography.Text strong style={sectionTitleStyle}>
-                  Bo loc hoa don
+                  Bộ lọc hóa đơn
                 </Typography.Text>
                 <br />
                 <Typography.Text style={mutedTextStyle}>
-                  Tim nhanh theo ma, khach thue, phong va ky hoa don
+                  Tìm nhanh theo mã, khách thuê, phòng và kỳ hóa đơn
                 </Typography.Text>
               </div>
             </Space>
@@ -608,7 +608,7 @@ const InvoiceManagementPage = () => {
                 <Input
                   allowClear
                   prefix={<SearchOutlined />}
-                  placeholder="Tim ma, khach thue, phong"
+                  placeholder="Tìm mã, khách thuê, phòng"
                   style={toolbarInputStyle}
                   value={searchText}
                   onChange={(event) => setSearchText(event.target.value)}
@@ -619,7 +619,7 @@ const InvoiceManagementPage = () => {
                   value={statusFilter}
                   style={{ ...toolbarInputStyle, width: "100%" }}
                   onChange={setStatusFilter}
-                  options={[{ label: "Tat ca trang thai", value: "all" }, ...statusOptions]}
+                  options={[{ label: "Tất cả trạng thái", value: "all" }, ...statusOptions]}
                 />
               </Col>
               <Col xs={12} md={4}>
@@ -627,13 +627,13 @@ const InvoiceManagementPage = () => {
                   value={monthFilter}
                   style={{ ...toolbarInputStyle, width: "100%" }}
                   onChange={setMonthFilter}
-                  options={[{ label: "Tat ca thang", value: "all" }, ...monthOptions]}
+                  options={[{ label: "Tất cả tháng", value: "all" }, ...monthOptions]}
                 />
               </Col>
               <Col xs={12} md={3}>
                 <Input
                   allowClear
-                  placeholder="Nam"
+                  placeholder="Năm"
                   style={toolbarInputStyle}
                   value={yearFilter}
                   onChange={(event) => setYearFilter(event.target.value)}
@@ -641,7 +641,7 @@ const InvoiceManagementPage = () => {
               </Col>
               <Col xs={12} md={4}>
                 <Button block icon={<ReloadOutlined />} onClick={resetFilters} style={{ ...toolbarInputStyle, background: "#f3f6fb", borderColor: "#f3f6fb", fontWeight: 700 }}>
-                  Dat lai
+                  Đặt lại
                 </Button>
               </Col>
             </Row>
@@ -657,18 +657,18 @@ const InvoiceManagementPage = () => {
             </div>
             <div>
               <Typography.Text strong style={sectionTitleStyle}>
-                Danh sach hoa don
+                Danh sách hóa đơn
               </Typography.Text>
               <br />
               <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                Quan ly thong tin thanh toan theo phong va nguoi dai dien
+                Quản lý thông tin thanh toán theo phòng và người đại diện
               </Typography.Text>
             </div>
           </Space>
         }
         extra={
           <Tag bordered={false} style={{ background: "#f5edff", borderRadius: 999, color: "#7c3aed", fontWeight: 800, padding: "5px 12px" }}>
-            Hien thi {filteredInvoices.length}/{invoices.length}
+            Hiển thị {filteredInvoices.length}/{invoices.length}
           </Tag>
         }
         style={{ ...panelStyle, overflow: "hidden" }}
@@ -685,13 +685,13 @@ const InvoiceManagementPage = () => {
           size="middle"
           rowClassName={() => "user-management-row"}
           locale={{
-            emptyText: <Empty description="Khong co hoa don phu hop" />,
+            emptyText: <Empty description="Không có hóa đơn phù hợp" />,
           }}
           scroll={{ x: 1400 }}
           pagination={{
             pageSize: 8,
             showSizeChanger: false,
-            showTotal: (total) => `${total} hoa don`,
+            showTotal: (total) => `${total} hóa đơn`,
           }}
         />
       </Card>
@@ -703,10 +703,10 @@ const InvoiceManagementPage = () => {
               <FileTextOutlined />
             </div>
             <div>
-              <Typography.Text strong>{editingInvoice ? "Sua hoa don" : "Them hoa don"}</Typography.Text>
+              <Typography.Text strong>{editingInvoice ? "Sửa hóa đơn" : "Thêm hóa đơn"}</Typography.Text>
               <br />
               <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                {editingInvoice ? editingInvoice.invoiceCode : "Tao hoa don moi cho phong"}
+                {editingInvoice ? editingInvoice.invoiceCode : "Tạo hóa đơn mới cho phòng"}
               </Typography.Text>
             </div>
           </Space>
@@ -715,50 +715,50 @@ const InvoiceManagementPage = () => {
         onCancel={closeModal}
         onOk={() => form.submit()}
         confirmLoading={submitting}
-        okText={editingInvoice ? "Luu" : "Tao hoa don"}
-        cancelText="Huy"
+        okText={editingInvoice ? "Lưu" : "Tạo hóa đơn"}
+        cancelText="Hủy"
         width={980}
       >
         <Alert
           showIcon
           type="info"
-          message={editingInvoice ? "Cap nhat thong tin hoa don" : "Nhap thong tin de tao hoa don moi"}
+          message={editingInvoice ? "Cập nhật thông tin hóa đơn" : "Nhập thông tin để tạo hóa đơn mới"}
           style={{ marginBottom: 18, borderRadius: 8 }}
         />
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
           <Space>
             <FileTextOutlined style={{ color: "#1677ff" }} />
-            <Typography.Text strong>Thong tin hoa don</Typography.Text>
+            <Typography.Text strong>Thông tin hóa đơn</Typography.Text>
           </Space>
           <Divider style={{ margin: "12px 0 16px" }} />
           <Row gutter={16}>
             <Col xs={24} md={12}>
-              <Form.Item name="room" label="Phong" rules={[{ required: true }]}>
-                <Select options={roomOptions} placeholder="Chon phong" showSearch optionFilterProp="label" onChange={handleRoomChange} />
+              <Form.Item name="room" label="Phòng" rules={[{ required: true, message: "Vui lòng chọn phòng!" }]}>
+                <Select options={roomOptions} placeholder="Chọn phòng" showSearch optionFilterProp="label" onChange={handleRoomChange} />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
-              <Form.Item name="invoiceCode" label="Ma hoa don" rules={[{ required: true }]}>
+              <Form.Item name="invoiceCode" label="Mã hóa đơn" rules={[{ required: true, message: "Vui lòng nhập mã hóa đơn!" }]}>
                 <Input placeholder="VD: HD-2026-001" />
               </Form.Item>
             </Col>
             <Col xs={24} md={6}>
-              <Form.Item name="month" label="Thang" rules={[{ required: true }]}>
+              <Form.Item name="month" label="Tháng" rules={[{ required: true, message: "Vui lòng nhập tháng!" }]}>
                 <InputNumber min={1} max={12} className="full-width-input" onChange={handlePeriodChange} />
               </Form.Item>
             </Col>
             <Col xs={24} md={6}>
-              <Form.Item name="year" label="Nam" rules={[{ required: true }]}>
+              <Form.Item name="year" label="Năm" rules={[{ required: true, message: "Vui lòng nhập năm!" }]}>
                 <InputNumber min={2000} className="full-width-input" onChange={handlePeriodChange} />
               </Form.Item>
             </Col>
             <Col xs={24} md={6}>
-              <Form.Item name="dueDate" label="Han thanh toan">
+              <Form.Item name="dueDate" label="Hạn thanh toán">
                 <DatePicker className="full-width-input" format="DD/MM/YYYY" />
               </Form.Item>
             </Col>
             <Col xs={24} md={6}>
-              <Form.Item name="status" label="Trang thai">
+              <Form.Item name="status" label="Trạng thái">
                 <Select options={statusOptions} />
               </Form.Item>
             </Col>
@@ -766,33 +766,33 @@ const InvoiceManagementPage = () => {
 
           <Space>
             <CalculatorOutlined style={{ color: "#0f766e" }} />
-            <Typography.Text strong>Chi so dien nuoc</Typography.Text>
+            <Typography.Text strong>Chỉ số điện nước</Typography.Text>
           </Space>
           <Divider style={{ margin: "12px 0 16px" }} />
           <Alert
             type="info"
             showIcon
             style={{ marginBottom: 16, borderRadius: 8 }}
-            message={`Don gia hien tai: dien ${currencyFormatter(selectedRoom?.electricityPrice)} / so, nuoc ${currencyFormatter(selectedRoom?.waterPrice)} / khoi`}
+            message={`Đơn giá hiện tại: điện ${currencyFormatter(selectedRoom?.electricityPrice)} / số, nước ${currencyFormatter(selectedRoom?.waterPrice)} / khối`}
           />
           <Row gutter={16}>
             <Col xs={24} md={12}>
-              <Form.Item name="electricityOld" label="Chi so dien cu" rules={[{ required: true }]}>
+              <Form.Item name="electricityOld" label="Chỉ số điện cũ" rules={[{ required: true, message: "Vui lòng nhập chỉ số điện cũ!" }]}>
                 <InputNumber min={0} className="full-width-input" />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
-              <Form.Item name="electricityNew" label="Chi so dien moi" rules={[{ required: true }]}>
+              <Form.Item name="electricityNew" label="Chỉ số điện mới" rules={[{ required: true, message: "Vui lòng nhập chỉ số điện mới!" }]}>
                 <InputNumber min={0} className="full-width-input" />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
-              <Form.Item name="waterOld" label="Chi so nuoc cu" rules={[{ required: true }]}>
+              <Form.Item name="waterOld" label="Chỉ số nước cũ" rules={[{ required: true, message: "Vui lòng nhập chỉ số nước cũ!" }]}>
                 <InputNumber min={0} className="full-width-input" />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
-              <Form.Item name="waterNew" label="Chi so nuoc moi" rules={[{ required: true }]}>
+              <Form.Item name="waterNew" label="Chỉ số nước mới" rules={[{ required: true, message: "Vui lòng nhập chỉ số nước mới!" }]}>
                 <InputNumber min={0} className="full-width-input" />
               </Form.Item>
             </Col>
@@ -800,73 +800,73 @@ const InvoiceManagementPage = () => {
 
           <Space>
             <CalculatorOutlined style={{ color: "#7c3aed" }} />
-            <Typography.Text strong>Chi phi va tong ket</Typography.Text>
+            <Typography.Text strong>Chi phí và tổng kết</Typography.Text>
           </Space>
           <Divider style={{ margin: "12px 0 16px" }} />
           <Row gutter={16}>
             <Col xs={24} md={12}>
-              <Form.Item name="rentAmount" label="Tien phong">
+              <Form.Item name="rentAmount" label="Tiền phòng">
                 <InputNumber min={0} className="full-width-input" addonAfter="VND" />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
-              <Form.Item label="Tien dien">
+              <Form.Item label="Tiền điện">
                 <InputNumber value={electricityAmount} min={0} disabled className="full-width-input" addonAfter="VND" />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
-              <Form.Item label="Tien nuoc">
+              <Form.Item label="Tiền nước">
                 <InputNumber value={waterAmount} min={0} disabled className="full-width-input" addonAfter="VND" />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
-              <Form.Item name="serviceAmount" label="Phi dich vu">
+              <Form.Item name="serviceAmount" label="Phí dịch vụ">
                 <InputNumber min={0} className="full-width-input" addonAfter="VND" />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
-              <Form.Item name="otherAmount" label="Chi phi khac">
+              <Form.Item name="otherAmount" label="Chi phí khác">
                 <InputNumber min={0} className="full-width-input" addonAfter="VND" />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
-              <Form.Item name="discountAmount" label="Giam tru">
+              <Form.Item name="discountAmount" label="Giảm trừ">
                 <InputNumber min={0} className="full-width-input" addonAfter="VND" />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
-              <Form.Item name="paidAmount" label="Da thanh toan">
+              <Form.Item name="paidAmount" label="Đã thanh toán">
                 <InputNumber min={0} className="full-width-input" addonAfter="VND" />
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="note" label="Ghi chu">
+          <Form.Item name="note" label="Ghi chú">
             <Input.TextArea rows={3} />
           </Form.Item>
 
           <Descriptions bordered size="small" column={2}>
-            <Descriptions.Item label="Dien tieu thu">{electricityUsage} so</Descriptions.Item>
-            <Descriptions.Item label="Nuoc tieu thu">{waterUsage} khoi</Descriptions.Item>
-            <SummaryItem label="Tien phong" value={watchedValues.rentAmount} />
-            <SummaryItem label="Tien dien" value={electricityAmount} />
-            <SummaryItem label="Tien nuoc" value={waterAmount} />
-            <SummaryItem label="Phi dich vu" value={watchedValues.serviceAmount} />
-            <SummaryItem label="Chi phi khac" value={watchedValues.otherAmount} />
-            <SummaryItem label="Giam tru" value={watchedValues.discountAmount} />
-            <SummaryItem label="Tong tien" value={totalAmount} strong />
-            <SummaryItem label="Da thanh toan" value={effectivePaidAmount} />
-            <SummaryItem label="Con lai" value={remainingAmount} strong danger={remainingAmount > 0} />
+            <Descriptions.Item label="Điện tiêu thụ">{electricityUsage} số</Descriptions.Item>
+            <Descriptions.Item label="Nước tiêu thụ">{waterUsage} khối</Descriptions.Item>
+            <SummaryItem label="Tiền phòng" value={watchedValues.rentAmount} />
+            <SummaryItem label="Tiền điện" value={electricityAmount} />
+            <SummaryItem label="Tiền nước" value={waterAmount} />
+            <SummaryItem label="Phí dịch vụ" value={watchedValues.serviceAmount} />
+            <SummaryItem label="Chi phí khác" value={watchedValues.otherAmount} />
+            <SummaryItem label="Giảm trừ" value={watchedValues.discountAmount} />
+            <SummaryItem label="Tổng tiền" value={totalAmount} strong />
+            <SummaryItem label="Đã thanh toán" value={effectivePaidAmount} />
+            <SummaryItem label="Còn lại" value={remainingAmount} strong danger={remainingAmount > 0} />
           </Descriptions>
         </Form>
       </Modal>
 
       <Modal
-        title="Chi tiet hoa don"
+        title="Chi tiết hóa đơn"
         open={detailOpen}
         onCancel={() => setDetailOpen(false)}
         footer={[
           <Button key="close" onClick={() => setDetailOpen(false)}>
-            Dong
+            Đóng
           </Button>,
         ]}
         width={860}
@@ -874,8 +874,8 @@ const InvoiceManagementPage = () => {
         {detailInvoice && (
           <Space direction="vertical" size={16} className="page-stack">
             <Descriptions bordered size="small" column={2}>
-              <Descriptions.Item label="Ma hoa don">{detailInvoice.invoiceCode}</Descriptions.Item>
-              <Descriptions.Item label="Trang thai">
+              <Descriptions.Item label="Mã hóa đơn">{detailInvoice.invoiceCode}</Descriptions.Item>
+              <Descriptions.Item label="Trạng thái">
                 <Tag
                   bordered={false}
                   style={{
@@ -889,43 +889,43 @@ const InvoiceManagementPage = () => {
                   {statusMeta[detailInvoice.status]?.label}
                 </Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="Nguoi dai dien">{detailInvoice.tenantName}</Descriptions.Item>
-              <Descriptions.Item label="Lien he">
+              <Descriptions.Item label="Người đại diện">{detailInvoice.tenantName}</Descriptions.Item>
+              <Descriptions.Item label="Liên hệ">
                 {detailInvoice.tenantPhone || detailInvoice.tenantEmail || "-"}
               </Descriptions.Item>
-              <Descriptions.Item label="Phong">
+              <Descriptions.Item label="Phòng">
                 {detailInvoice.roomNumber} - {detailInvoice.roomName}
               </Descriptions.Item>
-              <Descriptions.Item label="Ky hoa don">
+              <Descriptions.Item label="Kỳ hóa đơn">
                 {detailInvoice.month}/{detailInvoice.year}
               </Descriptions.Item>
-              <Descriptions.Item label="Han thanh toan">{formatDate(detailInvoice.dueDate)}</Descriptions.Item>
-              <Descriptions.Item label="Ngay tao">{formatDate(detailInvoice.createdAt)}</Descriptions.Item>
+              <Descriptions.Item label="Hạn thanh toán">{formatDate(detailInvoice.dueDate)}</Descriptions.Item>
+              <Descriptions.Item label="Ngày tạo">{formatDate(detailInvoice.createdAt)}</Descriptions.Item>
             </Descriptions>
 
-            <Divider orientation="left">Chi so dien nuoc</Divider>
+            <Divider orientation="left">Chỉ số điện nước</Divider>
             <Descriptions bordered size="small" column={2}>
-              <Descriptions.Item label="Dien cu">{detailInvoice.electricityOld ?? "-"}</Descriptions.Item>
-              <Descriptions.Item label="Dien moi">{detailInvoice.electricityNew ?? "-"}</Descriptions.Item>
-              <Descriptions.Item label="Dien tieu thu">{detailInvoice.electricityUsage ?? 0} so</Descriptions.Item>
-              <Descriptions.Item label="Tien dien">{currencyFormatter(detailInvoice.electricityAmount)}</Descriptions.Item>
-              <Descriptions.Item label="Nuoc cu">{detailInvoice.waterOld ?? "-"}</Descriptions.Item>
-              <Descriptions.Item label="Nuoc moi">{detailInvoice.waterNew ?? "-"}</Descriptions.Item>
-              <Descriptions.Item label="Nuoc tieu thu">{detailInvoice.waterUsage ?? 0} khoi</Descriptions.Item>
-              <Descriptions.Item label="Tien nuoc">{currencyFormatter(detailInvoice.waterAmount)}</Descriptions.Item>
+              <Descriptions.Item label="Điện cũ">{detailInvoice.electricityOld ?? "-"}</Descriptions.Item>
+              <Descriptions.Item label="Điện mới">{detailInvoice.electricityNew ?? "-"}</Descriptions.Item>
+              <Descriptions.Item label="Điện tiêu thụ">{detailInvoice.electricityUsage ?? 0} số</Descriptions.Item>
+              <Descriptions.Item label="Tiền điện">{currencyFormatter(detailInvoice.electricityAmount)}</Descriptions.Item>
+              <Descriptions.Item label="Nước cũ">{detailInvoice.waterOld ?? "-"}</Descriptions.Item>
+              <Descriptions.Item label="Nước mới">{detailInvoice.waterNew ?? "-"}</Descriptions.Item>
+              <Descriptions.Item label="Nước tiêu thụ">{detailInvoice.waterUsage ?? 0} khối</Descriptions.Item>
+              <Descriptions.Item label="Tiền nước">{currencyFormatter(detailInvoice.waterAmount)}</Descriptions.Item>
             </Descriptions>
 
-            <Divider orientation="left">Tong ket chi phi</Divider>
+            <Divider orientation="left">Tổng kết chi phí</Divider>
             <Descriptions bordered size="small" column={2}>
-              <Descriptions.Item label="Tien phong">{currencyFormatter(detailInvoice.rentAmount)}</Descriptions.Item>
-              <Descriptions.Item label="Phi dich vu">{currencyFormatter(detailInvoice.serviceAmount)}</Descriptions.Item>
-              <Descriptions.Item label="Chi phi khac">{currencyFormatter(detailInvoice.otherAmount)}</Descriptions.Item>
-              <Descriptions.Item label="Giam tru">{currencyFormatter(detailInvoice.discountAmount)}</Descriptions.Item>
-              <Descriptions.Item label="Tong tien">
+              <Descriptions.Item label="Tiền phòng">{currencyFormatter(detailInvoice.rentAmount)}</Descriptions.Item>
+              <Descriptions.Item label="Phí dịch vụ">{currencyFormatter(detailInvoice.serviceAmount)}</Descriptions.Item>
+              <Descriptions.Item label="Chi phí khác">{currencyFormatter(detailInvoice.otherAmount)}</Descriptions.Item>
+              <Descriptions.Item label="Giảm trừ">{currencyFormatter(detailInvoice.discountAmount)}</Descriptions.Item>
+              <Descriptions.Item label="Tổng tiền">
                 <Typography.Text strong>{currencyFormatter(detailInvoice.totalAmount)}</Typography.Text>
               </Descriptions.Item>
-              <Descriptions.Item label="Da thanh toan">{currencyFormatter(detailInvoice.paidAmount)}</Descriptions.Item>
-              <Descriptions.Item label="Con lai">
+              <Descriptions.Item label="Đã thanh toán">{currencyFormatter(detailInvoice.paidAmount)}</Descriptions.Item>
+              <Descriptions.Item label="Còn lại">
                 <Typography.Text type={detailInvoice.remainingAmount > 0 ? "danger" : "success"} strong>
                   {currencyFormatter(detailInvoice.remainingAmount)}
                 </Typography.Text>
@@ -933,7 +933,7 @@ const InvoiceManagementPage = () => {
             </Descriptions>
 
             <Descriptions bordered size="small" column={1}>
-              <Descriptions.Item label="Ghi chu">{detailInvoice.note || "-"}</Descriptions.Item>
+              <Descriptions.Item label="Ghi chú">{detailInvoice.note || "-"}</Descriptions.Item>
             </Descriptions>
           </Space>
         )}
