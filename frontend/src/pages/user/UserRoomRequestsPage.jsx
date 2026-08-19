@@ -1,16 +1,39 @@
-import { CreditCardOutlined, UploadOutlined } from "@ant-design/icons";
 import {
+  AppstoreOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  CopyOutlined,
+  CreditCardOutlined,
+  DollarOutlined,
+  ExclamationCircleOutlined,
+  EyeOutlined,
+  HomeOutlined,
+  KeyOutlined,
+  PlusOutlined,
+  QrcodeOutlined,
+  SafetyCertificateOutlined,
+  SearchOutlined,
+  ThunderboltOutlined,
+  UnorderedListOutlined,
+  UploadOutlined,
+} from "@ant-design/icons";
+import {
+  Badge,
   Button,
   Card,
   Descriptions,
+  Empty,
   Form,
   Image,
   Input,
   InputNumber,
   Modal,
+  Segmented,
   Space,
+  Spin,
   Table,
   Tag,
+  Tooltip,
   Typography,
   Upload,
   message,
@@ -20,7 +43,7 @@ import { useNavigate } from "react-router-dom";
 import http from "../../api/http";
 import { useAuth } from "../../context/AuthContext";
 
-const { Paragraph, Text } = Typography;
+const { Title, Text, Paragraph } = Typography;
 
 const apiOrigin = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/api\/?$/, "");
 
@@ -38,17 +61,17 @@ const getPaymentProviderMeta = (provider) =>
 
 const getPaymentStatusMeta = (record) => {
   if (record.paymentStatus === "paid") {
-    return { color: "success", label: "Thanh toán thành công" };
+    return { color: "success", label: "Đã cọc thành công", badgeBg: "#f0fdf4", text: "#15803d", border: "#bbf7d0" };
   }
 
   if (
     ["failed", "cancelled"].includes(record.paymentStatus) ||
     ["rejected", "cancelled", "expired"].includes(record.status)
   ) {
-    return { color: "error", label: "Thanh toán thất bại" };
+    return { color: "error", label: "Thanh toán thất bại", badgeBg: "#fef2f2", text: "#dc2626", border: "#fecaca" };
   }
 
-  return { color: "processing", label: "Đang chờ thanh toán" };
+  return { color: "processing", label: "Chờ xác nhận cọc", badgeBg: "#fffbeb", text: "#b45309", border: "#fde68a" };
 };
 
 const getHoldTimeMeta = (record) => {
@@ -58,16 +81,16 @@ const getHoldTimeMeta = (record) => {
     record.status === "pending";
 
   if (!hasEffectiveHold) {
-    return { expired: true, label: "Khong con hieu luc" };
+    return { expired: true, label: "Hết hiệu lực giữ chỗ" };
   }
   if (!record.holdExpiresAt) {
-    return { expired: true, label: "Quá hạn" };
+    return { expired: true, label: "Hết hạn" };
   }
 
   const diffMs = new Date(record.holdExpiresAt).getTime() - Date.now();
 
   if (diffMs <= 0) {
-    return { expired: true, label: "Quá hạn" };
+    return { expired: true, label: "Quá hạn giữ chỗ" };
   }
 
   const totalMinutes = Math.floor(diffMs / 60000);
@@ -80,7 +103,7 @@ const getHoldTimeMeta = (record) => {
   if (hours) parts.push(`${hours} giờ`);
   if (!days && minutes) parts.push(`${minutes} phút`);
 
-  return { expired: false, label: parts.join(" ") || "Dưới 1 phút" };
+  return { expired: false, label: `Còn lại ${parts.join(" ") || "Dưới 1 phút"}` };
 };
 
 const canRentFromHold = (record) => {
@@ -98,13 +121,18 @@ const UserRoomRequestsPage = () => {
   const [rentForm] = Form.useForm();
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  const [roomRequests, setRoomRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [viewMode, setViewMode] = useState("grid");
+
   const [detailRequest, setDetailRequest] = useState(null);
-  const [loading, setLoading] = useState(false);
   const [paymentProvider, setPaymentProvider] = useState("manual_qr");
   const [paymentRequest, setPaymentRequest] = useState(null);
   const [rentHoldRequest, setRentHoldRequest] = useState(null);
   const [rentSubmitting, setRentSubmitting] = useState(false);
-  const [roomRequests, setRoomRequests] = useState([]);
   const [vnpaySubmitting, setVnpaySubmitting] = useState(false);
 
   const depositedRooms = useMemo(
@@ -149,7 +177,7 @@ const UserRoomRequestsPage = () => {
 
       rentForm.setFieldValue(fieldPath, uploadedUrl);
       onSuccess?.(data);
-      message.success("Đã tải ảnh CCCD");
+      message.success("Đã tải ảnh CCCD thành công!");
     } catch (error) {
       onError?.(error);
       message.error(error.response?.data?.message || "Tải ảnh CCCD thất bại");
@@ -177,7 +205,7 @@ const UserRoomRequestsPage = () => {
       }
 
       onSuccess?.(data);
-      message.success("Đã tải ảnh biên lai");
+      message.success("Đã tải ảnh biên lai thành công!");
     } catch (error) {
       onError?.(error);
       message.error(error.response?.data?.message || "Tải ảnh biên lai thất bại");
@@ -210,9 +238,7 @@ const UserRoomRequestsPage = () => {
   };
 
   const handleCreateVnpayPayment = async (request = paymentRequest) => {
-    if (!request?.id) {
-      return;
-    }
+    if (!request?.id) return;
 
     setVnpaySubmitting(true);
     try {
@@ -239,14 +265,12 @@ const UserRoomRequestsPage = () => {
       await rentForm.validateFields();
       rentForm.submit();
     } catch (error) {
-      // Ant Design displays field validation messages.
+      // Ant Design validation handled
     }
   };
 
   const handleRentSubmit = async (values) => {
-    if (!rentHoldRequest) {
-      return;
-    }
+    if (!rentHoldRequest) return;
 
     setRentSubmitting(true);
     try {
@@ -258,7 +282,7 @@ const UserRoomRequestsPage = () => {
         paymentProvider: values.paymentProvider || paymentProvider,
       });
 
-      message.success("Đã tạo yêu cầu thuê phòng từ phòng đã cọc");
+      message.success("Đã tạo yêu cầu thuê phòng từ khoản tiền cọc thành công!");
       closeRentModal();
       setPaymentRequest(data);
       fetchRoomRequests();
@@ -273,35 +297,121 @@ const UserRoomRequestsPage = () => {
     }
   };
 
+  // Filtered Deposited Rooms
+  const filteredDeposits = useMemo(() => {
+    return depositedRooms.filter((item) => {
+      const holdMeta = getHoldTimeMeta(item);
+      const matchesStatus =
+        statusFilter === "all"
+          ? true
+          : statusFilter === "active"
+          ? !holdMeta.expired && item.paymentStatus === "paid"
+          : holdMeta.expired || item.paymentStatus !== "paid";
+
+      const q = searchQuery.toLowerCase().trim();
+      const matchesSearch =
+        !q ||
+        (item.roomNumber && String(item.roomNumber).toLowerCase().includes(q)) ||
+        (item.roomName && item.roomName.toLowerCase().includes(q)) ||
+        (item.requestCode && item.requestCode.toLowerCase().includes(q));
+
+      return matchesStatus && matchesSearch;
+    });
+  }, [depositedRooms, statusFilter, searchQuery]);
+
+  // Stats Summary
+  const stats = useMemo(() => {
+    const activeHold = depositedRooms.filter(
+      (r) => !getHoldTimeMeta(r).expired && r.paymentStatus === "paid"
+    );
+    const totalDepositAmount = depositedRooms.reduce((acc, r) => acc + Number(r.amount || 0), 0);
+    const readyToRentCount = depositedRooms.filter((r) => canRentFromHold(r)).length;
+    const total = depositedRooms.length;
+    return { activeHoldCount: activeHold.length, totalDepositAmount, readyToRentCount, total };
+  }, [depositedRooms]);
+
+  // Table Columns
   const columns = [
     {
-      title: "Phòng",
+      title: "Phòng Trọ Đã Cọc",
       key: "room",
-      render: (_, record) => (
-        <Space direction="vertical" size={0}>
-          <Text strong>Phòng {record.roomNumber || "-"}</Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {record.roomName || "-"}
-          </Text>
-        </Space>
-      ),
-    },
-    {
-      title: "Số tiền đã cọc",
-      dataIndex: "amount",
-      key: "amount",
-      render: (value) => <Text strong>{formatCurrency(value)}</Text>,
-    },
-    {
-      title: "Trạng thái",
-      key: "paymentStatus",
       render: (_, record) => {
-        const meta = getPaymentStatusMeta(record);
-        return <Tag color={meta.color}>{meta.label}</Tag>;
+        const coverImg = record.roomImages?.[0] ? toImageUrl(record.roomImages[0]) : null;
+        return (
+          <Space size={12}>
+            {coverImg ? (
+              <img
+                src={coverImg}
+                alt={`Phòng ${record.roomNumber}`}
+                style={{
+                  width: 50,
+                  height: 50,
+                  borderRadius: 10,
+                  objectFit: "cover",
+                  border: "1px solid #e2e8f0",
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: 50,
+                  height: 50,
+                  borderRadius: 10,
+                  background: "#f0f9ff",
+                  color: "#0284c7",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 22,
+                }}
+              >
+                <CreditCardOutlined />
+              </div>
+            )}
+            <div>
+              <Text strong style={{ fontSize: 15, color: "#0f172a" }}>
+                Phòng {record.roomNumber || "-"}
+              </Text>
+              <div style={{ fontSize: 12, color: "#64748b" }}>
+                {record.roomName || "Phòng trọ cao cấp"}
+              </div>
+            </div>
+          </Space>
+        );
       },
     },
     {
-      title: "Thanh toán",
+      title: "Số tiền giữ cọc",
+      dataIndex: "amount",
+      key: "amount",
+      render: (value) => (
+        <Text strong style={{ color: "#0284c7", fontSize: 15 }}>
+          {formatCurrency(value)}
+        </Text>
+      ),
+    },
+    {
+      title: "Trạng thái cọc",
+      key: "paymentStatus",
+      render: (_, record) => {
+        const meta = getPaymentStatusMeta(record);
+        return (
+          <Tag
+            style={{
+              background: meta.badgeBg,
+              color: meta.text,
+              borderColor: meta.border,
+              borderRadius: 6,
+              fontWeight: 700,
+            }}
+          >
+            {meta.label}
+          </Tag>
+        );
+      },
+    },
+    {
+      title: "Cổng thanh toán",
       dataIndex: "paymentProvider",
       key: "paymentProvider",
       render: (provider) => {
@@ -310,15 +420,19 @@ const UserRoomRequestsPage = () => {
       },
     },
     {
-      title: "Thời gian hiệu lực còn lại",
+      title: "Hiệu lực giữ chỗ",
       key: "remainingHoldTime",
       render: (_, record) => {
         const meta = getHoldTimeMeta(record);
-        return <Tag color={meta.expired ? "error" : "success"}>{meta.label}</Tag>;
+        return (
+          <Tag color={meta.expired ? "error" : "success"} style={{ borderRadius: 6, fontWeight: 700 }}>
+            {meta.label}
+          </Tag>
+        );
       },
     },
     {
-      title: "Ngày thanh toán",
+      title: "Ngày cọc",
       dataIndex: "paidAt",
       key: "paidAt",
       render: formatDate,
@@ -326,22 +440,35 @@ const UserRoomRequestsPage = () => {
     {
       title: "Thao tác",
       key: "actions",
-      render: (_, record) => (
-        <Space wrap>
-          <Button size="small" onClick={() => handleOpenDetail(record)} style={{ borderRadius: 6 }}>
-            Xem chi tiết
-          </Button>
-          <Button
-            size="small"
-            type="primary"
-            disabled={!canRentFromHold(record)}
-            onClick={() => openRentModal(record)}
-            style={{ background: "#0f766e", borderRadius: 6 }}
-          >
-            Thuê phòng
-          </Button>
-        </Space>
-      ),
+      render: (_, record) => {
+        const canRent = canRentFromHold(record);
+        return (
+          <Space size={8} wrap>
+            <Button
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => handleOpenDetail(record)}
+              style={{ borderRadius: 6, fontWeight: 600 }}
+            >
+              Chi tiết
+            </Button>
+            <Button
+              size="small"
+              type="primary"
+              disabled={!canRent}
+              icon={<KeyOutlined />}
+              onClick={() => openRentModal(record)}
+              style={{
+                background: canRent ? "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)" : undefined,
+                borderRadius: 6,
+                fontWeight: 700,
+              }}
+            >
+              Thuê ngay
+            </Button>
+          </Space>
+        );
+      },
     },
   ];
 
@@ -350,106 +477,406 @@ const UserRoomRequestsPage = () => {
     : 0;
 
   return (
-    <div className="user-portal-container" style={{ paddingTop: 24, paddingBottom: 40 }}>
-      <div className="portal-section-card">
-        <div className="portal-section-header">
-          <div className="portal-section-title">
-            <div className="portal-section-icon">
+    <div className="my-room-requests-container">
+      {/* Hero Header Section */}
+      <div className="my-room-requests-hero">
+        <div className="my-room-requests-hero-badge">
+          <CreditCardOutlined />
+          <span>QUẢN LÝ GIỮ PHÒNG & ĐẶT CỌC CHÍNH THỨC • TRO PLUS</span>
+        </div>
+        <Title level={2} className="my-room-requests-hero-title">
+          Phòng Đã Đặt Cọc & Giữ Chỗ
+        </Title>
+        <p className="my-room-requests-hero-desc">
+          Theo dõi danh sách phòng trọ bạn đã cọc giữ chỗ thành công, kiểm tra thời gian hiệu lực ưu tiên & ký hợp đồng thuê chính thức để dọn vào ở ngay.
+        </p>
+
+        {/* Quick Stats Grid */}
+        <div className="my-room-requests-stats-grid">
+          <div className="my-room-requests-stat-card">
+            <div className="my-room-requests-stat-icon sky">
               <CreditCardOutlined />
             </div>
-            <span>Phòng đã cọc</span>
+            <div>
+              <div className="my-room-requests-stat-val">{stats.total}</div>
+              <div className="my-room-requests-stat-lbl">Tổng số phòng đã cọc</div>
+            </div>
           </div>
-          <Button onClick={() => navigate("/user")} style={{ borderRadius: 6 }}>
-            Về trang chủ
-          </Button>
-        </div>
 
-        <Table
-          rowKey="id"
-          columns={columns}
-          dataSource={depositedRooms}
-          loading={loading}
-          pagination={{ pageSize: 8 }}
-          scroll={{ x: 1100 }}
-          locale={{ emptyText: "Chưa có phòng đã cọc" }}
-        />
+          <div className="my-room-requests-stat-card emerald">
+            <div className="my-room-requests-stat-icon emerald">
+              <ClockCircleOutlined />
+            </div>
+            <div>
+              <div className="my-room-requests-stat-val">{stats.activeHoldCount}</div>
+              <div className="my-room-requests-stat-lbl">Đang có hiệu lực giữ chỗ</div>
+            </div>
+          </div>
+
+          <div className="my-room-requests-stat-card amber">
+            <div className="my-room-requests-stat-icon amber">
+              <DollarOutlined />
+            </div>
+            <div>
+              <div className="my-room-requests-stat-val">
+                {stats.totalDepositAmount > 0
+                  ? `${(stats.totalDepositAmount / 1000000).toFixed(1)} tr`
+                  : "0 đ"}
+              </div>
+              <div className="my-room-requests-stat-lbl">Tổng tiền cọc đã trả</div>
+            </div>
+          </div>
+
+          <div className="my-room-requests-stat-card indigo">
+            <div className="my-room-requests-stat-icon indigo">
+              <KeyOutlined />
+            </div>
+            <div>
+              <div className="my-room-requests-stat-val">{stats.readyToRentCount}</div>
+              <div className="my-room-requests-stat-lbl">Sẵn sàng ký hợp đồng</div>
+            </div>
+          </div>
+        </div>
       </div>
 
+      {/* Control Toolbar */}
+      <div className="my-room-requests-control-bar">
+        <Space wrap size={12}>
+          <Input
+            placeholder="Tìm theo số phòng, tên phòng..."
+            prefix={<SearchOutlined style={{ color: "#94a3b8" }} />}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            allowClear
+            style={{ maxWidth: 300, width: "100%", borderRadius: 10 }}
+          />
+
+          <Segmented
+            options={[
+              { label: `Tất cả (${depositedRooms.length})`, value: "all" },
+              {
+                label: `Còn giữ chỗ (${stats.activeHoldCount})`,
+                value: "active",
+              },
+              {
+                label: `Khác (${depositedRooms.length - stats.activeHoldCount})`,
+                value: "other",
+              },
+            ]}
+            value={statusFilter}
+            onChange={setStatusFilter}
+            style={{ borderRadius: 10, background: "#f1f5f9" }}
+          />
+        </Space>
+
+        <Space size={12}>
+          <Button
+            type="primary"
+            icon={<SearchOutlined />}
+            onClick={() => navigate("/")}
+            style={{
+              background: "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
+              borderRadius: 10,
+              fontWeight: 700,
+            }}
+          >
+            Tìm thêm phòng mới
+          </Button>
+
+          <Segmented
+            options={[
+              { value: "grid", icon: <AppstoreOutlined /> },
+              { value: "table", icon: <UnorderedListOutlined /> },
+            ]}
+            value={viewMode}
+            onChange={setViewMode}
+            style={{ borderRadius: 10, background: "#f1f5f9" }}
+          />
+        </Space>
+      </div>
+
+      {/* Content Area */}
+      {loading ? (
+        <div style={{ textAlign: "center", padding: "80px 0" }}>
+          <Spin size="large" />
+          <div style={{ marginTop: 16, color: "#64748b", fontWeight: 500 }}>
+            Đang tải dữ liệu danh sách phòng đã cọc...
+          </div>
+        </div>
+      ) : filteredDeposits.length === 0 ? (
+        /* Empty Sales State */
+        <div className="my-rooms-empty-sales-card">
+          <div
+            className="my-rooms-empty-icon-wrapper"
+            style={{ background: "linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)", color: "#0284c7" }}
+          >
+            <CreditCardOutlined />
+          </div>
+          <Title level={3} style={{ margin: "0 0 8px 0", color: "#0f172a" }}>
+            {searchQuery || statusFilter !== "all"
+              ? "Không tìm thấy phòng đã cọc phù hợp"
+              : "Bạn chưa có khoản cọc giữ phòng nào"}
+          </Title>
+          <Paragraph type="secondary" style={{ maxWidth: 540, margin: "0 auto 24px auto", fontSize: 15 }}>
+            {searchQuery || statusFilter !== "all"
+              ? "Vui lòng điều chỉnh lại từ khóa hoặc bộ lọc tìm kiếm."
+              : "Đặt cọc giữ phòng online giúp bạn giữ quyền ưu tiên thuê trước các khách hàng khác. Khám phá ngay các phòng trọ đẹp đang trống tại TRO PLUS!"}
+          </Paragraph>
+
+          <Space size={14} wrap style={{ justifyContent: "center" }}>
+            <Button
+              type="primary"
+              size="large"
+              icon={<SearchOutlined />}
+              onClick={() => navigate("/")}
+              style={{
+                background: "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
+                borderRadius: 12,
+                height: 48,
+                padding: "0 28px",
+                fontWeight: 700,
+              }}
+            >
+              Khám phá phòng trọ ngay
+            </Button>
+            <Button
+              size="large"
+              icon={<HomeOutlined />}
+              onClick={() => navigate("/user/my-rooms")}
+              style={{ borderRadius: 12, height: 48, padding: "0 24px", fontWeight: 600 }}
+            >
+              Phòng của tôi
+            </Button>
+          </Space>
+        </div>
+      ) : viewMode === "grid" ? (
+        /* Card Grid View */
+        <div className="my-room-requests-grid">
+          {filteredDeposits.map((request) => {
+            const holdMeta = getHoldTimeMeta(request);
+            const statusMeta = getPaymentStatusMeta(request);
+            const canRent = canRentFromHold(request);
+            const coverImage = request.roomImages?.[0]
+              ? toImageUrl(request.roomImages[0])
+              : "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=600&q=80";
+
+            return (
+              <div
+                key={request.id}
+                className={`my-room-request-card ${canRent ? "ready" : ""}`}
+              >
+                {/* Cover Image */}
+                <div className="my-room-request-card-cover">
+                  <img src={coverImage} alt={`Phòng ${request.roomNumber}`} className="my-room-request-card-img" />
+
+                  {/* Hold Status Badge */}
+                  <div
+                    className="my-room-request-hold-badge"
+                    style={{
+                      background: holdMeta.expired ? "#fef2f2" : "#f0fdf4",
+                      color: holdMeta.expired ? "#dc2626" : "#15803d",
+                      border: `1px solid ${holdMeta.expired ? "#fecaca" : "#bbf7d0"}`,
+                    }}
+                  >
+                    {!holdMeta.expired && <span className="pulse-dot" />}
+                    <span>{holdMeta.label}</span>
+                  </div>
+
+                  {/* Deposit Amount Overlay */}
+                  <div className="my-room-request-deposit-overlay">
+                    {formatCurrency(request.amount)} <span style={{ fontSize: 12, fontWeight: 500, color: "#cbd5e1" }}>(Tiền cọc)</span>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="my-room-request-card-body">
+                  <div>
+                    <h3 className="my-rooms-room-name">
+                      Phòng {request.roomNumber || "-"}
+                    </h3>
+                    <div className="my-rooms-sub-title">
+                      {request.roomName || "Phòng trọ tiện nghi"} • Giá thuê: {formatCurrency(request.roomPrice)}/tháng
+                    </div>
+                  </div>
+
+                  <div className="my-room-request-info-box">
+                    <div className="my-room-request-info-row">
+                      <span style={{ color: "#64748b" }}>Trạng thái thanh toán cọc:</span>
+                      <Tag
+                        style={{
+                          background: statusMeta.badgeBg,
+                          color: statusMeta.text,
+                          borderColor: statusMeta.border,
+                          borderRadius: 6,
+                          fontWeight: 700,
+                        }}
+                      >
+                        {statusMeta.label}
+                      </Tag>
+                    </div>
+
+                    <div className="my-room-request-info-row">
+                      <span style={{ color: "#64748b" }}>Cần thanh toán thêm khi thuê:</span>
+                      <strong style={{ color: "#0284c7", fontSize: 15 }}>
+                        {formatCurrency(Math.max(Number(request.roomPrice || 0) - Number(request.amount || 0), 0))}
+                      </strong>
+                    </div>
+
+                    <div className="my-room-request-info-row">
+                      <span style={{ color: "#64748b" }}>Cổng thanh toán cọc:</span>
+                      <Tag color={getPaymentProviderMeta(request.paymentProvider).color}>
+                        {getPaymentProviderMeta(request.paymentProvider).label}
+                      </Tag>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="my-room-request-card-actions">
+                    <Button
+                      icon={<EyeOutlined />}
+                      onClick={() => handleOpenDetail(request)}
+                      style={{ borderRadius: 10, fontWeight: 600, borderColor: "#cbd5e1" }}
+                    >
+                      Biên lai cọc
+                    </Button>
+
+                    <Button
+                      type={canRent ? "primary" : "default"}
+                      disabled={!canRent}
+                      icon={<KeyOutlined />}
+                      onClick={() => openRentModal(request)}
+                      style={{
+                        borderRadius: 10,
+                        fontWeight: 700,
+                        background: canRent ? "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)" : undefined,
+                      }}
+                    >
+                      Thuê ngay
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* Table View */
+        <Card
+          style={{
+            borderRadius: 16,
+            boxShadow: "0 4px 16px rgba(15,23,42,0.04)",
+            border: "1px solid #e2e8f0",
+            overflow: "hidden",
+          }}
+          bodyStyle={{ padding: 0 }}
+        >
+          <Table
+            rowKey="id"
+            columns={columns}
+            dataSource={filteredDeposits}
+            pagination={{ pageSize: 10, showSizeChanger: false }}
+            scroll={{ x: 1000 }}
+          />
+        </Card>
+      )}
+
+      {/* Deposit Detail Modal */}
       <Modal
-        title="Chi tiết phòng đã cọc"
+        title={
+          <Space size={10}>
+            <CreditCardOutlined style={{ color: "#0284c7", fontSize: 22 }} />
+            <span style={{ fontSize: 18, fontWeight: 800 }}>
+              Chi Tiết Khoản Cọc Phòng #{detailRequest?.roomNumber}
+            </span>
+          </Space>
+        }
         open={Boolean(detailRequest)}
         onCancel={() => setDetailRequest(null)}
         footer={[
-          <Button key="close" onClick={() => setDetailRequest(null)} style={{ borderRadius: 6 }}>
+          <Button key="close" onClick={() => setDetailRequest(null)} style={{ borderRadius: 8 }}>
             Đóng
           </Button>,
         ]}
         width={760}
+        centered
       >
-        {detailRequest ? (
-          <Space direction="vertical" size={16} style={{ width: "100%" }}>
-            <Descriptions bordered size="small" column={2} style={{ background: "#f8fafc" }}>
-              <Descriptions.Item label="Phòng">
+        {detailRequest && (
+          <Space direction="vertical" size={16} style={{ width: "100%", marginTop: 12 }}>
+            <Descriptions bordered size="small" column={2} style={{ borderRadius: 12, overflow: "hidden", background: "#f8fafc" }}>
+              <Descriptions.Item label="Phòng trọ">
                 Phòng {detailRequest.roomNumber || "-"} - {detailRequest.roomName || "-"}
               </Descriptions.Item>
-              <Descriptions.Item label="Giá phòng">{formatCurrency(detailRequest.roomPrice)}</Descriptions.Item>
-              <Descriptions.Item label="Số tiền đã cọc">{formatCurrency(detailRequest.amount)}</Descriptions.Item>
-              <Descriptions.Item label="Còn phải thanh toán khi thuê">
+              <Descriptions.Item label="Giá thuê chính thức">
+                {formatCurrency(detailRequest.roomPrice)} / tháng
+              </Descriptions.Item>
+              <Descriptions.Item label="Số tiền đã cọc giữ chỗ">
+                <Text strong style={{ color: "#0284c7", fontSize: 16 }}>
+                  {formatCurrency(detailRequest.amount)}
+                </Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="Cần thanh toán thêm khi thuê">
                 {formatCurrency(Math.max(Number(detailRequest.roomPrice || 0) - Number(detailRequest.amount || 0), 0))}
               </Descriptions.Item>
-              <Descriptions.Item label="Trạng thái">
+              <Descriptions.Item label="Trạng thái cọc">
                 <Tag color={getPaymentStatusMeta(detailRequest).color}>
                   {getPaymentStatusMeta(detailRequest).label}
                 </Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="Thanh toán">
-                <Tag color={getPaymentProviderMeta(detailRequest.paymentProvider).color}>
-                  {getPaymentProviderMeta(detailRequest.paymentProvider).label}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="Hiệu lực còn lại">
+              <Descriptions.Item label="Thời hạn giữ chỗ còn lại">
                 <Tag color={getHoldTimeMeta(detailRequest).expired ? "error" : "success"}>
                   {getHoldTimeMeta(detailRequest).label}
                 </Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="Ngày thanh toán">{formatDate(detailRequest.paidAt)}</Descriptions.Item>
-              <Descriptions.Item label="Nội dung chuyển khoản" span={2}>
+              <Descriptions.Item label="Phương thức thanh toán">
+                <Tag color={getPaymentProviderMeta(detailRequest.paymentProvider).color}>
+                  {getPaymentProviderMeta(detailRequest.paymentProvider).label}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Ngày hoàn thành cọc">
+                {formatDate(detailRequest.paidAt)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Mã giao dịch / Nội dung" span={2}>
                 <Text copyable strong style={{ color: "#e11d48" }}>
                   {detailRequest.paymentContent || detailRequest.paymentOrderCode || detailRequest.requestCode}
                 </Text>
               </Descriptions.Item>
-              <Descriptions.Item label="Lời nhắn" span={2}>
-                {detailRequest.message || "-"}
-              </Descriptions.Item>
             </Descriptions>
 
-            {detailRequest.paymentProvider !== "vnpay" ? (
-              <Card size="small" title="Ảnh biên lai QR thủ công">
+            {detailRequest.paymentProvider !== "vnpay" && (
+              <Card size="small" title="🖼️ Biên Lai Chuyển Khoản Đã Đính Kèm" style={{ borderRadius: 12 }}>
                 {(detailRequest.paymentProofImages || []).length > 0 ? (
                   <Image.PreviewGroup>
                     <Space wrap>
-                      {detailRequest.paymentProofImages.map((image) => (
+                      {detailRequest.paymentProofImages.map((image, idx) => (
                         <Image
-                          key={image}
+                          key={idx}
                           src={toImageUrl(image)}
                           width={132}
                           height={92}
-                          style={{ objectFit: "cover", borderRadius: 8 }}
+                          style={{ objectFit: "cover", borderRadius: 10, border: "1px solid #e2e8f0" }}
                         />
                       ))}
                     </Space>
                   </Image.PreviewGroup>
                 ) : (
-                  <Text type="secondary">Chưa có ảnh biên lai.</Text>
+                  <Text type="secondary">Chưa đính kèm hình ảnh biên lai.</Text>
                 )}
               </Card>
-            ) : null}
+            )}
           </Space>
-        ) : null}
+        )}
       </Modal>
 
+      {/* Upgrade Hold to Official Renting Modal */}
       <Modal
-        title="Thuê phòng đã cọc"
+        title={
+          <Space size={10}>
+            <KeyOutlined style={{ color: "#0284c7", fontSize: 22 }} />
+            <span style={{ fontSize: 18, fontWeight: 800 }}>
+              Ký Thuê Phòng Đã Đặt Cọc
+            </span>
+          </Space>
+        }
         open={Boolean(rentHoldRequest)}
         onCancel={closeRentModal}
         cancelText="Hủy"
@@ -463,30 +890,39 @@ const UserRoomRequestsPage = () => {
             onClick={() => submitRentFromHold("manual_qr")}
             style={{ borderRadius: 8 }}
           >
-            Thanh toán QR thủ công
+            Thanh toán VietQR thủ công
           </Button>,
           <Button
             key="vnpay"
             type="primary"
             loading={rentSubmitting && paymentProvider === "vnpay"}
             onClick={() => submitRentFromHold("vnpay")}
-            style={{ background: "#0f766e", borderRadius: 8 }}
+            style={{
+              background: "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
+              borderRadius: 8,
+              fontWeight: 700,
+            }}
           >
-            Thanh toán VNPay
+            Thanh toán online VNPay
           </Button>,
         ]}
         width={860}
+        centered
       >
-        {rentHoldRequest ? (
-          <Space direction="vertical" size={16} style={{ width: "100%" }}>
-            <Descriptions bordered size="small" column={2} style={{ background: "#f8fafc" }}>
-              <Descriptions.Item label="Phòng">
+        {rentHoldRequest && (
+          <Space direction="vertical" size={16} style={{ width: "100%", marginTop: 12 }}>
+            <Descriptions bordered size="small" column={2} style={{ borderRadius: 12, overflow: "hidden", background: "#f8fafc" }}>
+              <Descriptions.Item label="Phòng chọn thuê">
                 Phòng {rentHoldRequest.roomNumber || "-"} - {rentHoldRequest.roomName || "-"}
               </Descriptions.Item>
-              <Descriptions.Item label="Giá phòng">{formatCurrency(rentHoldRequest.roomPrice)}</Descriptions.Item>
-              <Descriptions.Item label="Đã cọc">{formatCurrency(rentHoldRequest.amount)}</Descriptions.Item>
+              <Descriptions.Item label="Giá thuê phòng chính thức">
+                {formatCurrency(rentHoldRequest.roomPrice)} / tháng
+              </Descriptions.Item>
+              <Descriptions.Item label="Đã khấu trừ tiền cọc">
+                <Text type="success" strong>- {formatCurrency(rentHoldRequest.amount)}</Text>
+              </Descriptions.Item>
               <Descriptions.Item label="Cần thanh toán thêm">
-                <Text strong style={{ color: "#0f766e" }}>
+                <Text strong style={{ color: "#0284c7", fontSize: 16 }}>
                   {formatCurrency(remainingRentAmount)}
                 </Text>
               </Descriptions.Item>
@@ -496,22 +932,27 @@ const UserRoomRequestsPage = () => {
               <Form.Item name="paymentProvider" hidden initialValue="manual_qr">
                 <Input />
               </Form.Item>
-              <div className="form-grid">
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                 <Form.Item
                   name="durationMonths"
-                  label="Thời hạn thuê (tháng)"
+                  label="Thời hạn thuê mong muốn (tháng)"
                   rules={[{ required: true, message: "Vui lòng nhập thời hạn thuê" }]}
                 >
-                  <InputNumber className="full-width-input" min={1} style={{ borderRadius: 8 }} />
+                  <InputNumber min={1} style={{ width: "100%", borderRadius: 8 }} />
                 </Form.Item>
                 <Form.Item
                   name="occupantCount"
-                  label="Số người ở"
+                  label="Tổng số người dọn vào ở"
                   rules={[{ required: true, message: "Vui lòng nhập số người ở" }]}
                 >
-                  <InputNumber className="full-width-input" min={1} style={{ borderRadius: 8 }} />
+                  <InputNumber min={1} style={{ width: "100%", borderRadius: 8 }} />
                 </Form.Item>
               </div>
+
+              <Text strong style={{ display: "block", marginBottom: 10, color: "#334155" }}>
+                👥 Thông Tin CCCD / Căn Cước Người Ở Cùng:
+              </Text>
 
               <Form.List name="occupants">
                 {(fields, { add, remove }) => (
@@ -520,7 +961,7 @@ const UserRoomRequestsPage = () => {
                       <Card
                         key={field.key}
                         size="small"
-                        title={`Thông tin người ở ${index + 1}`}
+                        title={`Thành viên cư trú ${index + 1}`}
                         extra={
                           fields.length > 1 ? (
                             <Button type="link" danger onClick={() => remove(field.name)}>
@@ -528,9 +969,9 @@ const UserRoomRequestsPage = () => {
                             </Button>
                           ) : null
                         }
-                        style={{ borderRadius: 8 }}
+                        style={{ borderRadius: 12, border: "1px solid #e2e8f0" }}
                       >
-                        <div className="form-grid">
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                           <Form.Item
                             {...field}
                             name={[field.name, "name"]}
@@ -550,12 +991,13 @@ const UserRoomRequestsPage = () => {
                           <Form.Item
                             {...field}
                             name={[field.name, "identityNumber"]}
-                            label="Số CCCD"
+                            label="Số CCCD / CMND"
                             rules={[{ required: true, message: "Vui lòng nhập CCCD" }]}
                           >
                             <Input style={{ borderRadius: 6 }} />
                           </Form.Item>
-                          <Form.Item label="CCCD mặt trước" required>
+
+                          <Form.Item label="CCCD Mặt trước" required>
                             <Upload
                               accept="image/jpeg,image/png,image/webp"
                               customRequest={(options) =>
@@ -564,59 +1006,31 @@ const UserRoomRequestsPage = () => {
                               maxCount={1}
                             >
                               <Button icon={<UploadOutlined />} style={{ borderRadius: 6 }}>
-                                Tải ảnh mặt trước
+                                Upload mặt trước
                               </Button>
                             </Upload>
-                          </Form.Item>
-                          <Form.Item label="CCCD mặt sau" required>
-                            <Upload
-                              accept="image/jpeg,image/png,image/webp"
-                              customRequest={(options) =>
-                                handleIdentityUpload(options, ["occupants", field.name, "identityBackImage"])
-                              }
-                              maxCount={1}
-                            >
-                              <Button icon={<UploadOutlined />} style={{ borderRadius: 6 }}>
-                                Tải ảnh mặt sau
-                              </Button>
-                            </Upload>
-                          </Form.Item>
-                          <Form.Item
-                            {...field}
-                            name={[field.name, "identityFrontImage"]}
-                            hidden
-                            rules={[{ required: true, message: "Vui lòng tải ảnh CCCD mặt trước" }]}
-                          >
-                            <Input />
-                          </Form.Item>
-                          <Form.Item
-                            {...field}
-                            name={[field.name, "identityBackImage"]}
-                            hidden
-                            rules={[{ required: true, message: "Vui lòng tải ảnh CCCD mặt sau" }]}
-                          >
-                            <Input />
                           </Form.Item>
                         </div>
                       </Card>
                     ))}
-                    <Button onClick={() => add()} style={{ borderRadius: 6 }}>
+                    <Button onClick={() => add()} icon={<PlusOutlined />} style={{ borderRadius: 8 }}>
                       Thêm người ở cùng
                     </Button>
                   </Space>
                 )}
               </Form.List>
 
-              <Form.Item name="message" label="Lời nhắn cho chủ trọ">
-                <Input.TextArea rows={3} style={{ borderRadius: 8 }} />
+              <Form.Item name="message" label="Ghi chú / Lời nhắn cho chủ nhà" style={{ marginTop: 16 }}>
+                <Input.TextArea rows={3} placeholder="VD: Ngày dự kiến dọn vào, thời gian nhận chìa khóa..." style={{ borderRadius: 8 }} />
               </Form.Item>
             </Form>
           </Space>
-        ) : null}
+        )}
       </Modal>
 
+      {/* Payment Processing Result Modal */}
       <Modal
-        title="Thanh toán phần còn lại"
+        title="Thanh Toán Tiền Phòng Còn Lại"
         open={Boolean(paymentRequest)}
         onCancel={() => setPaymentRequest(null)}
         footer={[
@@ -630,27 +1044,32 @@ const UserRoomRequestsPage = () => {
               loading={vnpaySubmitting}
               disabled={paymentRequest?.paymentStatus === "paid"}
               onClick={() => handleCreateVnpayPayment()}
-              style={{ background: "#0f766e", borderRadius: 8 }}
+              style={{
+                background: "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
+                borderRadius: 8,
+                fontWeight: 700,
+              }}
             >
               Thanh toán VNPay
             </Button>
           ) : null,
         ]}
         width={720}
+        centered
       >
-        {paymentRequest ? (
-          <Space direction="vertical" size={16} style={{ width: "100%" }}>
-            <Descriptions bordered size="small" column={2} style={{ background: "#f8fafc" }}>
+        {paymentRequest && (
+          <Space direction="vertical" size={16} style={{ width: "100%", marginTop: 12 }}>
+            <Descriptions bordered size="small" column={2} style={{ borderRadius: 12, overflow: "hidden", background: "#f8fafc" }}>
               <Descriptions.Item label="Phòng">
                 Phòng {paymentRequest.roomNumber || "-"} - {paymentRequest.roomName || "-"}
               </Descriptions.Item>
               <Descriptions.Item label="Số tiền cần thanh toán">
-                <Text strong style={{ color: "#0f766e", fontSize: 16 }}>
+                <Text strong style={{ color: "#0284c7", fontSize: 16 }}>
                   {formatCurrency(paymentRequest.amount)}
                 </Text>
               </Descriptions.Item>
-              <Descriptions.Item label="Đã trừ tiền cọc">{formatCurrency(paymentRequest.depositCreditAmount)}</Descriptions.Item>
-              <Descriptions.Item label="Thanh toán">
+              <Descriptions.Item label="Đã trừ cọc">{formatCurrency(paymentRequest.depositCreditAmount)}</Descriptions.Item>
+              <Descriptions.Item label="Cổng thanh toán">
                 <Tag color={getPaymentProviderMeta(paymentRequest.paymentProvider).color}>
                   {getPaymentProviderMeta(paymentRequest.paymentProvider).label}
                 </Tag>
@@ -662,17 +1081,17 @@ const UserRoomRequestsPage = () => {
               </Descriptions.Item>
             </Descriptions>
 
-            {paymentRequest.paymentProvider !== "vnpay" ? (
+            {paymentRequest.paymentProvider !== "vnpay" && (
               <>
-                {paymentRequest.paymentQrCode ? (
+                {paymentRequest.paymentQrCode && (
                   <div style={{ textAlign: "center", padding: 16, background: "#ffffff", borderRadius: 12, border: "1px solid #e2e8f0" }}>
-                    <Image src={paymentRequest.paymentQrCode} width={260} style={{ borderRadius: 8 }} />
+                    <Image src={paymentRequest.paymentQrCode} width={240} style={{ borderRadius: 8 }} />
                     <Paragraph type="secondary" style={{ marginTop: 8, fontSize: 13 }}>
-                      Quét QR để thanh toán phần tiền phòng còn lại, sau đó tải ảnh biên lai.
+                      Quét mã QR để thanh toán khoản tiền còn lại, sau đó upload ảnh biên lai.
                     </Paragraph>
                   </div>
-                ) : null}
-                <Card size="small" title="Biên lai chuyển khoản QR thủ công" style={{ borderRadius: 12 }}>
+                )}
+                <Card size="small" title="🖼️ Biên lai chuyển khoản QR thủ công" style={{ borderRadius: 12 }}>
                   <Space direction="vertical" size={12} style={{ width: "100%" }}>
                     <Upload
                       accept="image/jpeg,image/png,image/webp"
@@ -681,15 +1100,15 @@ const UserRoomRequestsPage = () => {
                       multiple
                     >
                       <Button icon={<UploadOutlined />} style={{ borderRadius: 8 }}>
-                        Tải ảnh biên lai
+                        Tải ảnh biên lai lên
                       </Button>
                     </Upload>
                     {(paymentRequest.paymentProofImages || []).length > 0 ? (
                       <Image.PreviewGroup>
                         <Space wrap>
-                          {paymentRequest.paymentProofImages.map((image) => (
+                          {paymentRequest.paymentProofImages.map((image, idx) => (
                             <Image
-                              key={image}
+                              key={idx}
                               src={toImageUrl(image)}
                               width={112}
                               height={78}
@@ -704,9 +1123,9 @@ const UserRoomRequestsPage = () => {
                   </Space>
                 </Card>
               </>
-            ) : null}
+            )}
           </Space>
-        ) : null}
+        )}
       </Modal>
     </div>
   );
