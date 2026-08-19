@@ -1157,3 +1157,1825 @@ body {
     text-align: center;
   }
 }
+
+/* ==========================================================================
+   MY ROOMS PAGE (USER/MY-ROOMS) - MODERN & SALES READY STYLING
+   ========================================================================== */
+
+.my-rooms-container {
+  padding: 24px 20px 60px 20px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+/* Hero Section */
+.my-rooms-hero {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 40%, #0f766e 100%);
+  border-radius: 20px;
+  padding: 36px 32px;
+  color: #ffffff;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 16px 32px -10px rgba(15, 23, 42, 0.25);
+  margin-bottom: 28px;
+}
+
+.my-rooms-hero::after {
+  content: '';
+  position: absolute;
+  top: -40%;
+  right: -5%;
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(circle, rgba(20, 184, 166, 0.3) 0%, rgba(0, 0, 0, 0) 70%);
+  pointer-events: none;
+}
+
+.my-rooms-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #5eead4;
+  margin-bottom: 14px;
+}
+
+.my-rooms-hero-title {
+  font-size: 32px !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  line-height: 1.25 !important;
+  margin: 0 0 10px 0 !important;
+  letter-spacing: -0.5px !important;
+}
+
+.my-rooms-hero-desc {
+  font-size: 15px;
+  color: #94a3b8;
+  max-width: 680px;
+  margin: 0 0 24px 0;
+  line-height: 1.6;
+}
+
+/* Quick Stats Row */
+.my-rooms-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 16px;
+}
+
+.my-rooms-stat-card {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: all 0.25s ease;
+}
+
+.my-rooms-stat-card:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(94, 234, 212, 0.4);
+  transform: translateY(-2px);
+}
+
+.my-rooms-stat-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.my-rooms-stat-icon.teal {
+  background: rgba(20, 184, 166, 0.2);
+  color: #2dd4bf;
+}
+
+.my-rooms-stat-icon.amber {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+}
+
+.my-rooms-stat-icon.blue {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+}
+
+.my-rooms-stat-icon.purple {
+  background: rgba(168, 85, 247, 0.2);
+  color: #c084fc;
+}
+
+.my-rooms-stat-val {
+  font-size: 20px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.my-rooms-stat-lbl {
+  font-size: 12px;
+  color: #cbd5e1;
+  font-weight: 500;
+}
+
+/* Control Bar */
+.my-rooms-control-bar {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 16px 20px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.my-rooms-search-input {
+  max-width: 320px;
+  width: 100%;
+  border-radius: 10px;
+}
+
+/* Card Grid View */
+.my-rooms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 24px;
+}
+
+.my-rooms-card {
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.my-rooms-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 30px -10px rgba(15, 118, 110, 0.18), 0 10px 15px -5px rgba(0, 0, 0, 0.04);
+  border-color: rgba(15, 118, 110, 0.4);
+}
+
+.my-rooms-card-cover {
+  position: relative;
+  height: 210px;
+  background: #f1f5f9;
+  overflow: hidden;
+}
+
+.my-rooms-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.my-rooms-card:hover .my-rooms-card-img {
+  transform: scale(1.06);
+}
+
+.my-rooms-status-tag {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 2;
+  backdrop-filter: blur(8px);
+  border-radius: 8px;
+  font-weight: 700;
+  padding: 4px 10px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  animation: pulse-animation 1.8s infinite;
+}
+
+@keyframes pulse-animation {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+.my-rooms-role-tag {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  border-radius: 8px;
+  font-weight: 700;
+  padding: 4px 10px;
+  font-size: 12px;
+  backdrop-filter: blur(8px);
+}
+
+.my-rooms-card-price-overlay {
+  position: absolute;
+  bottom: 12px;
+  left: 14px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #38bdf8;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.my-rooms-card-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+}
+
+.my-rooms-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.my-rooms-room-name {
+  font-size: 19px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.my-rooms-sub-title {
+  font-size: 13px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.my-rooms-specs-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 12px;
+  border: 1px solid #f1f5f9;
+}
+
+.my-rooms-spec-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #334155;
+  font-weight: 600;
+}
+
+.my-rooms-spec-item .anticon {
+  color: #0f766e;
+  font-size: 15px;
+}
+
+.my-rooms-card-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid #f1f5f9;
+  margin-top: auto;
+}
+
+.my-rooms-quick-links {
+  display: flex;
+  gap: 6px;
+  justify-content: space-between;
+  margin-top: 6px;
+  background: #f0fdf4;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid #bbf7d0;
+}
+
+.my-rooms-quick-link-btn {
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f766e;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.my-rooms-quick-link-btn:hover {
+  color: #047857;
+  text-decoration: underline;
+}
+
+/* Empty Sales Section */
+.my-rooms-empty-sales-card {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 48px 32px;
+  border: 1px solid #e2e8f0;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+  margin-top: 10px;
+}
+
+.my-rooms-empty-icon-wrapper {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%);
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 38px;
+  color: #0f766e;
+  margin: 0 auto 20px auto;
+  box-shadow: 0 10px 20px rgba(15, 118, 110, 0.15);
+}
+
+.my-rooms-trust-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 36px;
+  text-align: left;
+}
+
+.my-rooms-trust-item {
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.my-rooms-trust-icon {
+  font-size: 22px;
+  color: #0f766e;
+  margin-top: 2px;
+}
+
+/* Modal Styling */
+.my-rooms-detail-modal .ant-modal-content {
+  border-radius: 20px;
+  padding: 24px;
+}
+
+.my-rooms-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 20px;
+}
+
+.my-rooms-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.my-rooms-gallery-img {
+  width: 100%;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  transition: transform 0.2s;
+}
+
+.my-rooms-gallery-img:hover {
+  transform: scale(1.03);
+}
+
+.my-rooms-cost-table {
+  background: #f8fafc;
+  border-radius: 14px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+}
+
+.my-rooms-cost-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px dashed #cbd5e1;
+  font-size: 14px;
+}
+
+.my-rooms-cost-row:last-child {
+  border-bottom: none;
+}
+
+@media (max-width: 768px) {
+  .my-rooms-hero {
+    padding: 24px 20px;
+  }
+  .my-rooms-hero-title {
+    font-size: 24px !important;
+  }
+  .my-rooms-grid {
+    grid-template-columns: 1fr;
+  }
+  .my-rooms-control-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .my-rooms-search-input {
+    max-width: 100%;
+  }
+}
+
+/* ==========================================================================
+   USER CONTRACTS PAGE (USER/CONTRACTS) - MODERN & SALES READY STYLING
+   ========================================================================== */
+
+.my-contracts-container {
+  padding: 24px 20px 60px 20px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.my-contracts-hero {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 45%, #1d4ed8 100%);
+  border-radius: 20px;
+  padding: 36px 32px;
+  color: #ffffff;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 16px 32px -10px rgba(15, 23, 42, 0.25);
+  margin-bottom: 28px;
+}
+
+.my-contracts-hero::after {
+  content: '';
+  position: absolute;
+  top: -40%;
+  right: -5%;
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.3) 0%, rgba(0, 0, 0, 0) 70%);
+  pointer-events: none;
+}
+
+.my-contracts-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #93c5fd;
+  margin-bottom: 14px;
+}
+
+.my-contracts-hero-title {
+  font-size: 32px !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  line-height: 1.25 !important;
+  margin: 0 0 10px 0 !important;
+  letter-spacing: -0.5px !important;
+}
+
+.my-contracts-hero-desc {
+  font-size: 15px;
+  color: #cbd5e1;
+  max-width: 720px;
+  margin: 0 0 24px 0;
+  line-height: 1.6;
+}
+
+/* Stats Row */
+.my-contracts-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 16px;
+}
+
+.my-contracts-stat-card {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: all 0.25s ease;
+}
+
+.my-contracts-stat-card:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(147, 197, 253, 0.4);
+  transform: translateY(-2px);
+}
+
+.my-contracts-stat-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.my-contracts-stat-icon.blue {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+}
+
+.my-contracts-stat-icon.amber {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+}
+
+.my-contracts-stat-icon.emerald {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+.my-contracts-stat-icon.purple {
+  background: rgba(168, 85, 247, 0.2);
+  color: #c084fc;
+}
+
+.my-contracts-stat-val {
+  font-size: 20px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.my-contracts-stat-lbl {
+  font-size: 12px;
+  color: #cbd5e1;
+  font-weight: 500;
+}
+
+/* Control Bar */
+.my-contracts-control-bar {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 16px 20px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+/* Grid Cards */
+.my-contracts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 24px;
+}
+
+.my-contract-card {
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.my-contract-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 30px -10px rgba(37, 99, 235, 0.18), 0 10px 15px -5px rgba(0, 0, 0, 0.04);
+  border-color: rgba(37, 99, 235, 0.4);
+}
+
+.my-contract-card.urgent {
+  border: 2px solid #f59e0b;
+  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.15);
+}
+
+.my-contract-card-header {
+  padding: 20px 20px 16px 20px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.my-contract-code {
+  font-size: 18px;
+  font-weight: 800;
+  color: #1e293b;
+  margin: 0;
+  letter-spacing: -0.3px;
+}
+
+.my-contract-card-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+}
+
+.my-contract-specs-box {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 14px;
+  border: 1px solid #f1f5f9;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.my-contract-spec-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.my-contract-spec-lbl {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.my-contract-spec-val {
+  font-size: 14px;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.my-contract-card-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid #f1f5f9;
+  margin-top: auto;
+}
+
+/* Signing Box Modal Styling */
+.my-contract-signing-card {
+  border: 2px dashed #93c5fd;
+  border-radius: 16px;
+  padding: 20px;
+  background: #f0f9ff;
+  margin-top: 16px;
+}
+
+.my-contract-canvas {
+  width: 100%;
+  height: 160px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  margin-top: 10px;
+  cursor: crosshair;
+  touch-action: none;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+@media (max-width: 768px) {
+  .my-contracts-hero {
+    padding: 24px 20px;
+  }
+  .my-contracts-hero-title {
+    font-size: 24px !important;
+  }
+  .my-contracts-grid {
+    grid-template-columns: 1fr;
+  }
+  .my-contracts-control-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* ==========================================================================
+   USER INVOICES PAGE (USER/INVOICES) - MODERN & SALES READY STYLING
+   ========================================================================== */
+
+.my-invoices-container {
+  padding: 24px 20px 60px 20px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.my-invoices-hero {
+  background: linear-gradient(135deg, #0f172a 0%, #115e59 45%, #047857 100%);
+  border-radius: 20px;
+  padding: 36px 32px;
+  color: #ffffff;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 16px 32px -10px rgba(15, 23, 42, 0.25);
+  margin-bottom: 28px;
+}
+
+.my-invoices-hero::after {
+  content: '';
+  position: absolute;
+  top: -40%;
+  right: -5%;
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.3) 0%, rgba(0, 0, 0, 0) 70%);
+  pointer-events: none;
+}
+
+.my-invoices-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6ee7b7;
+  margin-bottom: 14px;
+}
+
+.my-invoices-hero-title {
+  font-size: 32px !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  line-height: 1.25 !important;
+  margin: 0 0 10px 0 !important;
+  letter-spacing: -0.5px !important;
+}
+
+.my-invoices-hero-desc {
+  font-size: 15px;
+  color: #cbd5e1;
+  max-width: 720px;
+  margin: 0 0 24px 0;
+  line-height: 1.6;
+}
+
+/* Stats Grid */
+.my-invoices-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 16px;
+}
+
+.my-invoices-stat-card {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: all 0.25s ease;
+}
+
+.my-invoices-stat-card:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(110, 231, 183, 0.4);
+  transform: translateY(-2px);
+}
+
+.my-invoices-stat-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.my-invoices-stat-icon.emerald {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+.my-invoices-stat-icon.rose {
+  background: rgba(244, 63, 94, 0.2);
+  color: #fb7185;
+}
+
+.my-invoices-stat-icon.amber {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+}
+
+.my-invoices-stat-icon.teal {
+  background: rgba(20, 184, 166, 0.2);
+  color: #2dd4bf;
+}
+
+.my-invoices-stat-val {
+  font-size: 20px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.my-invoices-stat-lbl {
+  font-size: 12px;
+  color: #cbd5e1;
+  font-weight: 500;
+}
+
+/* Control Bar */
+.my-invoices-control-bar {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 16px 20px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+/* Cards Grid */
+.my-invoices-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 24px;
+}
+
+.my-invoice-card {
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.my-invoice-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 30px -10px rgba(15, 118, 110, 0.18), 0 10px 15px -5px rgba(0, 0, 0, 0.04);
+  border-color: rgba(15, 118, 110, 0.4);
+}
+
+.my-invoice-card.unpaid {
+  border: 2px solid #ef4444;
+  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.12);
+}
+
+.my-invoice-card-header {
+  padding: 18px 20px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.my-invoice-code {
+  font-size: 17px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+}
+
+.my-invoice-card-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+}
+
+.my-invoice-breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  background: #f8fafc;
+  border-radius: 14px;
+  padding: 14px;
+  border: 1px solid #f1f5f9;
+}
+
+.my-invoice-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.my-invoice-item-lbl {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.my-invoice-item-val {
+  font-size: 14px;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.my-invoice-total-strip {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.my-invoice-card-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid #f1f5f9;
+  margin-top: auto;
+}
+
+/* VietQR Modal Box */
+.vietqr-box {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid #e2e8f0;
+  text-align: center;
+}
+
+.vietqr-img {
+  max-width: 240px;
+  border-radius: 12px;
+  border: 2px solid #cbd5e1;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+@media (max-width: 768px) {
+  .my-invoices-hero {
+    padding: 24px 20px;
+  }
+  .my-invoices-hero-title {
+    font-size: 24px !important;
+  }
+  .my-invoices-grid {
+    grid-template-columns: 1fr;
+  }
+  .my-invoices-control-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* ==========================================================================
+   USER REPAIR REQUESTS PAGE (USER/REPAIR-REQUESTS) - MODERN & SALES READY STYLING
+   ========================================================================== */
+
+.my-repairs-container {
+  padding: 24px 20px 60px 20px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.my-repairs-hero {
+  background: linear-gradient(135deg, #0f172a 0%, #4c0519 45%, #9f1239 100%);
+  border-radius: 20px;
+  padding: 36px 32px;
+  color: #ffffff;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 16px 32px -10px rgba(15, 23, 42, 0.25);
+  margin-bottom: 28px;
+}
+
+.my-repairs-hero::after {
+  content: '';
+  position: absolute;
+  top: -40%;
+  right: -5%;
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(circle, rgba(225, 29, 72, 0.3) 0%, rgba(0, 0, 0, 0) 70%);
+  pointer-events: none;
+}
+
+.my-repairs-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fecdd3;
+  margin-bottom: 14px;
+}
+
+.my-repairs-hero-title {
+  font-size: 32px !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  line-height: 1.25 !important;
+  margin: 0 0 10px 0 !important;
+  letter-spacing: -0.5px !important;
+}
+
+.my-repairs-hero-desc {
+  font-size: 15px;
+  color: #cbd5e1;
+  max-width: 720px;
+  margin: 0 0 24px 0;
+  line-height: 1.6;
+}
+
+/* Stats Grid */
+.my-repairs-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 16px;
+}
+
+.my-repairs-stat-card {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: all 0.25s ease;
+}
+
+.my-repairs-stat-card:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(254, 205, 211, 0.4);
+  transform: translateY(-2px);
+}
+
+.my-repairs-stat-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.my-repairs-stat-icon.rose {
+  background: rgba(225, 29, 72, 0.2);
+  color: #fb7185;
+}
+
+.my-repairs-stat-icon.amber {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+}
+
+.my-repairs-stat-icon.emerald {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+.my-repairs-stat-icon.blue {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+}
+
+.my-repairs-stat-val {
+  font-size: 20px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.my-repairs-stat-lbl {
+  font-size: 12px;
+  color: #cbd5e1;
+  font-weight: 500;
+}
+
+/* Control Bar */
+.my-repairs-control-bar {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 16px 20px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+/* Cards Grid */
+.my-repairs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 24px;
+}
+
+.my-repair-card {
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.my-repair-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 30px -10px rgba(225, 29, 72, 0.18), 0 10px 15px -5px rgba(0, 0, 0, 0.04);
+  border-color: rgba(225, 29, 72, 0.4);
+}
+
+.my-repair-card.urgent {
+  border: 2px solid #e11d48;
+  box-shadow: 0 8px 24px rgba(225, 29, 72, 0.15);
+}
+
+.my-repair-card-header {
+  padding: 18px 20px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.my-repair-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.my-repair-card-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+}
+
+.my-repair-info-box {
+  background: #f8fafc;
+  border-radius: 14px;
+  padding: 14px;
+  border: 1px solid #f1f5f9;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.my-repair-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.my-repair-card-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid #f1f5f9;
+  margin-top: auto;
+}
+
+@media (max-width: 768px) {
+  .my-repairs-hero {
+    padding: 24px 20px;
+  }
+  .my-repairs-hero-title {
+    font-size: 24px !important;
+  }
+  .my-repairs-grid {
+    grid-template-columns: 1fr;
+  }
+  .my-repairs-control-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* ==========================================================================
+   USER ROOM REQUESTS / DEPOSITED ROOMS PAGE (USER/ROOM-REQUESTS) - MODERN STYLING
+   ========================================================================== */
+
+.my-room-requests-container {
+  padding: 24px 20px 60px 20px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.my-room-requests-hero {
+  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 45%, #0284c7 100%);
+  border-radius: 20px;
+  padding: 36px 32px;
+  color: #ffffff;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 16px 32px -10px rgba(15, 23, 42, 0.25);
+  margin-bottom: 28px;
+}
+
+.my-room-requests-hero::after {
+  content: '';
+  position: absolute;
+  top: -40%;
+  right: -5%;
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.3) 0%, rgba(0, 0, 0, 0) 70%);
+  pointer-events: none;
+}
+
+.my-room-requests-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #7dd3fc;
+  margin-bottom: 14px;
+}
+
+.my-room-requests-hero-title {
+  font-size: 32px !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  line-height: 1.25 !important;
+  margin: 0 0 10px 0 !important;
+  letter-spacing: -0.5px !important;
+}
+
+.my-room-requests-hero-desc {
+  font-size: 15px;
+  color: #cbd5e1;
+  max-width: 720px;
+  margin: 0 0 24px 0;
+  line-height: 1.6;
+}
+
+/* Stats Grid */
+.my-room-requests-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 16px;
+}
+
+.my-room-requests-stat-card {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: all 0.25s ease;
+}
+
+.my-room-requests-stat-card:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(125, 211, 252, 0.4);
+  transform: translateY(-2px);
+}
+
+.my-room-requests-stat-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.my-room-requests-stat-icon.sky {
+  background: rgba(2, 132, 199, 0.2);
+  color: #38bdf8;
+}
+
+.my-room-requests-stat-icon.emerald {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+.my-room-requests-stat-icon.amber {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+}
+
+.my-room-requests-stat-icon.indigo {
+  background: rgba(99, 102, 241, 0.2);
+  color: #818cf8;
+}
+
+.my-room-requests-stat-val {
+  font-size: 20px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.my-room-requests-stat-lbl {
+  font-size: 12px;
+  color: #cbd5e1;
+  font-weight: 500;
+}
+
+/* Control Bar */
+.my-room-requests-control-bar {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 16px 20px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+/* Cards Grid */
+.my-room-requests-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 24px;
+}
+
+.my-room-request-card {
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.my-room-request-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 30px -10px rgba(2, 132, 199, 0.18), 0 10px 15px -5px rgba(0, 0, 0, 0.04);
+  border-color: rgba(2, 132, 199, 0.4);
+}
+
+.my-room-request-card.ready {
+  border: 2px solid #0284c7;
+  box-shadow: 0 8px 24px rgba(2, 132, 199, 0.15);
+}
+
+.my-room-request-card-cover {
+  position: relative;
+  height: 200px;
+  background: #f1f5f9;
+  overflow: hidden;
+}
+
+.my-room-request-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.my-room-request-card:hover .my-room-request-card-img {
+  transform: scale(1.06);
+}
+
+.my-room-request-hold-badge {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 2;
+  backdrop-filter: blur(8px);
+  border-radius: 8px;
+  font-weight: 700;
+  padding: 4px 10px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.my-room-request-deposit-overlay {
+  position: absolute;
+  bottom: 12px;
+  left: 14px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #38bdf8;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.my-room-request-card-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+}
+
+.my-room-request-info-box {
+  background: #f8fafc;
+  border-radius: 14px;
+  padding: 14px;
+  border: 1px solid #f1f5f9;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.my-room-request-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.my-room-request-card-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid #f1f5f9;
+  margin-top: auto;
+}
+
+@media (max-width: 768px) {
+  .my-room-requests-hero {
+    padding: 24px 20px;
+  }
+  .my-room-requests-hero-title {
+    font-size: 24px !important;
+  }
+  .my-room-requests-grid {
+    grid-template-columns: 1fr;
+  }
+  .my-room-requests-control-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* ==========================================================================
+   USER INTERESTED ROOMS PAGE (USER/INTERESTED-ROOMS) - MODERN STYLING
+   ========================================================================== */
+
+.my-favorites-container {
+  padding: 24px 20px 60px 20px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.my-favorites-hero {
+  background: linear-gradient(135deg, #0f172a 0%, #4c0519 45%, #e11d48 100%);
+  border-radius: 20px;
+  padding: 36px 32px;
+  color: #ffffff;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 16px 32px -10px rgba(15, 23, 42, 0.25);
+  margin-bottom: 28px;
+}
+
+.my-favorites-hero::after {
+  content: '';
+  position: absolute;
+  top: -40%;
+  right: -5%;
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(circle, rgba(244, 63, 94, 0.3) 0%, rgba(0, 0, 0, 0) 70%);
+  pointer-events: none;
+}
+
+.my-favorites-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fecdd3;
+  margin-bottom: 14px;
+}
+
+.my-favorites-hero-title {
+  font-size: 32px !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  line-height: 1.25 !important;
+  margin: 0 0 10px 0 !important;
+  letter-spacing: -0.5px !important;
+}
+
+.my-favorites-hero-desc {
+  font-size: 15px;
+  color: #cbd5e1;
+  max-width: 720px;
+  margin: 0 0 24px 0;
+  line-height: 1.6;
+}
+
+/* Stats Grid */
+.my-favorites-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 16px;
+}
+
+.my-favorites-stat-card {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: all 0.25s ease;
+}
+
+.my-favorites-stat-card:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(254, 205, 211, 0.4);
+  transform: translateY(-2px);
+}
+
+.my-favorites-stat-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.my-favorites-stat-icon.rose {
+  background: rgba(225, 29, 72, 0.2);
+  color: #fb7185;
+}
+
+.my-favorites-stat-icon.emerald {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+.my-favorites-stat-icon.slate {
+  background: rgba(100, 116, 139, 0.2);
+  color: #94a3b8;
+}
+
+.my-favorites-stat-icon.teal {
+  background: rgba(20, 184, 166, 0.2);
+  color: #2dd4bf;
+}
+
+.my-favorites-stat-val {
+  font-size: 20px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.my-favorites-stat-lbl {
+  font-size: 12px;
+  color: #cbd5e1;
+  font-weight: 500;
+}
+
+/* Control Bar */
+.my-favorites-control-bar {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 16px 20px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+/* Cards Grid */
+.my-favorites-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 24px;
+}
+
+.my-favorite-card {
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.my-favorite-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 30px -10px rgba(225, 29, 72, 0.18), 0 10px 15px -5px rgba(0, 0, 0, 0.04);
+  border-color: rgba(225, 29, 72, 0.4);
+}
+
+.my-favorite-card-cover {
+  position: relative;
+  height: 210px;
+  background: #f1f5f9;
+  overflow: hidden;
+}
+
+.my-favorite-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.my-favorite-card:hover .my-favorite-card-img {
+  transform: scale(1.06);
+}
+
+.my-favorite-unheart-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 3;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: #e11d48;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  transition: all 0.2s ease;
+}
+
+.my-favorite-unheart-btn:hover {
+  transform: scale(1.1);
+  background: #ffe4e6;
+  color: #be123c;
+}
+
+.my-favorite-price-overlay {
+  position: absolute;
+  bottom: 12px;
+  left: 14px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #38bdf8;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.my-favorite-card-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+}
+
+.my-favorite-card-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid #f1f5f9;
+  margin-top: auto;
+}
+
+@media (max-width: 768px) {
+  .my-favorites-hero {
+    padding: 24px 20px;
+  }
+  .my-favorites-hero-title {
+    font-size: 24px !important;
+  }
+  .my-favorites-grid {
+    grid-template-columns: 1fr;
+  }
+  .my-favorites-control-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+
+
+
+

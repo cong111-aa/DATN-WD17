@@ -7,16 +7,13 @@ const escapeHtml = (value = "") =>
     .replace(/'/g, "&#039;");
 
 const formatDate = (value) => {
-  if (!value) {
-    return "";
-  }
-
+  if (!value) return "---";
   return new Date(value).toLocaleDateString("vi-VN");
 };
 
-const formatCurrency = (value) => `${Number(value || 0).toLocaleString("vi-VN")} VND`;
+const formatCurrency = (value) => `${Number(value || 0).toLocaleString("vi-VN")} VNĐ`;
 
-const renderContractHtml = ({ contract, members = [] }) => {
+const renderContractHtml = ({ contract = {}, members = [] }) => {
   const representative = contract.tenant || {};
   const room = contract.room || {};
   const contractCreatedDate = new Date(contract.createdAt || Date.now());
@@ -24,215 +21,584 @@ const renderContractHtml = ({ contract, members = [] }) => {
   const signedAt = contract.signedAt ? new Date(contract.signedAt) : null;
   const lockedAt = contract.lockedAt ? new Date(contract.lockedAt) : null;
 
+  // Company / Party A details
+  const companyInfo = {
+    name: "CÔNG TY TNHH QUẢN LÝ VÀ PHÁT TRIỂN BẤT ĐỘNG SẢN TRO PLUS",
+    taxCode: "0109876543",
+    representative: "Ông NGUYỄN TIẾN TÚ",
+    position: "Giám Đốc Ban Quản Lý Hệ Thống",
+    identityNumber: "001098765432 (Cấp ngày: 15/03/2021 bởi Cục Cảnh sát QLHC về Trật tự Xã hội)",
+    address: "Số 123, đường 422B, xã Kim Chung, huyện Hoài Đức, Thành phố Hà Nội",
+    phone: "0985 316 789 - 0912 345 678",
+    email: "support@troplus.vn / banquanly@troplus.vn",
+    bankAccount: "MB Bank (Ngân hàng TMCP Quân Đội) - STK: 9999 8888 9999 - Chủ TK: CÔNG TY TRO PLUS",
+  };
+
+  // SVG Red Digital Seal Stamp for Party A
+  const partyAStampSvg = `
+    <div class="stamp-container">
+      <svg width="150" height="150" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="100" cy="100" r="92" stroke="#dc2626" stroke-width="4" fill="none" stroke-dasharray="8 4" />
+        <circle cx="100" cy="100" r="84" stroke="#dc2626" stroke-width="3" fill="none" />
+        <path id="circlePathTop" d="M 30,100 A 70,70 0 0,1 170,100" fill="none" />
+        <path id="circlePathBottom" d="M 170,100 A 70,70 0 0,1 30,100" fill="none" />
+        <text fill="#dc2626" font-size="11.5" font-weight="bold" font-family="Times New Roman, serif" letter-spacing="1">
+          <textPath href="#circlePathTop" startOffset="50%" text-anchor="middle">
+            CÔNG TY TNHH TRO PLUS
+          </textPath>
+        </text>
+        <text fill="#dc2626" font-size="10" font-weight="bold" font-family="Times New Roman, serif" letter-spacing="0.5">
+          <textPath href="#circlePathBottom" startOffset="50%" text-anchor="middle">
+            MST: 0109876543 ★ HÀ NỘI
+          </textPath>
+        </text>
+        <polygon points="100,68 106,82 121,83 109,93 113,108 100,99 87,108 91,93 79,83 94,82" fill="#dc2626" opacity="0.85" />
+        <text x="100" y="130" fill="#dc2626" font-size="13" font-weight="bold" font-family="Times New Roman, serif" text-anchor="middle">
+          ĐÃ KÝ ĐIỆN TỬ
+        </text>
+        <text x="100" y="145" fill="#dc2626" font-size="9" font-family="Arial, sans-serif" text-anchor="middle">
+          VERIFIED STAMP
+        </text>
+      </svg>
+    </div>
+  `;
+
   return `<!doctype html>
 <html lang="vi">
 <head>
   <meta charset="utf-8" />
-  <title>Hop dong ${escapeHtml(contract.contractCode)}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hợp Đồng Thuê Phòng Trọ ${escapeHtml(contract.contractCode)} - TRO PLUS</title>
   <style>
     * { box-sizing: border-box; }
-    body { margin: 0; background: #f1f5f9; color: #111827; font-family: "Times New Roman", serif; }
-    .toolbar { position: sticky; top: 0; display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px; background: #ffffff; border-bottom: 1px solid #e5e7eb; }
-    button { border: 0; border-radius: 6px; background: #1677ff; color: #fff; cursor: pointer; font-family: Arial, sans-serif; font-weight: 700; padding: 9px 14px; }
-    .page { width: 210mm; min-height: 297mm; margin: 18px auto; padding: 22mm; background: #ffffff; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12); }
-    .center { text-align: center; }
-    .header-line { font-weight: 700; text-transform: uppercase; }
-    h1 { font-size: 22px; margin: 24px 0 8px; text-align: center; text-transform: uppercase; }
-    h2 { font-size: 16px; margin: 18px 0 8px; text-transform: uppercase; }
-    p { font-size: 15px; line-height: 1.55; margin: 7px 0; }
-    table { border-collapse: collapse; margin: 8px 0 12px; width: 100%; }
-    th, td { border: 1px solid #111827; font-size: 14px; padding: 7px; text-align: left; vertical-align: top; }
-    th { background: #f8fafc; }
-    .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; margin-top: 42px; text-align: center; }
-    .signature-title { font-weight: 700; text-transform: uppercase; }
-    .signature-image { max-width: 220px; max-height: 90px; object-fit: contain; }
-    .legal-proof { margin-top: 28px; border: 1px solid #94a3b8; border-radius: 6px; padding: 12px 14px; background: #f8fafc; font-family: Arial, sans-serif; }
-    .legal-proof p { font-size: 12px; line-height: 1.45; margin: 5px 0; word-break: break-all; }
-    .muted { color: #4b5563; font-style: italic; }
-    @media print {
-      body { background: #fff; }
-      .toolbar { display: none; }
-      .page { box-shadow: none; margin: 0; padding: 18mm; width: auto; }
+    body {
+      margin: 0;
+      padding: 0;
+      background: #f1f5f9;
+      color: #0f172a;
+      font-family: "Times New Roman", Times, serif;
+      font-size: 15px;
+      line-height: 1.6;
     }
-      .contract-info {
-    margin: 18px 0 28px;
-    padding: 18px 22px;
-    border: 1px solid #999;
-    border-radius: 6px;
-    background: #fcfcfc;
-}
-
-.info-row {
-    display: flex;
-    align-items: flex-start;
-    margin-bottom: 12px;
-    line-height: 1.8;
-}
-
-.info-row:last-child {
-    margin-bottom: 0;
-}
-
-.label {
-    width: 220px;
-    font-weight: bold;
-    flex-shrink: 0;
-}
-
-.value {
-    flex: 1;
-    border-bottom: 1px dotted #666;
-    padding-bottom: 2px;
-}
+    .no-print-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 999;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 24px;
+      background: #0f172a;
+      color: #ffffff;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+      font-family: Arial, sans-serif;
+    }
+    .no-print-toolbar .brand-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .no-print-toolbar button {
+      border: 0;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+      color: #ffffff;
+      cursor: pointer;
+      font-weight: 700;
+      padding: 10px 20px;
+      font-size: 14px;
+      transition: all 0.2s ease;
+    }
+    .no-print-toolbar button:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+    .contract-paper {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 24px auto;
+      padding: 24mm 22mm;
+      background: #ffffff;
+      box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+      border-radius: 4px;
+    }
+    .text-center { text-align: center; }
+    .text-right { text-align: right; }
+    .text-justify { text-align: justify; }
+    .national-header {
+      text-align: center;
+      margin-bottom: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+    }
+    .national-header .country {
+      font-size: 16px;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin: 0;
+      text-align: center;
+      letter-spacing: 0.5px;
+    }
+    .national-header .motto {
+      font-size: 15px;
+      font-weight: bold;
+      margin: 4px 0 8px 0;
+      text-align: center;
+    }
+    .national-header .divider {
+      width: 160px;
+      height: 1.5px;
+      background: #0f172a;
+      margin: 4px auto 0 auto;
+    }
+    .contract-title {
+      font-size: 22px;
+      font-weight: bold;
+      text-align: center;
+      text-transform: uppercase;
+      margin: 28px 0 6px 0;
+      color: #0f172a;
+      letter-spacing: 0.5px;
+    }
+    .contract-code-sub {
+      text-align: center;
+      font-style: italic;
+      font-size: 14px;
+      color: #475569;
+      margin-bottom: 24px;
+    }
+    h2.section-title {
+      font-size: 15px;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin: 20px 0 10px 0;
+      border-bottom: 1px solid #cbd5e1;
+      padding-bottom: 4px;
+      color: #0f172a;
+    }
+    p {
+      margin: 6px 0;
+      text-align: justify;
+    }
+    .party-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-bottom: 16px;
+    }
+    .party-grid {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      gap: 6px 12px;
+      font-size: 14px;
+    }
+    .party-label {
+      font-weight: bold;
+      color: #334155;
+    }
+    .party-val {
+      color: #0f172a;
+    }
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+    }
+    table.data-table th, table.data-table td {
+      border: 1px solid #94a3b8;
+      padding: 8px 12px;
+      font-size: 14px;
+      text-align: left;
+    }
+    table.data-table th {
+      background: #f1f5f9;
+      font-weight: bold;
+      color: #0f172a;
+    }
+    .clause-number {
+      font-weight: bold;
+      color: #0f172a;
+    }
+    .signatures-block {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      margin-top: 40px;
+      page-break-inside: avoid;
+    }
+    .sig-col {
+      text-align: center;
+      position: relative;
+    }
+    .sig-title {
+      font-size: 15px;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .sig-subtitle {
+      font-size: 13px;
+      font-style: italic;
+      color: #64748b;
+      margin-bottom: 16px;
+    }
+    .sig-space {
+      min-height: 120px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .signature-img {
+      max-width: 200px;
+      max-height: 90px;
+      object-fit: contain;
+    }
+    .stamp-container {
+      position: absolute;
+      top: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      pointer-events: none;
+      opacity: 0.88;
+    }
+    .legal-lock-badge {
+      margin-top: 36px;
+      border: 1.5px dashed #0d9488;
+      background: #f0fdf4;
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      page-break-inside: avoid;
+    }
+    .legal-lock-title {
+      font-weight: bold;
+      color: #0f766e;
+      font-size: 13px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .legal-lock-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px 16px;
+      color: #334155;
+    }
+    @media print {
+      body { background: #ffffff; }
+      .no-print-toolbar { display: none !important; }
+      .contract-paper {
+        box-shadow: none;
+        margin: 0;
+        padding: 10mm 15mm;
+        width: 100%;
+        min-height: auto;
+      }
+    }
   </style>
 </head>
 <body>
-  <div class="toolbar">
-    <button onclick="window.print()">In / Luu PDF</button>
+  <!-- Print / Action Toolbar -->
+  <div class="no-print-toolbar">
+    <div class="brand-title">
+      <span>📜 HỢP ĐỒNG THUÊ PHÒNG TRỌ ĐIỆN TỬ CHUẨN PHÁP LÝ</span>
+    </div>
+    <button onclick="window.print()">🖨️ In Hợp Đồng / Lưu Dạng PDF</button>
   </div>
-  <main class="page">
-    <div class="center">
-      <p class="header-line">Cong hoa xa hoi chu nghia Viet Nam</p>
-      <p class="header-line">Doc lap - Tu do - Hanh phuc</p>
-      <p>-------------------------</p>
+
+  <!-- Main Paper Page -->
+  <main class="contract-paper">
+    <!-- National Header -->
+    <div class="national-header">
+      <p class="country">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p>
+      <p class="motto">Độc lập - Tự do - Hạnh phúc</p>
+      <div class="divider"></div>
     </div>
 
-    <h1>HỢP ĐỒNG THUÊ PHÒNG</h1>
-    <p class="center">Ma hop dong: <strong>${escapeHtml(contract.contractCode)}</strong></p>
-    <p>Hôm nay, ngày ${contractCreatedDate.getDate()} tháng ${contractCreatedDate.getMonth() + 1} năm ${contractCreatedDate.getFullYear()}, chúng tôi gồm:</p>
+    <!-- Contract Title -->
+    <h1 class="contract-title">HỢP ĐỒNG THUÊ PHÒNG TRỌ VÀ DỊCH VỤ</h1>
+    <div class="contract-code-sub">
+      Số hợp đồng: <strong>${escapeHtml(contract.contractCode)}</strong> • Ngày lập: ${contractCreatedDate.getDate()} tháng ${contractCreatedDate.getMonth() + 1} năm ${contractCreatedDate.getFullYear()}
+    </div>
 
-    <h2>Bên cho thuê </h2>
-    <p>Chủ nhà /Đơn vị : <strong>TRO PLUS</strong></p>
-    <p>Địa chỉ liên hệ : Số nhà 123, đường 422b, Hoài Đức Hà Nội</p>
-    <p>Điện thoại: 0985 316 789</p>
+    <p class="text-justify">
+      Căn cứ <em>Bộ luật Dân sự số 91/2015/QH13</em> được Quốc hội nước Cộng hòa xã hội chủ nghĩa Việt Nam thông qua ngày 24/11/2015;<br />
+      Căn cứ nhu cầu và sự thỏa thuận tự nguyện của hai bên, hôm nay ngày ${contractCreatedDate.getDate()} tháng ${contractCreatedDate.getMonth() + 1} năm ${contractCreatedDate.getFullYear()}, chúng tôi gồm có:
+    </p>
 
-    <h2>Bên thuê phòng</h2>
-    <p>Họ và tên người đại diện: <strong>${escapeHtml(representative.name || "")}</strong></p>
-    <p>Số CCCD/CMND: ${escapeHtml(representative.identityNumber || "")}</p>
-    <p>Số điện thoại: ${escapeHtml(representative.phone || "")}</p>
-    <p>Email: ${escapeHtml(representative.email || "")}</p>
+    <!-- Party A Info -->
+    <h2 class="section-title">BÊN A: BÊN CHO THUÊ (BAN QUẢN LÝ / CHỦ TRỌ)</h2>
+    <div class="party-box">
+      <div class="party-grid">
+        <span class="party-label">Tên đơn vị:</span>
+        <span class="party-val"><strong>${escapeHtml(companyInfo.name)}</strong></span>
 
-    <h2> THÔNG TIN PHÒNG THUÊ VÀ THỜI HẠN HỢP ĐỒNG</h2>
+        <span class="party-label">Mã số thuế:</span>
+        <span class="party-val"><strong>${escapeHtml(companyInfo.taxCode)}</strong></span>
 
-<div class="contract-info">
-  <div class="info-row">
-    <span class="label">1. Phòng thuê:</span>
-    <span class="value">
-      ${escapeHtml(room.roomNumber || "")} - ${escapeHtml(room.name || "")}
-    </span>
-  </div>
+        <span class="party-label">Người đại diện:</span>
+        <span class="party-val"><strong>${escapeHtml(companyInfo.representative)}</strong> — Chức vụ: ${escapeHtml(companyInfo.position)}</span>
 
-  <div class="info-row">
-    <span class="label">2. Tầng:</span>
-    <span class="value">
-      ${escapeHtml(room.floor ?? "")}
-    </span>
-  </div>
+        <span class="party-label">Số CCCD/CMND:</span>
+        <span class="party-val">${escapeHtml(companyInfo.identityNumber)}</span>
 
-  <div class="info-row">
-    <span class="label">3. Diện tích:</span>
-    <span class="value">
-      ${escapeHtml(room.area ?? 0)} m²
-    </span>
-  </div>
+        <span class="party-label">Địa chỉ trụ sở:</span>
+        <span class="party-val">${escapeHtml(companyInfo.address)}</span>
 
-  <div class="info-row">
-    <span class="label">4. Số người ở:</span>
-    <span class="value">
-      ${escapeHtml(contract.memberCount || members.length || 1)} người
-    </span>
-  </div>
+        <span class="party-label">Điện thoại liên hệ:</span>
+        <span class="party-val"><strong>${escapeHtml(companyInfo.phone)}</strong></span>
 
-  <div class="info-row">
-    <span class="label">5. Ngày bắt đầu thuê:</span>
-    <span class="value">
-      ${formatDate(contract.moveInDate)}
-    </span>
-  </div>
+        <span class="party-label">Email hỗ trợ:</span>
+        <span class="party-val">${escapeHtml(companyInfo.email)}</span>
 
-  <div class="info-row">
-    <span class="label">6. Thời hạn hợp đồng:</span>
-    <span class="value">
-      ${escapeHtml(contract.durationMonths)} tháng
-    </span>
-  </div>
+        <span class="party-label">Tài khoản nhận tiền:</span>
+        <span class="party-val"><strong>${escapeHtml(companyInfo.bankAccount)}</strong></span>
+      </div>
+    </div>
 
-  <div class="info-row">
-    <span class="label">7. Ngày hết hạn:</span>
-    <span class="value">
-      ${formatDate(contract.endDate)}
-    </span>
-  </div>
-</div>
+    <!-- Party B Info -->
+    <h2 class="section-title">BÊN B: BÊN THUÊ PHÒNG (KHÁCH THUÊ ĐẠI DIỆN)</h2>
+    <div class="party-box">
+      <div class="party-grid">
+        <span class="party-label">Họ và tên:</span>
+        <span class="party-val"><strong>${escapeHtml(representative.name || "---")}</strong></span>
 
-    <h2>Gia thue va cac khoan phi</h2>
-    <table>
-      <tr><th>Gia thue hang thang</th><td>${formatCurrency(contract.monthlyRent)}</td></tr>
-      <tr><th>Tien coc</th><td>${formatCurrency(contract.deposit)}</td></tr>
-      <tr><th>Don gia dien</th><td>${formatCurrency(room.electricityPrice)}</td></tr>
-      <tr><th>Don gia nuoc</th><td>${formatCurrency(room.waterPrice)}</td></tr>
-      <tr><th>Phi dich vu</th><td>${formatCurrency(room.serviceFee)}</td></tr>
-    </table>
+        <span class="party-label">Số CCCD/CMND:</span>
+        <span class="party-val"><strong>${escapeHtml(representative.identityNumber || "---")}</strong></span>
 
-    <h2>Danh sach thanh vien trong phong</h2>
-    <table>
+        <span class="party-label">Số điện thoại:</span>
+        <span class="party-val"><strong>${escapeHtml(representative.phone || "---")}</strong></span>
+
+        <span class="party-label">Email cá nhân:</span>
+        <span class="party-val">${escapeHtml(representative.email || "---")}</span>
+
+        <span class="party-label">Địa chỉ thường trú:</span>
+        <span class="party-val">${escapeHtml(representative.address || "Theo thông tin căn cước công dân đã đăng ký")}</span>
+      </div>
+    </div>
+
+    <!-- Members Table -->
+    <h2 class="section-title">DANH SÁCH THÀNH VIÊN CÙNG CƯ TRÚ TRONG PHÒNG</h2>
+    <table class="data-table">
       <thead>
         <tr>
-          <th>STT</th>
-          <th>Ho ten</th>
-          <th>CCCD/CMND</th>
-          <th>Dien thoai</th>
-          <th>Vai tro</th>
+          <th style="width: 45px; text-align: center;">STT</th>
+          <th>Họ và tên thành viên</th>
+          <th>Số CCCD / CMND</th>
+          <th>Số điện thoại</th>
+          <th>Vai trò đăng ký</th>
         </tr>
       </thead>
       <tbody>
-        ${members.length
-      ? members
-        .map(
-          (member, index) => `<tr>
-            <td>${index + 1}</td>
-            <td>${escapeHtml(member.user?.name || "")}</td>
-            <td>${escapeHtml(member.user?.identityNumber || "")}</td>
-            <td>${escapeHtml(member.user?.phone || "")}</td>
-            <td>${member.roomRole === "representative" ? "Nguoi dai dien" : "Thanh vien"}</td>
-          </tr>`
-        )
-        .join("")
-      : `<tr><td colspan="5">Chua co danh sach thanh vien</td></tr>`
-    }
+        ${
+          members && members.length
+            ? members
+                .map(
+                  (m, idx) => `<tr>
+                    <td style="text-align: center;">${idx + 1}</td>
+                    <td><strong>${escapeHtml(m.user?.name || m.name || "---")}</strong></td>
+                    <td>${escapeHtml(m.user?.identityNumber || m.identityNumber || "---")}</td>
+                    <td>${escapeHtml(m.user?.phone || m.phone || "---")}</td>
+                    <td>${m.roomRole === "representative" ? "👑 Đại diện phòng" : "Thành viên cư trú"}</td>
+                  </tr>`
+                )
+                .join("")
+            : `<tr><td colspan="5" style="text-align: center; color: #64748b;">Chưa ghi nhận thành viên cư trú bổ sung.</td></tr>`
+        }
       </tbody>
     </table>
 
-    <h2>Dieu khoan chung</h2>
-    <p>1. Ben thue co trach nhiem thanh toan tien phong va cac khoan phi dung han theo thoa thuan.</p>
-    <p>2. Ben thue co trach nhiem giu gin tai san, ve sinh va an ninh trat tu trong khu tro.</p>
-    <p>3. Khi cham dut hop dong, ben thue phai thong bao truoc theo thoa thuan va ban giao phong trong tinh trang hop ly.</p>
-    <p>4. Cac dieu khoan bo sung: ${escapeHtml(contract.terms || "................................................................................................")}</p>
+    <p class="text-justify">Hai bên thống nhất ký kết Hợp đồng thuê phòng trọ với các điều khoản chi tiết như sau:</p>
 
-    <p>Hop dong duoc lap thanh 02 ban co gia tri nhu nhau, moi ben giu 01 ban.</p>
+    <!-- Clause 1 -->
+    <h2 class="section-title">ĐIỀU 1: ĐỐI TƯỢNG HỢP ĐỒNG VÀ THỜI HẠN THUÊ</h2>
+    <p>
+      <span class="clause-number">1.1. Thỏa thuận cho thuê:</span> Bên A đồng ý cho Bên B thuê phòng trọ số <strong>Phòng ${escapeHtml(room.roomNumber || "---")}</strong> (${escapeHtml(room.name || "Phòng trọ cao cấp")}), thuộc Tầng <strong>${escapeHtml(room.floor ?? 1)}</strong>. Diện tích sử dụng: <strong>${escapeHtml(room.area || 25)} m²</strong>.
+    </p>
+    <p>
+      <span class="clause-number">1.2. Sức chứa quy định:</span> Phòng trọ cho phép tối đa <strong>${escapeHtml(contract.memberCount || members.length || room.capacity || 2)} người</strong> cùng cư trú. Bên B có trách nhiệm khai báo đầy đủ danh sách người ở với Ban quản lý Bên A.
+    </p>
+    <p>
+      <span class="clause-number">1.3. Thời hạn thuê:</span> Hợp đồng có thời hạn <strong>${escapeHtml(contract.durationMonths || 12)} tháng</strong>, bắt đầu từ ngày <strong>${formatDate(contract.moveInDate || contract.startDate)}</strong> đến hết ngày <strong>${formatDate(contract.endDate)}</strong>.
+    </p>
 
-    <div class="signatures">
-      <div>
-        <p class="signature-title">Ben cho thue</p>
-        <p class="muted">(Ky va ghi ro ho ten)</p>
-        <br /><br /><br />
+    <!-- Clause 2 -->
+    <h2 class="section-title">ĐIỀU 2: GIÁ THUÊ PHÒNG, TIỀN ĐẶT CỌC VÀ BẢNG PHÍ DỊCH VỤ</h2>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Tên khoản phí</th>
+          <th>Đơn giá thanh toán</th>
+          <th>Hình thức & Chu kỳ thu</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>1. Giá thuê phòng cố định</strong></td>
+          <td><strong style="color: #0d9488;">${formatCurrency(contract.monthlyRent)} / tháng</strong></td>
+          <td>Thu định kỳ từ ngày 01 đến 05 hàng tháng</td>
+        </tr>
+        <tr>
+          <td><strong>2. Tiền đặt cọc bảo đảm</strong></td>
+          <td><strong>${formatCurrency(contract.deposit)}</strong></td>
+          <td>Thanh toán ngay khi ký hợp đồng (Hoàn trả khi thanh lý HĐ)</td>
+        </tr>
+        <tr>
+          <td><strong>3. Đơn giá tiêu thụ điện</strong></td>
+          <td><strong>${formatCurrency(room.electricityPrice || 3500)} / kWh</strong></td>
+          <td>Tính theo chỉ số công tơ điện riêng từng phòng</td>
+        </tr>
+        <tr>
+          <td><strong>4. Đơn giá tiêu thụ nước</strong></td>
+          <td><strong>${formatCurrency(room.waterPrice || 20000)} / m³</strong></td>
+          <td>Tính theo đồng hồ đo nước thực tế sử dụng</td>
+        </tr>
+        <tr>
+          <td><strong>5. Phí dịch vụ chung (rác, wifi...)</strong></td>
+          <td><strong>${formatCurrency(room.serviceFee || 0)} / tháng</strong></td>
+          <td>Cố định hàng tháng theo hóa đơn tổng hợp</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>
+      <span class="clause-number">2.1. Phương thức thanh toán:</span> Bên B thanh toán tiền phòng và các chi phí phát sinh thông qua Chuyển khoản ngân hàng qua cổng VietQR tự động hoặc Tiền mặt cho Ban quản lý Bên A từ ngày <strong>01 đến 05 hàng tháng</strong>.
+    </p>
+
+    <!-- Clause 3 -->
+    <h2 class="section-title">ĐIỀU 3: QUYỀN VÀ NGHĨA VỤ CỦA BÊN A (BÊN CHO THUÊ)</h2>
+    <p>
+      <span class="clause-number">3.1. Bàn giao mặt bằng:</span> Bàn giao phòng trọ và các trang thiết bị kèm theo cho Bên B đúng thời hạn theo thỏa thuận trong tình trạng sử dụng tốt, sạch sẽ, an toàn.
+    </p>
+    <p>
+      <span class="clause-number">3.2. Bảo trì hệ thống:</span> Đảm bảo hệ thống điện, nước, phòng cháy chữa cháy (PCCC), mạng Internet thoại vận hành ổn định. Tiến hành sửa chữa hư hỏng kết cấu hạ tầng không do lỗi người thuê.
+    </p>
+    <p>
+      <span class="clause-number">3.3. Minh bạch hóa đơn:</span> Cung cấp hóa đơn/bảng kê tiền phòng, điện, nước minh bạch hàng tháng qua hệ thống phần mềm ứng dụng TRO PLUS.
+    </p>
+    <p>
+      <span class="clause-number">3.4. Quyền kiểm tra:</span> Có quyền kiểm tra định kỳ tình trạng phòng trọ và công tác an toàn PCCC (báo trước cho Bên B tối thiểu 12 giờ, trừ trường hợp khẩn cấp về cháy nổ/sự cố).
+    </p>
+
+    <!-- Clause 4 -->
+    <h2 class="section-title">ĐIỀU 4: QUYỀN VÀ NGHĨA VỤ CỦA BÊN B (BÊN THUÊ PHÒNG)</h2>
+    <p>
+      <span class="clause-number">4.1. Sử dụng đúng mục đích:</span> Sử dụng phòng trọ đúng mục đích ở sinh hoạt gia đình/cá nhân, không kinh doanh hàng cấm, không chứa chất cháy nổ hoặc tệ nạn xã hội.
+    </p>
+    <p>
+      <span class="clause-number">4.2. Thanh toán đúng hạn:</span> Thanh toán đầy đủ tiền thuê phòng và các khoản chi phí điện, nước, dịch vụ đúng thời hạn cam kết tại Điều 2.
+    </p>
+    <p>
+      <span class="clause-number">4.3. Giữ gìn an ninh & Vệ sinh:</span> Tự bảo quản tài sản cá nhân, giữ gìn vệ sinh chung khu trọ, không gây ồn ào ảnh hưởng đến các phòng xung quanh sau <strong>23h00</strong>.
+    </p>
+    <p>
+      <span class="clause-number">4.4. Không tự ý cải tạo:</span> Không được tự ý khoan đục tường, thay đổi kết cấu kiến trúc hoặc chuyển nhượng, cho người khác thuê lại phòng khi chưa có sự đồng ý bằng văn bản của Bên A.
+    </p>
+
+    <!-- Clause 5 -->
+    <h2 class="section-title">ĐIỀU 5: ĐIỀU KHOẢN HOÀN CỌC VÀ CHẤM DỨT HỢP ĐỒNG</h2>
+    <p>
+      <span class="clause-number">5.1. Chấm dứt đúng hạn:</span> Khi hợp đồng hết hạn, nếu hai bên không tiếp tục gia hạn, Bên B bàn giao lại phòng trống sạch sẽ cho Bên A. Bên A có trách nhiệm hoàn trả <strong>100% tiền đặt cọc (${formatCurrency(contract.deposit)})</strong> cho Bên B sau khi trừ các khoản tiền điện nước/dịch vụ còn thiếu (nếu có).
+    </p>
+    <p>
+      <span class="clause-number">5.2. Thông báo đơn phương:</span> Trường hợp một trong hai bên muốn chấm dứt hợp đồng trước thời hạn phải có nghĩa vụ thông báo bằng văn bản hoặc qua ứng dụng TRO PLUS cho bên kia trước tối thiểu <strong>30 ngày</strong>.
+    </p>
+    <p>
+      <span class="clause-number">5.3. Mất tiền cọc khi vi phạm:</span> Nếu Bên B tự ý hủy hợp đồng trước thời hạn mà không thông báo đủ 30 ngày hoặc vi phạm nghiêm trọng nội quy PCCC/pháp luật thì Bên B sẽ bị mất toàn bộ số tiền đặt cọc.
+    </p>
+
+    <!-- Clause 6 -->
+    <h2 class="section-title">ĐIỀU 6: QUY ĐỊNH AN TOÀN PHÒNG CHÁY CHỮA CHÁY (PCCC) & NỘI QUY</h2>
+    <p>
+      <span class="clause-number">6.1. An toàn thiết bị điện:</span> Tuyệt đối không đun nấu bằng bếp than, không để các vật liệu dễ cháy gần ổ cắm điện. Tắt toàn bộ thiết bị điện công suất lớn khi ra khỏi phòng.
+    </p>
+    <p>
+      <span class="clause-number">6.2. Sạc xe điện:</span> Việc sạc xe máy điện, xe đạp điện phải tuân thủ đúng khu vực quy định của Ban quản lý, không kéo dây điện tùy tiện gây nguy cơ chập cháy.
+    </p>
+    <p>
+      <span class="clause-number">6.3. Khai báo tạm trú:</span> Cung cấp đầy đủ thông tin căn cước công dân của tất cả thành viên ở cùng để Bên A làm thủ tục đăng ký tạm trú với cơ quan Công an địa phương.
+    </p>
+
+    <!-- Clause 7 -->
+    <h2 class="section-title">ĐIỀU 7: ĐIỀU KHOẢN THI HÀNH VÀ GIẢI QUYẾT TRANH CHẤP</h2>
+    <p>
+      <span class="clause-number">7.1. Hiệu lực văn bản:</span> Hợp đồng này có hiệu lực pháp lý kể từ thời điểm hai bên thực hiện ký tên điện tử trên hệ thống TRO PLUS.
+    </p>
+    <p>
+      <span class="clause-number">7.2. Giải quyết tranh chấp:</span> Hai bên cam kết thực hiện đúng các điều khoản đã ghi trong hợp đồng. Mọi tranh chấp phát sinh sẽ được giải quyết trước hết thông qua thương lượng hòa giải. Nếu không thương lượng được, vụ việc sẽ được đưa ra Tòa án nhân dân có thẩm quyền để giải quyết theo quy định pháp luật.
+    </p>
+    <p>
+      <span class="clause-number">7.3. Lưu trữ bản điện tử:</span> Hợp đồng điện tử này được lưu trữ mã hóa dưới dạng dữ liệu số kèm mã xác thực SHA-256 trên máy chủ TRO PLUS, có giá trị pháp lý tương đương bản giấy theo <em>Luật Giao dịch điện tử số 51/2005/QH11</em>.
+    </p>
+    <p style="margin-top: 14px;">
+      <em>Các điều khoản bổ sung khác:</em> ${escapeHtml(contract.terms || "Không có ghi chú bổ sung.")}
+    </p>
+
+    <!-- Signatures Section -->
+    <div class="signatures-block">
+      <!-- Party A Signature -->
+      <div class="sig-col">
+        <div class="sig-title">ĐẠI DIỆN BÊN A (BÊN CHO THUÊ)</div>
+        <div class="sig-subtitle">(Ký tên, đóng dấu xác thực)</div>
+        <div class="sig-space">
+          ${partyAStampSvg}
+          <div style="margin-top: 54px; font-weight: bold; text-transform: uppercase;">
+            ${escapeHtml(companyInfo.representative)}
+          </div>
+          <div style="font-size: 12px; color: #475569; margin-top: 2px;">
+            Đại diện Giám Đốc TRO PLUS
+          </div>
+        </div>
       </div>
-      <div>
-        <p class="signature-title">Ben thue</p>
-        <p class="muted">(Ky va ghi ro ho ten)</p>
-        ${signatureImage ? `<img class="signature-image" src="${escapeHtml(signatureImage)}" alt="Chu ky ben thue" />` : "<br /><br /><br />"}
-        <p><strong>${escapeHtml(representative.name || "")}</strong></p>
-        ${signedAt ? `<p class="muted">Da ky luc: ${escapeHtml(signedAt.toLocaleString("vi-VN"))}</p>` : ""}
+
+      <!-- Party B Signature -->
+      <div class="sig-col">
+        <div class="sig-title">ĐẠI DIỆN BÊN B (BÊN THUÊ PHÒNG)</div>
+        <div class="sig-subtitle">(Ký và ghi rõ họ tên)</div>
+        <div class="sig-space">
+          ${
+            signatureImage
+              ? `<img class="signature-img" src="${escapeHtml(signatureImage)}" alt="Chữ ký điện tử Bên B" />`
+              : `<div style="height: 70px; display: flex; align-items: center; color: #94a3b8; font-style: italic;">(Chưa thực hiện ký điện tử)</div>`
+          }
+          <div style="margin-top: 12px; font-weight: bold; text-transform: uppercase;">
+            ${escapeHtml(representative.name || "---")}
+          </div>
+          ${
+            signedAt
+              ? `<div style="font-size: 11px; color: #059669; font-style: italic; margin-top: 2px;">✓ Đã ký điện tử lúc: ${escapeHtml(signedAt.toLocaleString("vi-VN"))}</div>`
+              : ""
+          }
+        </div>
       </div>
     </div>
 
-    ${contract.contentHash || lockedAt ? `<div class="legal-proof">
-      <p><strong>Thong tin khoa hop dong dien tu</strong></p>
-      <p>Ma bam SHA-256: ${escapeHtml(contract.contentHash || "")}</p>
-      <p>Thoi gian khoa: ${escapeHtml(lockedAt ? lockedAt.toLocaleString("vi-VN") : "")}</p>
-      <p>Phuong thuc ky: ${escapeHtml(contract.signatureMethod || "")}</p>
-      <p>Phien ban hop dong: ${escapeHtml(contract.version || 1)}</p>
-    </div>` : ""}
+    <!-- SHA-256 Legal Lock Badge -->
+    ${
+      contract.contentHash || lockedAt
+        ? `<div class="legal-lock-badge">
+            <div class="legal-lock-title">
+              <span>🔒 CHỨNG THỰC BẢO MẬT & NIÊM PHONG NỘI DUNG HỢP ĐỒNG (SHA-256 LOCK)</span>
+            </div>
+            <div class="legal-lock-grid">
+              <div><strong>Mã băm SHA-256:</strong> <span style="font-family: monospace; word-break: break-all;">${escapeHtml(contract.contentHash || "N/A")}</span></div>
+              <div><strong>Thời gian niêm phong:</strong> ${escapeHtml(lockedAt ? lockedAt.toLocaleString("vi-VN") : "Đang cập nhật")}</div>
+              <div><strong>Phương thức xác thực:</strong> ${escapeHtml(contract.signatureMethod === "auto_generated" ? "Chữ ký tự động tên người thuê" : "Chữ ký tay điện tử Canvas")}</div>
+              <div><strong>Phiên bản hợp đồng:</strong> v${escapeHtml(contract.version || 1)}.0 (Khóa chống chỉnh sửa)</div>
+            </div>
+          </div>`
+        : ""
+    }
   </main>
 </body>
 </html>`;
