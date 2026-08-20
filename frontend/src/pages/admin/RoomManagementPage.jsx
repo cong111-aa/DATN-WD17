@@ -1,19 +1,36 @@
 import {
-  DeleteOutlined,
-  EditOutlined,
-  FileTextOutlined,
   AppstoreOutlined,
   BarsOutlined,
-  MoreOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  DeleteOutlined,
+  DollarOutlined,
+  EditOutlined,
+  EnvironmentOutlined,
+  EyeOutlined,
+  FileProtectOutlined,
+  FileTextOutlined,
+  HomeOutlined,
+  InfoCircleOutlined,
   PlusOutlined,
+  ReloadOutlined,
+  RiseOutlined,
   SearchOutlined,
-  UserOutlined,
+  TeamOutlined,
+  ThunderboltOutlined,
+  ToolOutlined,
   UploadOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import {
+  Avatar,
+  Badge,
   Button,
+  Card,
+  Col,
   Descriptions,
   Divider,
+  Empty,
   Form,
   Image,
   Input,
@@ -21,9 +38,13 @@ import {
   List,
   Modal,
   Popconfirm,
+  Progress,
+  Row,
   Select,
   Space,
+  Tabs,
   Tag,
+  Tooltip,
   Typography,
   Upload,
   message,
@@ -53,11 +74,11 @@ const statusOptions = [
 ];
 
 const statusMeta = {
-  payment_pending: { color: "processing", label: "Đang thanh toán" },
-  reserved: { color: "gold", label: "Đã giữ chỗ" },
-  available: { color: "success", label: "Còn trống" },
-  occupied: { color: "blue", label: "Đang thuê" },
-  maintenance: { color: "warning", label: "Bảo trì" },
+  payment_pending: { color: "processing", label: "Đang thanh toán", badgeColor: "#0284c7" },
+  reserved: { color: "gold", label: "Đã giữ chỗ", badgeColor: "#f59e0b" },
+  available: { color: "success", label: "Còn trống", badgeColor: "#10b981" },
+  occupied: { color: "blue", label: "Đang thuê", badgeColor: "#3b82f6" },
+  maintenance: { color: "warning", label: "Bảo trì", badgeColor: "#ef4444" },
 };
 
 const tenantStatusMeta = {
@@ -184,10 +205,20 @@ const RoomManagementPage = () => {
   }, []);
 
   const roomOverview = useMemo(() => {
-    const occupied = rooms.filter((room) => room.status === "occupied");
+    const total = rooms.length;
+    const occupied = rooms.filter((room) => room.status === "occupied").length;
+    const available = rooms.filter((room) => room.status === "available").length;
+    const reserved = rooms.filter((room) => room.status === "reserved").length;
+    const maintenance = rooms.filter((room) => room.status === "maintenance").length;
+    const occupancyRate = total ? Math.round((occupied / total) * 100) : 0;
+
     return {
-      total: rooms.length,
-      occupied: occupied.length,
+      total,
+      occupied,
+      available,
+      reserved,
+      maintenance,
+      occupancyRate,
     };
   }, [rooms]);
 
@@ -195,8 +226,10 @@ const RoomManagementPage = () => {
     const keyword = searchText.trim().toLowerCase();
     return rooms
       .filter((room) => {
-        const matchesKeyword = !keyword || [room.roomNumber, room.name, room.description, room.address]
-          .some((value) => String(value || "").toLowerCase().includes(keyword));
+        const matchesKeyword =
+          !keyword ||
+          [room.roomNumber, room.name, room.description, room.address]
+            .some((value) => String(value || "").toLowerCase().includes(keyword));
         return matchesKeyword && (statusFilter === "all" || room.status === statusFilter);
       })
       .sort((a, b) => {
@@ -257,10 +290,10 @@ const RoomManagementPage = () => {
 
       if (editingRoom) {
         await http.put(`/rooms/${editingRoom.id}`, payload);
-        message.success("Đã cập nhật phòng");
+        message.success("Đã cập nhật phòng thành công");
       } else {
         await http.post("/rooms", payload);
-        message.success("Đã tạo phòng");
+        message.success("Đã tạo phòng mới thành công");
       }
 
       closeModal();
@@ -275,36 +308,10 @@ const RoomManagementPage = () => {
   const handleDelete = async (record) => {
     try {
       await http.delete(`/rooms/${record.id}`);
-      message.success("Đã xóa phòng");
+      message.success("Đã xóa phòng thành công");
       fetchRooms();
     } catch (error) {
       message.error(error.response?.data?.message || "Xóa phòng thất bại");
-    }
-  };
-
-  const handleViewContract = async (record) => {
-    try {
-      const { data: contracts } = await http.get("/contracts", {
-        params: {
-          room: record.id,
-          status: "active",
-        },
-      });
-      const contract = contracts?.[0];
-
-      if (!contract) {
-        message.info("Phòng này chưa có hợp đồng đang hiệu lực");
-        return;
-      }
-
-      const { data } = await http.get(`/contracts/${contract.id}/file`, {
-        responseType: "text",
-      });
-      const blob = new Blob([data], { type: "text/html;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      window.open(url, "_blank", "noopener,noreferrer");
-    } catch (error) {
-      message.error(error.response?.data?.message || "Không mở được hợp đồng của phòng");
     }
   };
 
@@ -343,148 +350,1064 @@ const RoomManagementPage = () => {
   };
 
   return (
-    <div className="room-management">
+    <div className="rm-page-wrapper">
       <style>{`
-        .room-management { color: #152d4e; max-width: 1280px; margin: 0 auto; padding: 6px 4px 32px; }
-        .room-management * { box-sizing: border-box; }
-        .room-topbar { display:flex; align-items:center; gap:18px; margin-bottom:18px; }
-        .room-search { width: 300px; }
-        .room-search .ant-input-affix-wrapper { border:0; background:#f4f7fa; border-radius:8px; padding:9px 13px; }
-        .room-spacer { flex:1; }
-        .room-add { background:#10365f; border-color:#10365f; border-radius:7px; height:38px; font-weight:600; box-shadow:none; }
-        .room-overview { display:grid; grid-template-columns:1fr; gap:16px; margin-bottom:24px; }
-        .room-count { min-height:110px; border-radius:7px; padding:18px 22px; }
-        .room-count { background:#fff; box-shadow:0 3px 14px rgba(24,46,78,.05); }
-        .overview-label { color:#7d8b9d; font-size:12px; font-weight:600; }
-        .overview-number { font-size:31px; font-weight:750; line-height:1.1; margin:5px 0 8px; color:#102f55; }
-        .overview-note { color:#24a77e; font-size:12px; font-weight:600; }
-        .room-filters { display:flex; align-items:center; gap:14px; padding:0 4px 17px; }
-        .room-filters .ant-select { min-width:160px; } .room-filters .ant-select-selector { border:0!important; box-shadow:none!important; background:transparent!important; font-size:12px; color:#526274; }
-        .room-view { margin-left:auto; display:flex; gap:4px; } .room-view .ant-btn { border:0; color:#617187; } .room-view .active { color:#10365f; background:#edf6f4; }
-        .room-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; }
-        .room-card { border:1px solid #edf0f3; border-radius:7px; overflow:hidden; background:#fff; box-shadow:0 1px 5px rgba(26,45,71,.04); }
-        .room-photo { height:142px; background:linear-gradient(135deg,#d8c7ae,#f0eee8); overflow:hidden; } .room-photo img { width:100%; height:100%; object-fit:cover; display:block; }
-        .room-card-body { padding:11px 13px 13px; } .room-card-title { display:flex; align-items:center; gap:7px; } .room-card-title strong { font-size:17px; color:#213b59; }
-        .room-card-title .ant-tag { border:0; border-radius:12px; padding:1px 8px; margin:0; font-size:10px; font-weight:700; }
-        .room-menu { margin-left:auto; color:#738297; }
-        .room-info { display:grid; gap:7px; margin:12px 0; color:#556579; font-size:11px; } .room-info span { display:flex; align-items:center; gap:7px; } .room-info .anticon { color:#6d7d8f; }
-        .room-actions { display:flex; gap:7px; } .room-actions .ant-btn { flex:1; border:0; background:#f5f5f6; color:#536174; font-size:11px; height:30px; padding:0 5px; } .room-actions .ant-btn-primary { background:#168761; color:#fff; } .room-actions .room-delete { flex:0 0 30px; color:#d95454; background:#fff1f1; } .room-actions .room-delete:disabled { color:#b9c1ca; background:#f5f6f7; }
-        .room-card-add { min-height:290px; border:1px dashed #cbd4de; display:flex; align-items:center; justify-content:center; background:#fbfcfd; } .room-card-add .ant-btn { border:0; background:#eef1f4; color:#68778a; width:42px; height:42px; border-radius:8px; font-size:18px; }
-        .room-empty { grid-column:1/-1; padding:50px; text-align:center; color:#748397; background:#fff; border-radius:8px; }
-        .room-modal .ant-modal-content { padding:0; overflow:hidden; border-radius:14px; }
-        .room-modal .ant-modal-header { padding:22px 26px 16px; margin:0; border-bottom:1px solid #edf1f5; }
-        .room-modal .ant-modal-title { color:#17385d; } .room-modal .ant-modal-close { top:19px; right:20px; }
-        .room-modal .ant-modal-body { padding:22px 26px; background:#fbfcfe; }
-        .room-modal .ant-modal-footer { padding:14px 26px 20px; margin:0; border-top:1px solid #edf1f5; background:#fff; }
-        .room-modal .ant-modal-footer .ant-btn { height:36px; border-radius:7px; font-weight:600; }
-        .room-modal .ant-modal-footer .ant-btn-primary { background:#12375f; border-color:#12375f; }
-        .modal-heading { display:flex; align-items:center; gap:11px; } .modal-heading-icon { display:grid; place-items:center; width:34px; height:34px; color:#fff; background:#12375f; border-radius:9px; } .modal-heading-text { display:grid; gap:2px; } .modal-heading-text strong { font-size:17px; } .modal-heading-text span { color:#7a899b; font-size:12px; font-weight:400; }
-        .room-form .form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 14px; } .room-form .ant-form-item { margin-bottom:14px; } .room-form .ant-form-item-label > label { color:#455b74; font-weight:600; font-size:12px; }
-        .room-form .ant-input, .room-form .ant-input-number, .room-form .ant-select-selector { min-height:38px!important; border-radius:7px!important; border-color:#dfe6ee!important; box-shadow:none!important; } .room-form .ant-input-number { width:100%; } .room-form .ant-input-number-input { height:36px; } .room-form .ant-input:focus, .room-form .ant-input-number-focused, .room-form .ant-select-focused .ant-select-selector { border-color:#2b836a!important; }
-        .modal-section { margin:4px 0 17px; color:#17385d; font-weight:700; font-size:13px; } .modal-section::after { content:""; display:block; height:1px; background:#e8edf3; margin-top:9px; }
-        .room-form .ant-upload-wrapper .ant-upload-select { border-radius:8px!important; background:#fff!important; } .room-form .upload-card-button { color:#466078; }
-        .room-detail .ant-descriptions { overflow:hidden; border-radius:9px; } .room-detail .ant-descriptions-view { border-color:#e1e8ef!important; } .room-detail .ant-descriptions-item-label { background:#f4f7fa!important; color:#536b84!important; font-size:12px; font-weight:600; } .room-detail .ant-descriptions-item-content { background:#fff!important; color:#17385d; }
-        .room-detail .ant-divider { margin:21px 0 13px; color:#17385d; font-size:13px; font-weight:700; } .room-detail .ant-list { overflow:hidden; border-radius:9px; border-color:#e1e8ef; background:#fff; } .room-detail .ant-list-item { padding:12px 15px; }
-        .room-detail .ant-image { border:1px solid #e5eaf0; padding:3px; background:#fff; } .detail-status { display:inline-flex; align-items:center; gap:8px; padding:10px 13px; border-radius:9px; background:#eef8f4; color:#217b61; font-size:12px; font-weight:600; margin-bottom:16px; }
-        @media (max-width: 1050px) { .room-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } } @media (max-width: 760px) { .room-overview { grid-template-columns:1fr; } .room-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .room-topbar { flex-wrap:wrap; } .room-spacer { display:none; } .room-search { width:100%; order:3; } .room-filters { flex-wrap:wrap; } .room-view { margin-left:0; } } @media (max-width: 480px) { .room-grid { grid-template-columns:1fr; } }
+        /* Root & Page Wrapper */
+        .rm-page-wrapper {
+          color: #0f172a;
+          max-width: 1400px;
+          margin: 0 auto;
+          padding: 20px;
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+          animation: rmFadeIn 0.35s ease-out;
+        }
+        @keyframes rmFadeIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Hero Banner */
+        .rm-hero-banner {
+          background: linear-gradient(135deg, #0f172a 0%, #134e4a 55%, #0f766e 100%);
+          border-radius: 16px;
+          padding: 26px 30px;
+          color: #ffffff;
+          position: relative;
+          overflow: hidden;
+          box-shadow: 0 10px 25px -5px rgba(15, 118, 110, 0.25);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .rm-hero-banner::before {
+          content: "";
+          position: absolute;
+          top: -70px;
+          right: -50px;
+          width: 300px;
+          height: 300px;
+          background: radial-gradient(circle, rgba(45, 212, 191, 0.3) 0%, transparent 70%);
+          border-radius: 50%;
+          pointer-events: none;
+        }
+        .rm-hero-inner {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 20px;
+          position: relative;
+          z-index: 2;
+          flex-wrap: wrap;
+        }
+        .rm-hero-left {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+        .rm-hero-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: rgba(255, 255, 255, 0.12);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          padding: 3px 12px;
+          border-radius: 9999px;
+          font-size: 11px;
+          font-weight: 700;
+          color: #5eead4;
+          width: fit-content;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        .rm-hero-badge .pulse-dot {
+          width: 7px;
+          height: 7px;
+          background-color: #2dd4bf;
+          border-radius: 50%;
+          box-shadow: 0 0 0 0 rgba(45, 212, 191, 0.7);
+          animation: rmPulse 2s infinite;
+        }
+        @keyframes rmPulse {
+          0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(45, 212, 191, 0.7); }
+          70% { transform: scale(1); box-shadow: 0 0 0 7px rgba(45, 212, 191, 0); }
+          100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(45, 212, 191, 0); }
+        }
+        .rm-hero-title {
+          font-size: 24px;
+          font-weight: 800;
+          color: #ffffff !important;
+          margin: 0 !important;
+          letter-spacing: -0.5px;
+        }
+        .rm-hero-subtitle {
+          color: #cbd5e1 !important;
+          font-size: 13px;
+          margin: 0 !important;
+          max-width: 600px;
+        }
+        .rm-hero-actions {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+        .rm-btn-reload {
+          background: rgba(255, 255, 255, 0.12) !important;
+          border: 1px solid rgba(255, 255, 255, 0.25) !important;
+          color: #ffffff !important;
+          border-radius: 10px !important;
+          font-weight: 600;
+          height: 40px !important;
+        }
+        .rm-btn-reload:hover {
+          background: rgba(255, 255, 255, 0.22) !important;
+          color: #ffffff !important;
+        }
+        .rm-btn-add {
+          background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%) !important;
+          border: none !important;
+          color: #ffffff !important;
+          border-radius: 10px !important;
+          font-weight: 700;
+          height: 40px !important;
+          padding: 0 20px !important;
+          box-shadow: 0 4px 14px rgba(15, 118, 110, 0.4) !important;
+        }
+        .rm-btn-add:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 6px 20px rgba(15, 118, 110, 0.5) !important;
+        }
+
+        /* 5-Stats KPI Grid */
+        .rm-stats-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 14px;
+        }
+        .rm-stat-card {
+          background: #ffffff;
+          border-radius: 14px;
+          border: 1px solid #e2e8f0;
+          box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+          padding: 16px 18px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          transition: all 0.2s ease;
+        }
+        .rm-stat-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 16px rgba(15, 23, 42, 0.06);
+          border-color: #cbd5e1;
+        }
+        .rm-stat-info {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+        .rm-stat-label {
+          font-size: 12px;
+          font-weight: 600;
+          color: #64748b;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        .rm-stat-value {
+          font-size: 24px;
+          font-weight: 800;
+          color: #0f172a;
+          line-height: 1.1;
+        }
+        .rm-stat-sub {
+          font-size: 11px;
+          color: #94a3b8;
+          font-weight: 500;
+        }
+        .rm-stat-icon {
+          width: 44px;
+          height: 44px;
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 20px;
+          flex-shrink: 0;
+        }
+
+        /* Filter Toolbar */
+        .rm-filter-bar {
+          background: #ffffff;
+          border-radius: 14px;
+          border: 1px solid #e2e8f0;
+          box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+          padding: 14px 18px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 14px;
+          flex-wrap: wrap;
+        }
+        .rm-filter-left {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex: 1;
+          min-width: 260px;
+        }
+        .rm-search-input {
+          border-radius: 10px !important;
+          height: 40px !important;
+        }
+        .rm-filter-right {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+        .rm-filter-select {
+          min-width: 170px;
+        }
+        .rm-filter-select .ant-select-selector {
+          border-radius: 10px !important;
+          height: 40px !important;
+          display: flex !important;
+          align-items: center !important;
+        }
+        .rm-view-toggle {
+          display: inline-flex;
+          background: #f1f5f9;
+          padding: 3px;
+          border-radius: 10px;
+        }
+        .rm-view-toggle .ant-btn {
+          border: none !important;
+          background: transparent !important;
+          color: #64748b !important;
+          height: 34px !important;
+          width: 36px !important;
+          border-radius: 8px !important;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .rm-view-toggle .ant-btn.active {
+          background: #ffffff !important;
+          color: #0f766e !important;
+          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important;
+          font-weight: 700;
+        }
+
+        /* Room Grid & Cards */
+        .rm-cards-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+          gap: 18px;
+        }
+        .rm-room-card {
+          background: #ffffff;
+          border-radius: 16px;
+          border: 1px solid #e2e8f0;
+          box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+          position: relative;
+        }
+        .rm-room-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 16px 25px -5px rgba(15, 23, 42, 0.08);
+          border-color: #cbd5e1;
+        }
+        .rm-card-cover {
+          position: relative;
+          height: 160px;
+          background: #e2e8f0;
+          overflow: hidden;
+        }
+        .rm-card-cover img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          transition: transform 0.3s ease;
+        }
+        .rm-room-card:hover .rm-card-cover img {
+          transform: scale(1.05);
+        }
+        .rm-cover-status {
+          position: absolute;
+          top: 12px;
+          left: 12px;
+          z-index: 2;
+        }
+        .rm-cover-price {
+          position: absolute;
+          bottom: 10px;
+          left: 12px;
+          background: rgba(15, 23, 42, 0.85);
+          backdrop-filter: blur(6px);
+          color: #38bdf8;
+          padding: 4px 10px;
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 800;
+          border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        .rm-card-body {
+          padding: 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          flex: 1;
+        }
+        .rm-card-header-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+        }
+        .rm-room-title {
+          font-size: 17px;
+          font-weight: 800;
+          color: #0f172a;
+          margin: 0;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .rm-room-name-sub {
+          font-size: 12px;
+          color: #64748b;
+          font-weight: 500;
+        }
+        .rm-specs-strip {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+          padding: 8px 12px;
+          background: #f8fafc;
+          border-radius: 10px;
+          border: 1px solid #f1f5f9;
+          font-size: 12px;
+          color: #475569;
+          font-weight: 600;
+        }
+        .rm-specs-item {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+        }
+        .rm-card-actions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-top: auto;
+          padding-top: 12px;
+          border-top: 1px solid #f1f5f9;
+        }
+        .rm-btn-detail {
+          flex: 1;
+          height: 34px !important;
+          border-radius: 8px !important;
+          font-weight: 600 !important;
+          background: #f8fafc !important;
+          border-color: #e2e8f0 !important;
+          color: #334155 !important;
+        }
+        .rm-btn-detail:hover {
+          background: #f1f5f9 !important;
+          color: #0f766e !important;
+          border-color: #5eead4 !important;
+        }
+        .rm-btn-edit {
+          flex: 1;
+          height: 34px !important;
+          border-radius: 8px !important;
+          font-weight: 600 !important;
+        }
+        .rm-btn-delete {
+          width: 34px !important;
+          height: 34px !important;
+          border-radius: 8px !important;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0 !important;
+        }
+
+        /* Quick Add Card */
+        .rm-card-add-placeholder {
+          background: #f8fafc;
+          border: 2px dashed #cbd5e1;
+          border-radius: 16px;
+          min-height: 280px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          cursor: pointer;
+          transition: all 0.25s ease;
+          color: #64748b;
+        }
+        .rm-card-add-placeholder:hover {
+          background: #f0fdfa;
+          border-color: #14b8a6;
+          color: #0f766e;
+          transform: translateY(-3px);
+        }
+        .rm-add-icon-circle {
+          width: 52px;
+          height: 52px;
+          border-radius: 50%;
+          background: #ffffff;
+          border: 1px solid #e2e8f0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 22px;
+          color: #0f766e;
+          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Modal Styles */
+        .rm-modal .ant-modal-content {
+          border-radius: 18px !important;
+          overflow: hidden;
+          padding: 0 !important;
+        }
+        .rm-modal .ant-modal-header {
+          padding: 20px 24px !important;
+          margin: 0 !important;
+          border-bottom: 1px solid #f1f5f9;
+        }
+        .rm-modal .ant-modal-body {
+          padding: 24px !important;
+          max-height: 75vh;
+          overflow-y: auto;
+        }
+        .rm-modal .ant-modal-footer {
+          padding: 16px 24px !important;
+          margin: 0 !important;
+          border-top: 1px solid #f1f5f9;
+          background: #f8fafc;
+        }
+        .rm-modal-heading {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        .rm-modal-icon-badge {
+          width: 40px;
+          height: 40px;
+          border-radius: 10px;
+          background: linear-gradient(135deg, #0f766e, #14b8a6);
+          color: #ffffff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 20px;
+        }
+        .rm-modal-title-text {
+          font-size: 17px;
+          font-weight: 800;
+          color: #0f172a;
+          margin: 0;
+        }
+        .rm-modal-subtitle-text {
+          font-size: 12px;
+          color: #64748b;
+          margin: 0;
+        }
+
+        .rm-form-section-title {
+          font-size: 13px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: #0f766e;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          margin-top: 6px;
+        }
+        .rm-form-divider {
+          margin: 8px 0 18px 0 !important;
+        }
+
+        /* Detail Modal */
+        .rm-detail-hero-card {
+          background: linear-gradient(135deg, #f8fafc 0%, #f0fdfa 100%);
+          border: 1px solid #ccfbf1;
+          border-radius: 12px;
+          padding: 16px 20px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          margin-bottom: 18px;
+          flex-wrap: wrap;
+        }
+        .rm-detail-title {
+          font-size: 20px;
+          font-weight: 800;
+          color: #0f766e;
+          margin: 0;
+        }
+        .rm-detail-price {
+          font-size: 18px;
+          font-weight: 800;
+          color: #059669;
+        }
+
+        /* Upload styling */
+        .rm-upload-card-button {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 4px;
+          color: #64748b;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          background: transparent;
+          border: none;
+          width: 100%;
+          height: 100%;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+          .rm-page-wrapper {
+            padding: 14px;
+            gap: 14px;
+          }
+          .rm-hero-banner {
+            padding: 20px 22px;
+          }
+          .rm-filter-bar {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .rm-filter-right {
+            width: 100%;
+          }
+          .rm-filter-select {
+            flex: 1;
+          }
+          .rm-cards-grid {
+            grid-template-columns: 1fr;
+          }
+        }
       `}</style>
-      <div className="room-topbar">
-        <Input className="room-search" prefix={<SearchOutlined />} placeholder="Tìm kiếm phòng, khách thuê..." value={searchText} onChange={(event) => setSearchText(event.target.value)} />
-        <div className="room-spacer" />
-        <Button className="room-add" type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>Thêm Phòng</Button>
+
+      {/* Hero Welcome Banner */}
+      <div className="rm-hero-banner">
+        <div className="rm-hero-inner">
+          <div className="rm-hero-left">
+            <div className="rm-hero-badge">
+              <span className="pulse-dot" />
+              <span>HỆ THỐNG QUẢN LÝ PHÒNG TRỌ</span>
+            </div>
+            <Typography.Title level={2} className="rm-hero-title">
+              Quản Lý Danh Sách Phòng Trọ
+            </Typography.Title>
+            <Typography.Paragraph className="rm-hero-subtitle">
+              Theo dõi tình trạng lấp đầy, giá thuê, hợp đồng và dịch vụ của từng phòng trong hệ thống.
+            </Typography.Paragraph>
+          </div>
+
+          <div className="rm-hero-actions">
+            <Button
+              className="rm-btn-reload"
+              icon={<ReloadOutlined spin={loading} />}
+              onClick={fetchRooms}
+              loading={loading}
+            >
+              Tải lại
+            </Button>
+            <Button
+              type="primary"
+              className="rm-btn-add"
+              icon={<PlusOutlined />}
+              onClick={openCreateModal}
+            >
+              Thêm Phòng Mới
+            </Button>
+          </div>
+        </div>
       </div>
 
-      <div className="room-overview">
-        <div className="room-count"><div className="overview-label">TỔNG SỐ PHÒNG</div><div className="overview-number">{roomOverview.total}</div><div className="overview-note">↗ {roomOverview.occupied} phòng đang thuê</div></div>
+      {/* 5-Stats Overview Grid */}
+      <div className="rm-stats-grid">
+        {/* Total Rooms */}
+        <div className="rm-stat-card">
+          <div className="rm-stat-info">
+            <span className="rm-stat-label">Tổng số phòng</span>
+            <span className="rm-stat-value">{roomOverview.total}</span>
+            <span className="rm-stat-sub">Toàn bộ phòng trọ</span>
+          </div>
+          <div className="rm-stat-icon" style={{ background: "#f0fdfa", color: "#0f766e" }}>
+            <HomeOutlined />
+          </div>
+        </div>
+
+        {/* Occupied */}
+        <div className="rm-stat-card">
+          <div className="rm-stat-info">
+            <span className="rm-stat-label">Đang cho thuê</span>
+            <span className="rm-stat-value" style={{ color: "#2563eb" }}>
+              {roomOverview.occupied}
+            </span>
+            <span className="rm-stat-sub">Có khách đang ở</span>
+          </div>
+          <div className="rm-stat-icon" style={{ background: "#eff6ff", color: "#2563eb" }}>
+            <UserOutlined />
+          </div>
+        </div>
+
+        {/* Available */}
+        <div className="rm-stat-card">
+          <div className="rm-stat-info">
+            <span className="rm-stat-label">Phòng còn trống</span>
+            <span className="rm-stat-value" style={{ color: "#059669" }}>
+              {roomOverview.available}
+            </span>
+            <span className="rm-stat-sub">Sẵn sàng đón khách</span>
+          </div>
+          <div className="rm-stat-icon" style={{ background: "#ecfdf5", color: "#059669" }}>
+            <CheckCircleOutlined />
+          </div>
+        </div>
+
+        {/* Reserved & Maintenance */}
+        <div className="rm-stat-card">
+          <div className="rm-stat-info">
+            <span className="rm-stat-label">Giữ chỗ / Bảo trì</span>
+            <span className="rm-stat-value" style={{ color: "#d97706" }}>
+              {roomOverview.reserved + roomOverview.maintenance}
+            </span>
+            <span className="rm-stat-sub">
+              {roomOverview.reserved} giữ chỗ · {roomOverview.maintenance} bảo trì
+            </span>
+          </div>
+          <div className="rm-stat-icon" style={{ background: "#fffbeb", color: "#d97706" }}>
+            <ToolOutlined />
+          </div>
+        </div>
+
+        {/* Occupancy Rate */}
+        <div className="rm-stat-card">
+          <div className="rm-stat-info">
+            <span className="rm-stat-label">Tỷ lệ lấp đầy</span>
+            <span className="rm-stat-value" style={{ color: "#0f766e" }}>
+              {roomOverview.occupancyRate}%
+            </span>
+            <Progress
+              percent={roomOverview.occupancyRate}
+              size="small"
+              strokeColor="#0f766e"
+              showInfo={false}
+              style={{ margin: "2px 0 0 0", width: 100 }}
+            />
+          </div>
+          <div className="rm-stat-icon" style={{ background: "#f0fdfa", color: "#0f766e" }}>
+            <RiseOutlined />
+          </div>
+        </div>
       </div>
 
-      <div className="room-filters">
-        <Select value={statusFilter} onChange={setStatusFilter} options={[{ label: "Trạng thái: Tất cả trạng thái", value: "all" }, ...statusOptions.map((option) => ({ ...option, label: `Trạng thái: ${option.label}` }))]} />
-        <Select value={sortBy} onChange={setSortBy} options={[{ label: "Sắp xếp: Số phòng (Tăng dần)", value: "roomNumber" }, { label: "Sắp xếp: Giá thuê", value: "price" }, { label: "Sắp xếp: Trạng thái", value: "status" }]} />
-        <div className="room-view"><Button className={display === "grid" ? "active" : ""} icon={<AppstoreOutlined />} onClick={() => setDisplay("grid")} /><Button className={display === "list" ? "active" : ""} icon={<BarsOutlined />} onClick={() => setDisplay("list")} /></div>
+      {/* Floating Filter & Search Toolbar */}
+      <div className="rm-filter-bar">
+        <div className="rm-filter-left">
+          <Input
+            allowClear
+            className="rm-search-input"
+            prefix={<SearchOutlined style={{ color: "#94a3b8" }} />}
+            placeholder="Tìm kiếm số phòng, tên phòng, địa chỉ..."
+            value={searchText}
+            onChange={(event) => setSearchText(event.target.value)}
+          />
+        </div>
+
+        <div className="rm-filter-right">
+          <Select
+            className="rm-filter-select"
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={[
+              { label: "Tất cả trạng thái", value: "all" },
+              ...statusOptions.map((option) => ({
+                ...option,
+                label: `Trạng thái: ${option.label}`,
+              })),
+            ]}
+          />
+          <Select
+            className="rm-filter-select"
+            value={sortBy}
+            onChange={setSortBy}
+            options={[
+              { label: "Sắp xếp: Số phòng (Tăng dần)", value: "roomNumber" },
+              { label: "Sắp xếp: Giá thuê (Cao đến thấp)", value: "price" },
+              { label: "Sắp xếp: Trạng thái", value: "status" },
+            ]}
+          />
+          <div className="rm-view-toggle">
+            <Button
+              className={display === "grid" ? "active" : ""}
+              icon={<AppstoreOutlined />}
+              onClick={() => setDisplay("grid")}
+              title="Xem dạng lưới"
+            />
+            <Button
+              className={display === "list" ? "active" : ""}
+              icon={<BarsOutlined />}
+              onClick={() => setDisplay("list")}
+              title="Xem dạng danh sách"
+            />
+          </div>
+        </div>
       </div>
 
-      <div className="room-grid" style={display === "list" ? { gridTemplateColumns: "1fr" } : undefined}>
+      {/* Room Cards Grid */}
+      <div
+        className="rm-cards-grid"
+        style={display === "list" ? { gridTemplateColumns: "1fr" } : undefined}
+      >
         {visibleRooms.map((room) => {
           const meta = statusMeta[room.status] || statusMeta.available;
           const isOccupied = room.status === "occupied";
-          return <article className="room-card" key={room.id}>
-            <div className="room-photo">{room.images?.[0] && <img src={toAbsoluteImageUrl(room.images[0])} alt={`Phòng ${room.roomNumber}`} />}</div>
-            <div className="room-card-body"><div className="room-card-title"><strong>P.{room.roomNumber}</strong><Tag color={meta.color}>{meta.label}</Tag><MoreOutlined className="room-menu" /></div>
-              <div className="room-info"><span><UserOutlined />{room.name || (isOccupied ? "Đang có khách thuê" : "Sẵn sàng ngay lập tức")}</span><span><FileTextOutlined />{formatCurrency(room.price)}</span></div>
-              <div className="room-actions">
-                <Button onClick={() => openDetailModal(room)}>Chi tiết</Button>
-                <Button type={isOccupied ? "primary" : "default"} icon={<EditOutlined />} onClick={() => openEditModal(room)}>{isOccupied ? "Cập nhật" : "Chỉnh sửa"}</Button>
-                <Popconfirm title="Xóa phòng này?" description="Không thể xóa phòng đang có người thuê." okText="Xóa" cancelText="Hủy" onConfirm={() => handleDelete(room)} disabled={isOccupied}>
-                  <Button className="room-delete" aria-label={`Xóa phòng ${room.roomNumber}`} danger icon={<DeleteOutlined />} disabled={isOccupied} />
-                </Popconfirm>
+
+          return (
+            <article className="rm-room-card" key={room.id}>
+              {/* Photo Cover */}
+              <div className="rm-card-cover">
+                {room.images?.[0] ? (
+                  <img
+                    src={toAbsoluteImageUrl(room.images[0])}
+                    alt={`Phòng ${room.roomNumber}`}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      height: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: "linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)",
+                      color: "#64748b",
+                      fontWeight: 700,
+                    }}
+                  >
+                    <HomeOutlined style={{ fontSize: 32, opacity: 0.5 }} />
+                  </div>
+                )}
+                <div className="rm-cover-status">
+                  <Tag
+                    color={meta.color}
+                    style={{
+                      borderRadius: 8,
+                      fontWeight: 700,
+                      padding: "2px 10px",
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+                    }}
+                  >
+                    {meta.label}
+                  </Tag>
+                </div>
+                <div className="rm-cover-price">{formatCurrency(room.price)}/tháng</div>
               </div>
-            </div>
-          </article>;
+
+              {/* Card Body */}
+              <div className="rm-card-body">
+                <div className="rm-card-header-row">
+                  <div>
+                    <h3 className="rm-room-title">
+                      <span>P.{room.roomNumber}</span>
+                      <span className="rm-room-name-sub">({room.name || "Chưa đặt tên"})</span>
+                    </h3>
+                  </div>
+                </div>
+
+                {/* Specs Strip */}
+                <div className="rm-specs-strip">
+                  <span className="rm-specs-item">
+                    <HomeOutlined style={{ color: "#0f766e" }} />
+                    Tầng {room.floor || 1}
+                  </span>
+                  <span>•</span>
+                  <span className="rm-specs-item">
+                    <EnvironmentOutlined style={{ color: "#2563eb" }} />
+                    {room.area || 0} m²
+                  </span>
+                  <span>•</span>
+                  <span className="rm-specs-item">
+                    <TeamOutlined style={{ color: "#7c3aed" }} />
+                    Tối đa {room.capacity || 1} người
+                  </span>
+                </div>
+
+                {/* Address & Note */}
+                <div style={{ fontSize: 12, color: "#64748b", display: "flex", alignItems: "center", gap: 6 }}>
+                  <EnvironmentOutlined style={{ color: "#94a3b8" }} />
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {room.address || "Chưa có địa chỉ cụ thể"}
+                  </span>
+                </div>
+
+                {/* Actions */}
+                <div className="rm-card-actions">
+                  <Button
+                    className="rm-btn-detail"
+                    icon={<EyeOutlined />}
+                    onClick={() => openDetailModal(room)}
+                  >
+                    Chi tiết
+                  </Button>
+                  <Button
+                    className="rm-btn-edit"
+                    type={isOccupied ? "primary" : "default"}
+                    icon={<EditOutlined />}
+                    onClick={() => openEditModal(room)}
+                    style={
+                      isOccupied
+                        ? { background: "#0f766e", borderColor: "#0f766e" }
+                        : {}
+                    }
+                  >
+                    {isOccupied ? "Cập nhật" : "Sửa"}
+                  </Button>
+                  <Popconfirm
+                    title="Xác nhận xóa phòng này?"
+                    description="Không thể xóa phòng đang có người thuê."
+                    okText="Xóa"
+                    cancelText="Hủy"
+                    okButtonProps={{ danger: true }}
+                    onConfirm={() => handleDelete(room)}
+                    disabled={isOccupied}
+                  >
+                    <Tooltip title={isOccupied ? "Không thể xóa phòng đang thuê" : "Xóa phòng"}>
+                      <Button
+                        className="rm-btn-delete"
+                        danger
+                        icon={<DeleteOutlined />}
+                        disabled={isOccupied}
+                      />
+                    </Tooltip>
+                  </Popconfirm>
+                </div>
+              </div>
+            </article>
+          );
         })}
-        {!loading && !visibleRooms.length && <div className="room-empty">Không tìm thấy phòng phù hợp.</div>}
-        <div className="room-card room-card-add"><Button icon={<PlusOutlined />} onClick={openCreateModal} /></div>
+
+        {/* Quick Add Placeholder Card */}
+        <div className="rm-card-add-placeholder" onClick={openCreateModal}>
+          <div className="rm-add-icon-circle">
+            <PlusOutlined />
+          </div>
+          <div style={{ textAlign: "center" }}>
+            <strong style={{ display: "block", fontSize: 15, color: "#0f172a" }}>Thêm Phòng Mới</strong>
+            <span style={{ fontSize: 12, color: "#64748b" }}>Nhấn để tạo phòng trọ mới vào hệ thống</span>
+          </div>
+        </div>
       </div>
 
+      {!loading && !visibleRooms.length && (
+        <Empty
+          style={{ padding: "40px 0", background: "#ffffff", borderRadius: 16 }}
+          description="Không tìm thấy phòng nào phù hợp với bộ lọc hiện tại"
+        />
+      )}
+
+      {/* Modal Thêm / Chỉnh sửa phòng (Cập nhật) */}
       <Modal
-        className="room-modal"
-        title={<div className="modal-heading"><div className="modal-heading-icon"><PlusOutlined /></div><div className="modal-heading-text"><strong>{editingRoom ? "Chỉnh sửa phòng" : "Thêm phòng mới"}</strong><span>{editingRoom ? "Cập nhật thông tin và dịch vụ của phòng" : "Tạo phòng và thiết lập thông tin cơ bản"}</span></div></div>}
+        className="rm-modal"
+        title={
+          <div className="rm-modal-heading">
+            <div className="rm-modal-icon-badge">
+              <HomeOutlined />
+            </div>
+            <div>
+              <h4 className="rm-modal-title-text">
+                {editingRoom ? `Chỉnh sửa thông tin phòng P.${editingRoom.roomNumber}` : "Tạo phòng trọ mới"}
+              </h4>
+              <p className="rm-modal-subtitle-text">
+                {editingRoom
+                  ? "Cập nhật thông tin chi tiết, biểu phí dịch vụ và hình ảnh phòng"
+                  : "Thiết lập thông số cơ bản và bảng giá dịch vụ cho phòng mới"}
+              </p>
+            </div>
+          </div>
+        }
         open={modalOpen}
         onCancel={closeModal}
         onOk={() => form.submit()}
         confirmLoading={submitting}
-        okText={editingRoom ? "Lưu" : "Tạo phòng"}
-        cancelText="Hủy"
-        width={720}
+        okText={editingRoom ? "Lưu thay đổi" : "Tạo phòng mới"}
+        cancelText="Hủy bỏ"
+        width={760}
       >
-        <Form className="room-form" form={form} layout="vertical" onFinish={handleSubmit}>
-          <div className="modal-section">Thông tin phòng</div>
-          <div className="form-grid">
-            <Form.Item name="roomNumber" label="Số phòng" rules={[{ required: true, message: "Vui lòng nhập số phòng!" }]}>
-              <Input placeholder="VD: 101" />
-            </Form.Item>
-            <Form.Item name="name" label="Tên phòng" rules={[{ required: true, message: "Vui lòng nhập tên phòng!" }]}>
-              <Input placeholder="VD: Phòng 101" />
-            </Form.Item>
-            <Form.Item name="floor" label="Tầng" rules={[{ required: true, message: "Vui lòng nhập tầng!" }]}>
-              <InputNumber min={0} className="full-width-input" />
-            </Form.Item>
-            <Form.Item name="area" label="Diện tích">
-              <InputNumber min={0} className="full-width-input" addonAfter="m²" />
-            </Form.Item>
-            <Form.Item name="capacity" label="Sức chứa" rules={[{ required: true, message: "Vui lòng nhập sức chứa!" }]}>
-              <InputNumber min={1} className="full-width-input" />
-            </Form.Item>
-            <Form.Item name="price" label="Giá thuê" rules={[{ required: true, message: "Vui lòng nhập giá thuê!" }]}>
-              <InputNumber min={0} className="full-width-input" addonAfter="VNĐ" />
-            </Form.Item>
-            <Form.Item name="deposit" label="Tiền cọc">
-              <InputNumber min={0} className="full-width-input" addonAfter="VNĐ" />
-            </Form.Item>
-            <Form.Item name="serviceFee" label="Phí dịch vụ">
-              <InputNumber min={0} className="full-width-input" addonAfter="VNĐ" />
-            </Form.Item>
-            <Form.Item name="electricityPrice" label="Giá điện">
-              <InputNumber min={0} className="full-width-input" addonAfter="VNĐ" />
-            </Form.Item>
-            <Form.Item name="waterPrice" label="Giá nước">
-              <InputNumber min={0} className="full-width-input" addonAfter="VNĐ" />
-            </Form.Item>
-            <Form.Item name="status" label="Trạng thái" rules={[{ required: true, message: "Vui lòng chọn trạng thái!" }]}>
-              <Select options={roomStatusOptions} />
-            </Form.Item>
+        <Form form={form} layout="vertical" onFinish={handleSubmit}>
+          {/* Section 1: Thông tin cơ bản */}
+          <div className="rm-form-section-title">
+            <InfoCircleOutlined />
+            <span>Thông tin cơ bản & Quy mô phòng</span>
           </div>
+          <Divider className="rm-form-divider" />
 
-          <div className="modal-section">Vị trí phòng</div>
-          <Form.Item name="address" label="Địa chỉ phòng">
-            <Input placeholder="VD: Số 12 ngõ 34 Cầu Giấy, Hà Nội" />
+          <Row gutter={16}>
+            <Col xs={24} md={8}>
+              <Form.Item
+                name="roomNumber"
+                label="Số phòng"
+                rules={[{ required: true, message: "Vui lòng nhập số phòng" }]}
+              >
+                <Input placeholder="Ví dụ: 101" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item
+                name="name"
+                label="Tên / Mã phòng"
+                rules={[{ required: true, message: "Vui lòng nhập tên phòng" }]}
+              >
+                <Input placeholder="Ví dụ: Phòng Studio 101" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item
+                name="floor"
+                label="Tầng"
+                rules={[{ required: true, message: "Vui lòng nhập tầng" }]}
+              >
+                <InputNumber min={0} style={{ width: "100%" }} placeholder="1" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item name="area" label="Diện tích (m²)">
+                <InputNumber min={0} style={{ width: "100%" }} addonAfter="m²" placeholder="25" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item
+                name="capacity"
+                label="Sức chứa tối đa"
+                rules={[{ required: true, message: "Vui lòng nhập sức chứa" }]}
+              >
+                <InputNumber min={1} style={{ width: "100%" }} addonAfter="Người" placeholder="2" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item
+                name="status"
+                label="Trạng thái phòng"
+                rules={[{ required: true, message: "Vui lòng chọn trạng thái" }]}
+              >
+                <Select options={roomStatusOptions} />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          {/* Section 2: Giá & Phí dịch vụ */}
+          <div className="rm-form-section-title">
+            <DollarOutlined />
+            <span>Bảng giá thuê & Phí dịch vụ hàng tháng</span>
+          </div>
+          <Divider className="rm-form-divider" />
+
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="price"
+                label="Giá thuê niêm yết (VNĐ/tháng)"
+                rules={[{ required: true, message: "Vui lòng nhập giá thuê" }]}
+              >
+                <InputNumber
+                  min={0}
+                  step={100000}
+                  style={{ width: "100%" }}
+                  addonAfter="VNĐ"
+                  formatter={(val) => `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                  parser={(val) => val.replace(/,/g, "")}
+                  placeholder="3,500,000"
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="deposit" label="Tiền đặt cọc (VNĐ)">
+                <InputNumber
+                  min={0}
+                  step={100000}
+                  style={{ width: "100%" }}
+                  addonAfter="VNĐ"
+                  formatter={(val) => `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                  parser={(val) => val.replace(/,/g, "")}
+                  placeholder="3,500,000"
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item name="electricityPrice" label="Giá điện (VNĐ/kWh)">
+                <InputNumber
+                  min={0}
+                  style={{ width: "100%" }}
+                  addonAfter="đ/kWh"
+                  formatter={(val) => `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                  parser={(val) => val.replace(/,/g, "")}
+                  placeholder="3,500"
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item name="waterPrice" label="Giá nước (VNĐ/tháng hoặc khối)">
+                <InputNumber
+                  min={0}
+                  style={{ width: "100%" }}
+                  addonAfter="VNĐ"
+                  formatter={(val) => `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                  parser={(val) => val.replace(/,/g, "")}
+                  placeholder="15,000"
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item name="serviceFee" label="Phí dịch vụ chung (VNĐ/tháng)">
+                <InputNumber
+                  min={0}
+                  style={{ width: "100%" }}
+                  addonAfter="VNĐ"
+                  formatter={(val) => `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                  parser={(val) => val.replace(/,/g, "")}
+                  placeholder="150,000"
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          {/* Section 3: Vị trí, Mô tả & Hình ảnh */}
+          <div className="rm-form-section-title">
+            <EnvironmentOutlined />
+            <span>Địa chỉ, Mô tả chi tiết & Hình ảnh phòng</span>
+          </div>
+          <Divider className="rm-form-divider" />
+
+          <Form.Item name="address" label="Địa chỉ cụ thể của phòng">
+            <Input placeholder="Ví dụ: Số 12 ngõ 34 Cầu Giấy, Hà Nội" />
           </Form.Item>
 
-          <div className="modal-section">Mô tả và hình ảnh</div>
-          <Form.Item name="description" label="Mô tả">
-            <Input.TextArea rows={3} />
+          <Form.Item name="description" label="Mô tả tiện ích, nội thất của phòng">
+            <Input.TextArea
+              rows={3}
+              placeholder="Mô tả chi tiết: Điều hòa, bình nóng lạnh, giường tủ, ban công thoáng mát..."
+            />
           </Form.Item>
-          <Form.Item label="Ảnh phòng">
+
+          <Form.Item label="Thư viện ảnh phòng (Tối đa 10 ảnh)">
             <Upload
               accept="image/png,image/jpeg,image/webp"
               customRequest={handleImageUpload}
@@ -497,8 +1420,8 @@ const RoomManagementPage = () => {
               }}
             >
               {imageFileList.length >= 10 ? null : (
-                <button type="button" className="upload-card-button">
-                  <UploadOutlined />
+                <button type="button" className="rm-upload-card-button">
+                  <UploadOutlined style={{ fontSize: 18, color: "#0f766e" }} />
                   <span>Tải ảnh</span>
                 </button>
               )}
@@ -507,204 +1430,284 @@ const RoomManagementPage = () => {
         </Form>
       </Modal>
 
+      {/* Modal Chi tiết phòng (Detail & Status Management) */}
       <Modal
-        className="room-modal"
-        title={<div className="modal-heading"><div className="modal-heading-icon"><FileTextOutlined /></div><div className="modal-heading-text"><strong>Chi tiết phòng {detailRoom?.roomNumber ? `P.${detailRoom.roomNumber}` : ""}</strong><span>Thông tin phòng, dịch vụ và người thuê</span></div></div>}
+        className="rm-modal"
+        title={
+          <div className="rm-modal-heading">
+            <div className="rm-modal-icon-badge" style={{ background: "linear-gradient(135deg, #2563eb, #3b82f6)" }}>
+              <FileTextOutlined />
+            </div>
+            <div>
+              <h4 className="rm-modal-title-text">
+                Chi tiết phòng {detailRoom?.roomNumber ? `P.${detailRoom.roomNumber}` : ""}
+              </h4>
+              <p className="rm-modal-subtitle-text">
+                Hồ sơ thông tin phòng, hợp đồng, dịch vụ, người thuê và lịch sử hóa đơn
+              </p>
+            </div>
+          </div>
+        }
         open={detailOpen}
         onCancel={() => setDetailOpen(false)}
         footer={[
+          <Button key="edit" type="primary" icon={<EditOutlined />} onClick={() => { setDetailOpen(false); openEditModal(detailRoom); }}>
+            Chỉnh sửa thông tin phòng
+          </Button>,
           <Button key="close" onClick={() => setDetailOpen(false)}>
             Đóng
           </Button>,
         ]}
-        width={820}
+        width={860}
       >
         {detailRoom && (
-          <Space direction="vertical" size={16} className="page-stack room-detail">
-            <div className="detail-status"><UserOutlined /> {statusMeta[detailRoom.status]?.label || "Sẵn sàng"} · Tầng {detailRoom.floor || "-"} · {detailRoom.area || 0} m²</div>
-            <Descriptions bordered size="small" column={2}>
-              <Descriptions.Item label="Số phòng">{detailRoom.roomNumber}</Descriptions.Item>
-              <Descriptions.Item label="Tên phòng">{detailRoom.name}</Descriptions.Item>
-              <Descriptions.Item label="Tầng">{detailRoom.floor}</Descriptions.Item>
-              <Descriptions.Item label="Diện tích">{detailRoom.area || 0} m²</Descriptions.Item>
-              <Descriptions.Item label="Sức chứa">{detailRoom.capacity}</Descriptions.Item>
-              <Descriptions.Item label="Trạng thái">
-                <Tag color={statusMeta[detailRoom.status]?.color}>
+          <Space direction="vertical" size={16} style={{ width: "100%" }}>
+            {/* Top Detail Hero Card */}
+            <div className="rm-detail-hero-card">
+              <div>
+                <h3 className="rm-detail-title">
+                  Phòng {detailRoom.roomNumber} - {detailRoom.name || "Phòng trọ"}
+                </h3>
+                <span style={{ fontSize: 13, color: "#64748b" }}>
+                  Tầng {detailRoom.floor || 1} • Diện tích: {detailRoom.area || 0} m² • Sức chứa: {detailRoom.capacity || 1} người
+                </span>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div className="rm-detail-price">{formatCurrency(detailRoom.price)}/tháng</div>
+                <Tag
+                  color={statusMeta[detailRoom.status]?.color}
+                  style={{ fontWeight: 700, borderRadius: 6, margin: "4px 0 0 0" }}
+                >
                   {statusMeta[detailRoom.status]?.label}
                 </Tag>
-              </Descriptions.Item>
-              {detailRoom.status === "payment_pending" ? (
-                <Descriptions.Item label="Khóa thanh toán đến">
-                  {formatDate(detailRoom.paymentHoldExpiresAt)}{" "}
-                  {detailRoom.paymentHoldExpiresAt
-                    ? new Date(detailRoom.paymentHoldExpiresAt).toLocaleTimeString("vi-VN")
-                    : ""}
-                </Descriptions.Item>
-              ) : null}
-            </Descriptions>
+              </div>
+            </div>
 
-            <Divider orientation="left">Vị trí phòng</Divider>
-            <Descriptions bordered size="small" column={2}>
-              <Descriptions.Item label="Địa chỉ" span={2}>{detailRoom.address || "-"}</Descriptions.Item>
-            </Descriptions>
+            {/* Detailed Tabs View */}
+            <Tabs
+              defaultActiveKey="info"
+              items={[
+                {
+                  key: "info",
+                  label: (
+                    <span>
+                      <InfoCircleOutlined style={{ marginRight: 6 }} />
+                      Thông tin & Dịch vụ
+                    </span>
+                  ),
+                  children: (
+                    <Space direction="vertical" size={14} style={{ width: "100%" }}>
+                      <Descriptions bordered size="small" column={2}>
+                        <Descriptions.Item label="Số phòng">{detailRoom.roomNumber}</Descriptions.Item>
+                        <Descriptions.Item label="Tên phòng">{detailRoom.name}</Descriptions.Item>
+                        <Descriptions.Item label="Tầng">{detailRoom.floor}</Descriptions.Item>
+                        <Descriptions.Item label="Diện tích">{detailRoom.area || 0} m²</Descriptions.Item>
+                        <Descriptions.Item label="Sức chứa">{detailRoom.capacity} người</Descriptions.Item>
+                        <Descriptions.Item label="Trạng thái">
+                          <Tag color={statusMeta[detailRoom.status]?.color}>
+                            {statusMeta[detailRoom.status]?.label}
+                          </Tag>
+                        </Descriptions.Item>
+                        {detailRoom.status === "payment_pending" && (
+                          <Descriptions.Item label="Khóa thanh toán đến" span={2}>
+                            {formatDate(detailRoom.paymentHoldExpiresAt)}{" "}
+                            {detailRoom.paymentHoldExpiresAt
+                              ? new Date(detailRoom.paymentHoldExpiresAt).toLocaleTimeString("vi-VN")
+                              : ""}
+                          </Descriptions.Item>
+                        )}
+                        <Descriptions.Item label="Địa chỉ cụ thể" span={2}>
+                          {detailRoom.address || "Chưa cập nhật"}
+                        </Descriptions.Item>
+                      </Descriptions>
 
-            <Divider orientation="left">Giá và dịch vụ</Divider>
-            <Descriptions bordered size="small" column={2}>
-              <Descriptions.Item label="Giá thuê">{formatCurrency(detailRoom.price)}</Descriptions.Item>
-              <Descriptions.Item label="Tiền cọc">{formatCurrency(detailRoom.deposit)}</Descriptions.Item>
-              <Descriptions.Item label="Giá điện">{formatCurrency(detailRoom.electricityPrice)}</Descriptions.Item>
-              <Descriptions.Item label="Giá nước">{formatCurrency(detailRoom.waterPrice)}</Descriptions.Item>
-              <Descriptions.Item label="Phí dịch vụ">{formatCurrency(detailRoom.serviceFee)}</Descriptions.Item>
-            </Descriptions>
-
-            <Descriptions bordered size="small" column={1}>
-              <Descriptions.Item label="Mô tả">{detailRoom.description || "-"}</Descriptions.Item>
-            </Descriptions>
-
-            <Divider orientation="left">Người thuê phòng</Divider>
-            <List
-              bordered
-              dataSource={detailData?.tenants || []}
-              loading={detailLoading}
-              locale={{ emptyText: "Chưa có người thuê trong phòng" }}
-              renderItem={(tenant) => {
-                const roleMeta = roomRoleMeta[tenant.roomRole] || roomRoleMeta.member;
-                const tenantMeta = tenantStatusMeta[tenant.status] || tenantStatusMeta.active;
-
-                return (
-                  <List.Item>
-                    <Space direction="vertical" size={4} className="page-stack">
-                      <Space wrap>
-                        <Typography.Text strong>{tenant.userName || "-"}</Typography.Text>
-                        <Tag color={roleMeta.color}>{roleMeta.label}</Tag>
-                        <Tag color={tenantMeta.color}>{tenantMeta.label}</Tag>
-                      </Space>
-                      <Typography.Text type="secondary">
-                        {tenant.userPhone || tenant.userEmail || "-"} | Vào: {formatDate(tenant.moveInDate)} | Rời:{" "}
-                        {formatDate(tenant.moveOutDate)}
-                      </Typography.Text>
+                      <Divider orientation="left" style={{ margin: "10px 0" }}>Bảng giá & Chi phí</Divider>
+                      <Descriptions bordered size="small" column={2}>
+                        <Descriptions.Item label="Giá thuê phòng">{formatCurrency(detailRoom.price)}</Descriptions.Item>
+                        <Descriptions.Item label="Tiền đặt cọc">{formatCurrency(detailRoom.deposit)}</Descriptions.Item>
+                        <Descriptions.Item label="Đơn giá điện">{formatCurrency(detailRoom.electricityPrice)}/kWh</Descriptions.Item>
+                        <Descriptions.Item label="Đơn giá nước">{formatCurrency(detailRoom.waterPrice)}</Descriptions.Item>
+                        <Descriptions.Item label="Phí dịch vụ">{formatCurrency(detailRoom.serviceFee)}</Descriptions.Item>
+                        <Descriptions.Item label="Mô tả" span={2}>
+                          {detailRoom.description || "Chưa có mô tả chi tiết."}
+                        </Descriptions.Item>
+                      </Descriptions>
                     </Space>
-                  </List.Item>
-                );
-              }}
-            />
+                  ),
+                },
+                {
+                  key: "tenants_contracts",
+                  label: (
+                    <span>
+                      <TeamOutlined style={{ marginRight: 6 }} />
+                      Người thuê & Hợp đồng ({detailData?.tenants?.length || 0})
+                    </span>
+                  ),
+                  children: (
+                    <Space direction="vertical" size={14} style={{ width: "100%" }}>
+                      <Typography.Text strong>Danh sách người đang thuê trong phòng</Typography.Text>
+                      <List
+                        bordered
+                        dataSource={detailData?.tenants || []}
+                        loading={detailLoading}
+                        locale={{ emptyText: "Chưa có người thuê nào trong phòng này" }}
+                        renderItem={(tenant) => {
+                          const roleMeta = roomRoleMeta[tenant.roomRole] || roomRoleMeta.member;
+                          const tenantMeta = tenantStatusMeta[tenant.status] || tenantStatusMeta.active;
 
-            <Divider orientation="left">Hợp đồng</Divider>
-            {detailData?.activeContract ? (
-              <Descriptions bordered size="small" column={2}>
-                <Descriptions.Item label="Mã hợp đồng">
-                  {detailData.activeContract.contractCode}
-                </Descriptions.Item>
-                <Descriptions.Item label="Trạng thái">
-                  <Tag color={contractStatusMeta[detailData.activeContract.status]?.color}>
-                    {contractStatusMeta[detailData.activeContract.status]?.label || detailData.activeContract.status}
-                  </Tag>
-                </Descriptions.Item>
-                <Descriptions.Item label="Người đại diện">
-                  {detailData.activeContract.tenantName || "-"}
-                </Descriptions.Item>
-                <Descriptions.Item label="Điện thoại">
-                  {detailData.activeContract.tenantPhone || detailData.activeContract.tenantEmail || "-"}
-                </Descriptions.Item>
-                <Descriptions.Item label="Ngày bắt đầu">
-                  {formatDate(detailData.activeContract.startDate)}
-                </Descriptions.Item>
-                <Descriptions.Item label="Ngày kết thúc">
-                  {formatDate(detailData.activeContract.endDate)}
-                </Descriptions.Item>
-                <Descriptions.Item label="Hiệu lực còn lại">
-                  {getRemainingTimeLabel(detailData.activeContract.endDate)}
-                </Descriptions.Item>
-                <Descriptions.Item label="Xem hợp đồng">
-                  <Button size="small" onClick={() => handleOpenContractFile(detailData.activeContract.id)}>
-                    Xem hợp đồng
-                  </Button>
-                </Descriptions.Item>
-              </Descriptions>
-            ) : (
-              <Typography.Text type="secondary">Chưa có hợp đồng cho phòng này.</Typography.Text>
-            )}
+                          return (
+                            <List.Item>
+                              <Space direction="vertical" size={2} style={{ width: "100%" }}>
+                                <Space wrap style={{ justifyContent: "space-between", width: "100%" }}>
+                                  <Space>
+                                    <Avatar icon={<UserOutlined />} style={{ background: "#0f766e" }} />
+                                    <Typography.Text strong>{tenant.userName || "-"}</Typography.Text>
+                                  </Space>
+                                  <Space>
+                                    <Tag color={roleMeta.color}>{roleMeta.label}</Tag>
+                                    <Tag color={tenantMeta.color}>{tenantMeta.label}</Tag>
+                                  </Space>
+                                </Space>
+                                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                                  Liên hệ: {tenant.userPhone || tenant.userEmail || "-"} • Ngày vào: {formatDate(tenant.moveInDate)} • Ngày rời: {formatDate(tenant.moveOutDate)}
+                                </Typography.Text>
+                              </Space>
+                            </List.Item>
+                          );
+                        }}
+                      />
 
-            <Divider orientation="left">Khách giữ phòng</Divider>
-            {detailData?.holdRequest ? (
-              <Descriptions bordered size="small" column={2}>
-                <Descriptions.Item label="Khách giữ phòng">
-                  {detailData.holdRequest.userName || "-"}
-                </Descriptions.Item>
-                <Descriptions.Item label="Liên hệ">
-                  {detailData.holdRequest.userPhone || detailData.holdRequest.userEmail || "-"}
-                </Descriptions.Item>
-                <Descriptions.Item label="Số tiền đã cọc">
-                  {formatCurrency(detailData.holdRequest.amount)}
-                </Descriptions.Item>
-                <Descriptions.Item label="Thanh toán">
-                  <Tag color={paymentProviderMeta[detailData.holdRequest.paymentProvider]?.color}>
-                    {paymentProviderMeta[detailData.holdRequest.paymentProvider]?.label || detailData.holdRequest.paymentProvider}
-                  </Tag>
-                </Descriptions.Item>
-                <Descriptions.Item label="Ngày thanh toán">
-                  {formatDate(detailData.holdRequest.paidAt)}
-                </Descriptions.Item>
-                <Descriptions.Item label="Hiệu lực giữ phòng">
-                  {getRemainingTimeLabel(detailData.holdRequest.holdExpiresAt)}
-                </Descriptions.Item>
-              </Descriptions>
-            ) : (
-              <Typography.Text type="secondary">Chưa có khách giữ phòng đang hiệu lực.</Typography.Text>
-            )}
-
-            <Divider orientation="left">Hóa đơn gần đây</Divider>
-            <List
-              bordered
-              dataSource={detailData?.recentInvoices || []}
-              loading={detailLoading}
-              locale={{ emptyText: "Chưa có hóa đơn cho phòng này" }}
-              renderItem={(invoice) => {
-                const meta = invoiceStatusMeta[invoice.status] || invoiceStatusMeta.unpaid;
-
-                return (
-                  <List.Item>
-                    <Space direction="vertical" size={4} className="page-stack">
-                      <Space wrap>
-                        <Typography.Text strong>
-                          {invoice.invoiceCode} - Tháng {invoice.month}/{invoice.year}
-                        </Typography.Text>
-                        <Tag color={meta.color}>{meta.label}</Tag>
-                      </Space>
-                      <Typography.Text type="secondary">
-                        Người thuê: {invoice.tenantName || "-"} | Tổng tiền: {formatCurrency(invoice.totalAmount)} | Đã thanh toán:{" "}
-                        {formatCurrency(invoice.paidAmount)} | Hạn: {formatDate(invoice.dueDate)}
-                      </Typography.Text>
+                      <Divider orientation="left" style={{ margin: "14px 0 10px 0" }}>Hợp đồng thuê đang hiệu lực</Divider>
+                      {detailData?.activeContract ? (
+                        <Descriptions bordered size="small" column={2}>
+                          <Descriptions.Item label="Mã hợp đồng">
+                            <span style={{ fontWeight: 700, color: "#0f766e" }}>
+                              {detailData.activeContract.contractCode}
+                            </span>
+                          </Descriptions.Item>
+                          <Descriptions.Item label="Trạng thái">
+                            <Tag color={contractStatusMeta[detailData.activeContract.status]?.color}>
+                              {contractStatusMeta[detailData.activeContract.status]?.label || detailData.activeContract.status}
+                            </Tag>
+                          </Descriptions.Item>
+                          <Descriptions.Item label="Người đại diện">{detailData.activeContract.tenantName || "-"}</Descriptions.Item>
+                          <Descriptions.Item label="Điện thoại">{detailData.activeContract.tenantPhone || detailData.activeContract.tenantEmail || "-"}</Descriptions.Item>
+                          <Descriptions.Item label="Ngày bắt đầu">{formatDate(detailData.activeContract.startDate)}</Descriptions.Item>
+                          <Descriptions.Item label="Ngày kết thúc">{formatDate(detailData.activeContract.endDate)}</Descriptions.Item>
+                          <Descriptions.Item label="Thời hạn còn lại" span={2}>
+                            <Tag color="warning" icon={<ClockCircleOutlined />}>
+                              {getRemainingTimeLabel(detailData.activeContract.endDate)}
+                            </Tag>
+                          </Descriptions.Item>
+                          <Descriptions.Item label="Hợp đồng gốc" span={2}>
+                            <Button size="small" type="primary" icon={<FileProtectOutlined />} onClick={() => handleOpenContractFile(detailData.activeContract.id)}>
+                              Mở file hợp đồng ký
+                            </Button>
+                          </Descriptions.Item>
+                        </Descriptions>
+                      ) : (
+                        <Empty description="Phòng này hiện chưa có hợp đồng thuê nào đang kích hoạt" />
+                      )}
                     </Space>
-                  </List.Item>
-                );
-              }}
+                  ),
+                },
+                {
+                  key: "invoices_hold",
+                  label: (
+                    <span>
+                      <FileTextOutlined style={{ marginRight: 6 }} />
+                      Giữ phòng & Hóa đơn ({detailData?.recentInvoices?.length || 0})
+                    </span>
+                  ),
+                  children: (
+                    <Space direction="vertical" size={14} style={{ width: "100%" }}>
+                      {detailData?.holdRequest && (
+                        <>
+                          <Typography.Text strong style={{ color: "#d97706" }}>Yêu cầu đặt cọc giữ chỗ</Typography.Text>
+                          <Descriptions bordered size="small" column={2}>
+                            <Descriptions.Item label="Khách giữ phòng">{detailData.holdRequest.userName || "-"}</Descriptions.Item>
+                            <Descriptions.Item label="Liên hệ">{detailData.holdRequest.userPhone || detailData.holdRequest.userEmail || "-"}</Descriptions.Item>
+                            <Descriptions.Item label="Số tiền đã cọc">{formatCurrency(detailData.holdRequest.amount)}</Descriptions.Item>
+                            <Descriptions.Item label="Phương thức">
+                              <Tag color={paymentProviderMeta[detailData.holdRequest.paymentProvider]?.color}>
+                                {paymentProviderMeta[detailData.holdRequest.paymentProvider]?.label || detailData.holdRequest.paymentProvider}
+                              </Tag>
+                            </Descriptions.Item>
+                            <Descriptions.Item label="Ngày thanh toán">{formatDate(detailData.holdRequest.paidAt)}</Descriptions.Item>
+                            <Descriptions.Item label="Hiệu lực giữ phòng">
+                              {getRemainingTimeLabel(detailData.holdRequest.holdExpiresAt)}
+                            </Descriptions.Item>
+                          </Descriptions>
+                          <Divider style={{ margin: "10px 0" }} />
+                        </>
+                      )}
+
+                      <Typography.Text strong>Lịch sử hóa đơn gần đây</Typography.Text>
+                      <List
+                        bordered
+                        dataSource={detailData?.recentInvoices || []}
+                        loading={detailLoading}
+                        locale={{ emptyText: "Chưa có hóa đơn nào cho phòng này" }}
+                        renderItem={(invoice) => {
+                          const meta = invoiceStatusMeta[invoice.status] || invoiceStatusMeta.unpaid;
+
+                          return (
+                            <List.Item>
+                              <Space direction="vertical" size={2} style={{ width: "100%" }}>
+                                <Space style={{ justifyContent: "space-between", width: "100%" }}>
+                                  <Typography.Text strong style={{ color: "#0f766e" }}>
+                                    {invoice.invoiceCode} - Tháng {invoice.month}/{invoice.year}
+                                  </Typography.Text>
+                                  <Tag color={meta.color}>{meta.label}</Tag>
+                                </Space>
+                                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                                  Người thuê: {invoice.tenantName || "-"} • Tổng tiền: {formatCurrency(invoice.totalAmount)} • Đã trả: {formatCurrency(invoice.paidAmount)} • Hạn đóng: {formatDate(invoice.dueDate)}
+                                </Typography.Text>
+                              </Space>
+                            </List.Item>
+                          );
+                        }}
+                      />
+                    </Space>
+                  ),
+                },
+                {
+                  key: "gallery",
+                  label: (
+                    <span>
+                      <UploadOutlined style={{ marginRight: 6 }} />
+                      Thư viện ảnh ({detailRoom.images?.length || 0})
+                    </span>
+                  ),
+                  children: (
+                    <Space direction="vertical" size={14} style={{ width: "100%" }}>
+                      {detailRoom.images?.length ? (
+                        <Image.PreviewGroup>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 12 }}>
+                            {detailRoom.images.map((url, index) => (
+                              <Image
+                                key={`${url}-${index}`}
+                                src={toAbsoluteImageUrl(url)}
+                                height={100}
+                                style={{ objectFit: "cover", borderRadius: 10, border: "1px solid #e2e8f0" }}
+                              />
+                            ))}
+                          </div>
+                        </Image.PreviewGroup>
+                      ) : (
+                        <Empty description="Phòng này chưa có hình ảnh nào được tải lên" />
+                      )}
+
+                      <Divider style={{ margin: "14px 0 10px 0" }} />
+                      <Descriptions bordered size="small" column={2}>
+                        <Descriptions.Item label="Ngày tạo phòng">{formatDate(detailRoom.createdAt)}</Descriptions.Item>
+                        <Descriptions.Item label="Lần cập nhật cuối">{formatDate(detailRoom.updatedAt)}</Descriptions.Item>
+                      </Descriptions>
+                    </Space>
+                  ),
+                },
+              ]}
             />
-
-            <Divider orientation="left">Ảnh phòng</Divider>
-            {detailRoom.images?.length ? (
-              <Image.PreviewGroup>
-                <Space wrap>
-                  {detailRoom.images.map((url, index) => (
-                    <Image
-                      key={`${url}-${index}`}
-                      src={toAbsoluteImageUrl(url)}
-                      width={120}
-                      height={90}
-                      style={{ objectFit: "cover", borderRadius: 8 }}
-                    />
-                  ))}
-                </Space>
-              </Image.PreviewGroup>
-            ) : (
-              <Typography.Text type="secondary">Chưa có ảnh phòng</Typography.Text>
-            )}
-
-            <Divider orientation="left">Thời gian</Divider>
-            <Descriptions bordered size="small" column={2}>
-              <Descriptions.Item label="Ngày tạo">{formatDate(detailRoom.createdAt)}</Descriptions.Item>
-              <Descriptions.Item label="Ngày cập nhật">{formatDate(detailRoom.updatedAt)}</Descriptions.Item>
-            </Descriptions>
           </Space>
         )}
       </Modal>
