@@ -1,24 +1,56 @@
 import {
   ArrowDownOutlined,
   ArrowUpOutlined,
+  CalendarOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
   DollarOutlined,
+  ExclamationCircleOutlined,
+  EyeOutlined,
   FileProtectOutlined,
+  FileTextOutlined,
   HomeOutlined,
   ReloadOutlined,
+  RightOutlined,
+  RiseOutlined,
+  TeamOutlined,
+  ToolOutlined,
+  UserOutlined,
+  UserSwitchOutlined,
   WalletOutlined,
 } from "@ant-design/icons";
-import { Button, Card, Col, Progress, Row, Select, Space, Statistic, Table, Tag, Typography, message } from "antd";
+import {
+  Badge,
+  Button,
+  Card,
+  Col,
+  Empty,
+  Progress,
+  Row,
+  Select,
+  Space,
+  Spin,
+  Statistic,
+  Table,
+  Tabs,
+  Tag,
+  Tooltip,
+  Typography,
+  message,
+} from "antd";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import http from "../../api/http";
+import "./AdminDashboard.css";
 
 const currentYear = new Date().getFullYear();
 const yearOptions = Array.from({ length: 6 }, (_, index) => {
   const year = currentYear - index;
-  return { label: year, value: year };
+  return { label: `Năm ${year}`, value: year };
 });
 
 const currencyFormatter = (value) => `${Number(value || 0).toLocaleString("vi-VN")} VND`;
+
 const compactCurrencyFormatter = (value) => {
   const amount = Number(value || 0);
 
@@ -30,20 +62,20 @@ const compactCurrencyFormatter = (value) => {
     return `${(amount / 1000000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} tr`;
   }
 
+  if (amount >= 1000) {
+    return `${(amount / 1000).toLocaleString("vi-VN", { maximumFractionDigits: 0 })} k`;
+  }
+
   return amount.toLocaleString("vi-VN");
 };
+
 const formatDate = (value) => (value ? new Date(value).toLocaleDateString("vi-VN") : "-");
 
 const invoiceStatusMeta = {
-  overdue: { color: "error", label: "Quá hạn" },
-  paid: { color: "success", label: "Đã thanh toán" },
-  partial: { color: "warning", label: "Thanh toán một phần" },
-  unpaid: { color: "default", label: "Chưa thanh toán" },
-};
-
-const metricCardStyle = {
-  borderRadius: 8,
-  minHeight: 132,
+  paid: { color: "#10b981", label: "Đã thanh toán", tagColor: "success" },
+  partial: { color: "#f59e0b", label: "Thanh toán 1 phần", tagColor: "warning" },
+  unpaid: { color: "#64748b", label: "Chưa thanh toán", tagColor: "default" },
+  overdue: { color: "#ef4444", label: "Quá hạn", tagColor: "error" },
 };
 
 const AdminDashboardPage = () => {
@@ -51,6 +83,7 @@ const AdminDashboardPage = () => {
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(false);
   const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [activeTab, setActiveTab] = useState("expiringContracts");
 
   const fetchDashboard = async (year = selectedYear) => {
     setLoading(true);
@@ -69,10 +102,15 @@ const AdminDashboardPage = () => {
     fetchDashboard(selectedYear);
   }, [selectedYear]);
 
+  const totalRooms = Number(dashboard?.rooms?.total || 0);
+  const occupiedRooms = Number(dashboard?.rooms?.occupied || 0);
+  const availableRooms = Number(dashboard?.rooms?.available || 0);
+  const reservedRooms = Number(dashboard?.rooms?.reserved || 0);
+  const maintenanceRooms = Number(dashboard?.rooms?.maintenance || 0);
+
   const occupancyPercent = useMemo(() => {
-    const total = Number(dashboard?.rooms?.total || 0);
-    return total ? Math.round((Number(dashboard?.rooms?.occupied || 0) / total) * 100) : 0;
-  }, [dashboard]);
+    return totalRooms ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
+  }, [totalRooms, occupiedRooms]);
 
   const revenueByMonth = dashboard?.revenue?.byMonth || [];
   const maxChartAmount = Math.max(
@@ -82,14 +120,20 @@ const AdminDashboardPage = () => {
     ]),
     1
   );
+
+  const currentPeriodMonth = dashboard?.period?.month || new Date().getMonth() + 1;
+  const currentPeriodYear = dashboard?.period?.year || new Date().getFullYear();
+
   const currentMonthRevenue =
     revenueByMonth.find((item) => Number(item.month) === Number(dashboard?.period?.month))?.collectedAmount ||
     dashboard?.invoices?.collectedThisMonth ||
     0;
+
   const currentMonthProfit =
     revenueByMonth.find((item) => Number(item.month) === Number(dashboard?.period?.month))?.profitAmount ??
     dashboard?.profit?.currentMonth ??
     0;
+
   const currentMonthGrowth =
     revenueByMonth.find((item) => Number(item.month) === Number(dashboard?.period?.month))?.growthRate ?? null;
 
@@ -113,230 +157,836 @@ const AdminDashboardPage = () => {
     [dashboard, invoiceTotal]
   );
 
+  // Table columns for expiring contracts
   const expiringContractColumns = [
     {
-      title: "Hợp đồng",
+      title: "Mã Hợp Đồng",
       dataIndex: "contractCode",
       key: "contractCode",
-      render: (value, record) => (
-        <Space direction="vertical" size={0}>
-          <Typography.Text strong>{value}</Typography.Text>
-          <Typography.Text type="secondary">
-            {record.roomNumber || "-"} - {record.roomName || "-"}
-          </Typography.Text>
-        </Space>
+      render: (value) => (
+        <span className="adm-table-code">
+          <FileProtectOutlined style={{ marginRight: 6 }} />
+          {value || "-"}
+        </span>
+      ),
+    },
+    {
+      title: "Phòng",
+      key: "room",
+      render: (_, record) => (
+        <span className="adm-table-room-badge">
+          <HomeOutlined />
+          {record.roomNumber ? `P.${record.roomNumber}` : "-"}
+          {record.roomName ? ` (${record.roomName})` : ""}
+        </span>
       ),
     },
     {
       title: "Khách thuê",
       dataIndex: "tenantName",
       key: "tenantName",
+      render: (value) => (
+        <Space size={6}>
+          <UserOutlined style={{ color: "#64748b" }} />
+          <Typography.Text strong>{value || "-"}</Typography.Text>
+        </Space>
+      ),
+    },
+    {
+      title: "Ngày hết hạn",
+      dataIndex: "endDate",
+      key: "endDate",
+      render: (value) => (
+        <Tag color="warning" icon={<ClockCircleOutlined />}>
+          {formatDate(value)}
+        </Tag>
+      ),
+    },
+    {
+      title: "Thao tác",
+      key: "action",
+      align: "center",
+      render: () => (
+        <Button
+          type="link"
+          size="small"
+          icon={<EyeOutlined />}
+          onClick={() => navigate("/admin/contracts")}
+        >
+          Xem chi tiết
+        </Button>
+      ),
+    },
+  ];
+
+  // Table columns for overdue invoices
+  const overdueInvoiceColumns = [
+    {
+      title: "Mã Hóa Đơn",
+      dataIndex: "invoiceCode",
+      key: "invoiceCode",
+      render: (value) => (
+        <span className="adm-table-code" style={{ color: "#e11d48" }}>
+          <FileTextOutlined style={{ marginRight: 6 }} />
+          {value || "-"}
+        </span>
+      ),
+    },
+    {
+      title: "Phòng & Khách",
+      key: "roomTenant",
+      render: (_, record) => (
+        <Space direction="vertical" size={2}>
+          <span className="adm-table-room-badge">
+            <HomeOutlined /> P.{record.roomNumber || "-"}
+          </span>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            {record.tenantName || "-"}
+          </Typography.Text>
+        </Space>
+      ),
+    },
+    {
+      title: "Tổng tiền",
+      dataIndex: "totalAmount",
+      key: "totalAmount",
+      render: (val) => currencyFormatter(val),
+    },
+    {
+      title: "Còn nợ",
+      dataIndex: "remainingAmount",
+      key: "remainingAmount",
+      render: (val) => (
+        <Typography.Text strong style={{ color: "#dc2626" }}>
+          {currencyFormatter(val)}
+        </Typography.Text>
+      ),
+    },
+    {
+      title: "Hạn đóng",
+      dataIndex: "dueDate",
+      key: "dueDate",
+      render: (value) => (
+        <Tag color="error" icon={<ExclamationCircleOutlined />}>
+          {formatDate(value)}
+        </Tag>
+      ),
+    },
+    {
+      title: "Thao tác",
+      key: "action",
+      align: "center",
+      render: () => (
+        <Button
+          type="link"
+          size="small"
+          icon={<EyeOutlined />}
+          onClick={() => navigate("/admin/invoices")}
+        >
+          Thu tiền
+        </Button>
+      ),
+    },
+  ];
+
+  // Table columns for available rooms
+  const availableRoomColumns = [
+    {
+      title: "Số phòng",
+      dataIndex: "roomNumber",
+      key: "roomNumber",
+      render: (value) => (
+        <span className="adm-table-room-badge" style={{ background: "#ecfdf5", borderColor: "#a7f3d0", color: "#065f46" }}>
+          <HomeOutlined /> P.{value}
+        </span>
+      ),
+    },
+    {
+      title: "Tên phòng",
+      dataIndex: "name",
+      key: "name",
       render: (value) => value || "-",
     },
     {
-      title: "Hết hạn",
-      dataIndex: "endDate",
-      key: "endDate",
-      render: (value) => <Typography.Text type="warning">{formatDate(value)}</Typography.Text>,
+      title: "Tầng",
+      dataIndex: "floor",
+      key: "floor",
+      render: (value) => (value ? `Tầng ${value}` : "-"),
+    },
+    {
+      title: "Giá niêm yết",
+      dataIndex: "price",
+      key: "price",
+      render: (value) => (
+        <Typography.Text strong style={{ color: "#0f766e" }}>
+          {currencyFormatter(value)}
+        </Typography.Text>
+      ),
+    },
+    {
+      title: "Trạng thái",
+      dataIndex: "status",
+      key: "status",
+      render: () => (
+        <Tag color="success" icon={<CheckCircleOutlined />}>
+          Sẵn sàng đón khách
+        </Tag>
+      ),
+    },
+    {
+      title: "Thao tác",
+      key: "action",
+      align: "center",
+      render: () => (
+        <Button
+          type="link"
+          size="small"
+          icon={<EyeOutlined />}
+          onClick={() => navigate("/admin/rooms")}
+        >
+          Xem phòng
+        </Button>
+      ),
     },
   ];
 
   return (
-    <Space direction="vertical" size={16} className="page-stack">
-      <div className="page-toolbar">
-        <div className="page-title">
-          <Typography.Title level={3}>Tổng quan</Typography.Title>
-          <Typography.Text type="secondary">
-            Báo cáo nhanh về phòng, doanh thu, hóa đơn và hợp đồng.
-          </Typography.Text>
+    <div className="admin-dashboard-wrapper">
+      {/* Hero / Header Banner */}
+      <div className="adm-hero-banner">
+        <div className="adm-hero-inner">
+          <div className="adm-hero-left">
+            <div className="adm-hero-badge">
+              <span className="pulse-dot" />
+              <span>HỆ THỐNG QUẢN LÝ TRO PLUS</span>
+            </div>
+            <Typography.Title level={2} className="adm-hero-title">
+              Báo Cáo Tổng Quan Hoạt Động
+            </Typography.Title>
+            <Typography.Paragraph className="adm-hero-subtitle">
+              Theo dõi tình hình kinh doanh, dòng tiền, tình trạng lấp đầy phòng và các cảnh báo quan trọng trong thời gian thực.
+            </Typography.Paragraph>
+            <div className="adm-hero-chips">
+              <div className="adm-hero-chip-item">
+                <CalendarOutlined />
+                <span>Tháng {currentPeriodMonth} / Năm {currentPeriodYear}</span>
+              </div>
+              <div className="adm-hero-chip-item">
+                <HomeOutlined />
+                <span>{occupiedRooms}/{totalRooms || 0} phòng đang thuê ({occupancyPercent}%)</span>
+              </div>
+              <div className="adm-hero-chip-item">
+                <TeamOutlined />
+                <span>{dashboard?.tenants?.active || 0} khách thuê đang ở</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="adm-hero-right">
+            <Select
+              className="adm-year-select"
+              value={selectedYear}
+              options={yearOptions}
+              onChange={setSelectedYear}
+              size="large"
+            />
+            <Button
+              className="adm-reload-btn"
+              icon={<ReloadOutlined spin={loading} />}
+              onClick={() => fetchDashboard(selectedYear)}
+              loading={loading}
+              size="large"
+            >
+              Làm mới
+            </Button>
+          </div>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={() => fetchDashboard(selectedYear)} loading={loading}>
-          Tải lại
-        </Button>
       </div>
 
-      <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} xl={6}>
-          <Card loading={loading} style={metricCardStyle}>
-            <Statistic title="Tổng số phòng" value={dashboard?.rooms?.total || 0} prefix={<HomeOutlined />} />
-            <Typography.Text type="secondary">
-              {dashboard?.rooms?.occupied || 0} đang thuê, {dashboard?.rooms?.maintenance || 0} bảo trì
-            </Typography.Text>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} xl={6}>
-          <Card loading={loading} style={metricCardStyle}>
-            <Statistic title="Phòng còn trống" value={dashboard?.rooms?.available || 0} prefix={<HomeOutlined />} />
-            <Progress percent={occupancyPercent} size="small" strokeColor="#0f766e" />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} xl={6}>
-          <Card loading={loading} style={metricCardStyle}>
-            <Statistic title="Tỷ lệ lấp đầy" value={occupancyPercent} suffix="%" prefix={<ArrowUpOutlined />} />
-            <Typography.Text type="secondary">
-              Tính theo phòng đang thuê / tổng phòng
-            </Typography.Text>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} xl={6}>
-          <Card loading={loading} style={metricCardStyle}>
-            <Statistic
-              title={`Doanh thu tháng ${dashboard?.period?.month || new Date().getMonth() + 1}`}
-              value={currentMonthRevenue}
-              formatter={currencyFormatter}
-              prefix={<WalletOutlined />}
-            />
-            {currentMonthGrowth === null ? (
-              <Typography.Text type="secondary">Chưa có mốc so sánh</Typography.Text>
-            ) : (
-              <Tag color={currentMonthGrowth >= 0 ? "success" : "error"}>
-                {currentMonthGrowth >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />} {Math.abs(currentMonthGrowth)}%
-              </Tag>
-            )}
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} xl={6}>
-          <Card loading={loading} style={metricCardStyle}>
-            <Statistic
-              title={`Lợi nhuận tháng ${dashboard?.period?.month || new Date().getMonth() + 1}`}
-              value={currentMonthProfit}
-              formatter={currencyFormatter}
-              prefix={<DollarOutlined />}
-              valueStyle={{ color: Number(currentMonthProfit || 0) >= 0 ? "#0f766e" : "#dc2626" }}
-            />
-            <Typography.Text type="secondary">Doanh thu đã thu - chi phí đã chi</Typography.Text>
-          </Card>
-        </Col>
-      </Row>
+      {/* Quick Action Shortcuts Strip */}
+      <div className="adm-quick-actions-bar">
+        <span className="adm-quick-actions-label">
+          <RiseOutlined style={{ marginRight: 6 }} />
+          Lối tắt nhanh:
+        </span>
+        <button className="adm-quick-btn" onClick={() => navigate("/admin/rooms")}>
+          <HomeOutlined /> Quản lý phòng
+        </button>
+        <button className="adm-quick-btn" onClick={() => navigate("/admin/invoices")}>
+          <FileTextOutlined /> Quản lý hóa đơn
+        </button>
+        <button className="adm-quick-btn" onClick={() => navigate("/admin/contracts")}>
+          <FileProtectOutlined /> Quản lý hợp đồng
+        </button>
+        <button className="adm-quick-btn" onClick={() => navigate("/admin/operating-expenses")}>
+          <DollarOutlined /> Chi phí vận hành
+        </button>
+        <button className="adm-quick-btn" onClick={() => navigate("/admin/repair-requests")}>
+          <ToolOutlined /> Xử lý sự cố
+        </button>
+        <button className="adm-quick-btn" onClick={() => navigate("/admin/tenants")}>
+          <UserSwitchOutlined /> Khách thuê
+        </button>
+      </div>
 
-      <Card
-        loading={loading}
-        title={
-          <Space direction="vertical" size={0}>
-            <Typography.Text strong>Doanh thu theo tháng</Typography.Text>
-            <Typography.Text type="secondary">
-              Năm {selectedYear}: thu {currencyFormatter(dashboard?.revenue?.yearlyCollectedAmount || 0)} - lợi nhuận{" "}
-              {currencyFormatter(dashboard?.revenue?.yearlyProfitAmount || 0)}
+      {/* Top 5 KPI Cards Grid */}
+      <div className="adm-kpi-grid">
+        {/* KPI 1: Doanh thu tháng */}
+        <div className="adm-kpi-card kpi-teal">
+          <div className="adm-kpi-top">
+            <span className="adm-kpi-label">Doanh thu T{currentPeriodMonth}</span>
+            <div className="adm-kpi-icon-wrap icon-teal">
+              <WalletOutlined />
+            </div>
+          </div>
+          <div className="adm-kpi-value-row">
+            <div className="adm-kpi-main-val">
+              {compactCurrencyFormatter(currentMonthRevenue)}
+            </div>
+            {currentMonthGrowth === null ? (
+              <span className="adm-kpi-badge badge-neutral">Mới</span>
+            ) : (
+              <span
+                className={`adm-kpi-badge ${
+                  currentMonthGrowth >= 0 ? "badge-success" : "badge-danger"
+                }`}
+              >
+                {currentMonthGrowth >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
+                {Math.abs(currentMonthGrowth)}%
+              </span>
+            )}
+          </div>
+          <div className="adm-kpi-bottom">
+            <span>Chi tiết: {currencyFormatter(currentMonthRevenue)}</span>
+            <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+              Đã thu thực tế
             </Typography.Text>
-          </Space>
-        }
-        extra={
-          <Select
-            value={selectedYear}
-            options={yearOptions}
-            onChange={setSelectedYear}
-            style={{ width: 120 }}
-          />
-        }
-      >
-        <Space wrap size={8}>
-          <Tag color="blue">Doanh thu đã thu</Tag>
-          <Tag color="success">Lợi nhuận dương</Tag>
-          <Tag color="error">Lợi nhuận âm</Tag>
-        </Space>
-        <div
-          style={{
-            alignItems: "end",
-            display: "grid",
-            gap: 12,
-            gridTemplateColumns: "repeat(12, minmax(42px, 1fr))",
-            minHeight: 280,
-            overflowX: "auto",
-            paddingTop: 16,
-          }}
-        >
+          </div>
+        </div>
+
+        {/* KPI 2: Lợi nhuận tháng */}
+        <div className="adm-kpi-card kpi-emerald">
+          <div className="adm-kpi-top">
+            <span className="adm-kpi-label">Lợi nhuận ròng T{currentPeriodMonth}</span>
+            <div className={`adm-kpi-icon-wrap ${Number(currentMonthProfit) >= 0 ? "icon-emerald" : "icon-rose"}`}>
+              <DollarOutlined />
+            </div>
+          </div>
+          <div className="adm-kpi-value-row">
+            <div
+              className="adm-kpi-main-val"
+              style={{ color: Number(currentMonthProfit) >= 0 ? "#059669" : "#e11d48" }}
+            >
+              {compactCurrencyFormatter(currentMonthProfit)}
+            </div>
+            <span
+              className={`adm-kpi-badge ${
+                Number(currentMonthProfit) >= 0 ? "badge-success" : "badge-danger"
+              }`}
+            >
+              {Number(currentMonthProfit) >= 0 ? "Lợi nhuận +" : "Lợi nhuận -"}
+            </span>
+          </div>
+          <div className="adm-kpi-bottom">
+            <span>Đã chi: {compactCurrencyFormatter(dashboard?.expenses?.paidThisMonth || 0)}</span>
+            <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+              Thu trừ chi phí
+            </Typography.Text>
+          </div>
+        </div>
+
+        {/* KPI 3: Tỷ lệ lấp đầy */}
+        <div className="adm-kpi-card kpi-blue">
+          <div className="adm-kpi-top">
+            <span className="adm-kpi-label">Tỷ lệ lấp đầy</span>
+            <div className="adm-kpi-icon-wrap icon-blue">
+              <HomeOutlined />
+            </div>
+          </div>
+          <div className="adm-kpi-value-row">
+            <div className="adm-kpi-main-val">{occupancyPercent}%</div>
+            <span className="adm-kpi-badge badge-success">
+              {availableRooms} phòng trống
+            </span>
+          </div>
+          <div>
+            <Progress
+              percent={occupancyPercent}
+              size="small"
+              strokeColor={{ "0%": "#3b82f6", "100%": "#0f766e" }}
+              showInfo={false}
+            />
+          </div>
+          <div className="adm-kpi-bottom">
+            <span>Đang thuê: {occupiedRooms}/{totalRooms} phòng</span>
+            <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+              Bảo trì: {maintenanceRooms}
+            </Typography.Text>
+          </div>
+        </div>
+
+        {/* KPI 4: Hóa đơn & Công nợ */}
+        <div className="adm-kpi-card kpi-amber">
+          <div className="adm-kpi-top">
+            <span className="adm-kpi-label">Công nợ cần thu</span>
+            <div className="adm-kpi-icon-wrap icon-amber">
+              <FileTextOutlined />
+            </div>
+          </div>
+          <div className="adm-kpi-value-row">
+            <div className="adm-kpi-main-val" style={{ color: "#d97706" }}>
+              {compactCurrencyFormatter(dashboard?.invoices?.outstandingAmount || 0)}
+            </div>
+            <span className="adm-kpi-badge badge-danger">
+              {dashboard?.invoices?.overdue || 0} quá hạn
+            </span>
+          </div>
+          <div className="adm-kpi-bottom">
+            <span>Tổng hóa đơn: {invoiceTotal}</span>
+            <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+              Chưa thu: {dashboard?.invoices?.unpaid || 0}
+            </Typography.Text>
+          </div>
+        </div>
+
+        {/* KPI 5: Khách thuê & Hợp đồng */}
+        <div className="adm-kpi-card kpi-purple">
+          <div className="adm-kpi-top">
+            <span className="adm-kpi-label">Khách thuê & Hợp đồng</span>
+            <div className="adm-kpi-icon-wrap icon-purple">
+              <UserSwitchOutlined />
+            </div>
+          </div>
+          <div className="adm-kpi-value-row">
+            <div className="adm-kpi-main-val">
+              {dashboard?.tenants?.active || 0}
+              <span style={{ fontSize: 14, fontWeight: 500, color: "#64748b", marginLeft: 4 }}>
+                khách
+              </span>
+            </div>
+            <span className="adm-kpi-badge badge-neutral">
+              {dashboard?.contracts?.expiringSoon || 0} HĐ sắp hết
+            </span>
+          </div>
+          <div className="adm-kpi-bottom">
+            <span>HĐ hiệu lực: {dashboard?.contracts?.active || 0}</span>
+            <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+              Tài khoản: {dashboard?.tenants?.totalUsers || 0}
+            </Typography.Text>
+          </div>
+        </div>
+      </div>
+
+      {/* Yearly Financial Analytics Chart */}
+      <div className="adm-chart-card">
+        <div className="adm-chart-header">
+          <div className="adm-chart-title-area">
+            <h3 className="adm-chart-title">
+              <RiseOutlined style={{ color: "#0f766e" }} />
+              Diễn Biến Doanh Thu & Lợi Nhuận Năm {selectedYear}
+            </h3>
+            <p className="adm-chart-subtitle">
+              Biểu đồ trực quan so sánh doanh thu đã thu và lợi nhuận ròng từng tháng trong năm {selectedYear}.
+            </p>
+          </div>
+
+          <div className="adm-chart-yearly-stats">
+            <div className="adm-stat-pill pill-revenue">
+              <span>Tổng thu {selectedYear}:</span>
+              <strong>{compactCurrencyFormatter(dashboard?.revenue?.yearlyCollectedAmount || 0)}</strong>
+            </div>
+            <div className="adm-stat-pill pill-expense">
+              <span>Tổng chi {selectedYear}:</span>
+              <strong>{compactCurrencyFormatter(dashboard?.revenue?.yearlyPaidExpenseAmount || 0)}</strong>
+            </div>
+            <div
+              className={`adm-stat-pill ${
+                Number(dashboard?.revenue?.yearlyProfitAmount || 0) >= 0
+                  ? "pill-profit-pos"
+                  : "pill-profit-neg"
+              }`}
+            >
+              <span>Lợi nhuận ròng:</span>
+              <strong>{compactCurrencyFormatter(dashboard?.revenue?.yearlyProfitAmount || 0)}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div className="adm-chart-legends">
+          <div className="adm-legend-item">
+            <div className="adm-legend-dot" style={{ background: "#2563eb" }} />
+            <span>Doanh thu đã thu</span>
+          </div>
+          <div className="adm-legend-item">
+            <div className="adm-legend-dot" style={{ background: "#0f766e" }} />
+            <span>Tháng hiện tại ({currentPeriodMonth}/{selectedYear})</span>
+          </div>
+          <div className="adm-legend-item">
+            <div className="adm-legend-dot" style={{ background: "#10b981" }} />
+            <span>Lợi nhuận dương</span>
+          </div>
+          <div className="adm-legend-item">
+            <div className="adm-legend-dot" style={{ background: "#f43f5e" }} />
+            <span>Lợi nhuận âm</span>
+          </div>
+        </div>
+
+        {/* Dynamic Visual Bars Grid */}
+        <div className="adm-chart-container">
           {revenueByMonth.map((item) => {
-            const revenueHeight = Math.max((Number(item.collectedAmount || 0) / maxChartAmount) * 190, item.collectedAmount ? 18 : 4);
-            const profitHeight = Math.max((Math.abs(Number(item.profitAmount || 0)) / maxChartAmount) * 190, item.profitAmount ? 18 : 4);
             const isCurrentMonth =
-              Number(item.month) === Number(dashboard?.period?.month) && Number(selectedYear) === Number(dashboard?.period?.year);
+              Number(item.month) === Number(dashboard?.period?.month) &&
+              Number(selectedYear) === Number(dashboard?.period?.year);
+
+            const revenueHeight = Math.max(
+              (Number(item.collectedAmount || 0) / maxChartAmount) * 170,
+              item.collectedAmount ? 20 : 6
+            );
+            const profitHeight = Math.max(
+              (Math.abs(Number(item.profitAmount || 0)) / maxChartAmount) * 170,
+              item.profitAmount ? 20 : 6
+            );
 
             return (
-              <Space key={item.month} direction="vertical" align="center" size={6} style={{ minWidth: 42 }}>
-                <Typography.Text style={{ fontSize: 12 }}>
-                  {compactCurrencyFormatter(item.collectedAmount)}
-                </Typography.Text>
-                <div
+              <div
+                key={item.month}
+                className={`adm-month-col ${isCurrentMonth ? "is-current-month" : ""}`}
+              >
+                {/* Collected Amount preview */}
+                <Tooltip
+                  title={
+                    <div>
+                      <div>
+                        <strong>Tháng {item.month}/{selectedYear}</strong>
+                      </div>
+                      <div>Doanh thu: {currencyFormatter(item.collectedAmount)}</div>
+                      <div>Đã chi: {currencyFormatter(item.paidExpenseAmount)}</div>
+                      <div>Lợi nhuận: {currencyFormatter(item.profitAmount)}</div>
+                      {item.growthRate !== null && <div>Tăng trưởng: {item.growthRate}%</div>}
+                    </div>
+                  }
+                >
+                  <span className="adm-month-col-amt">
+                    {compactCurrencyFormatter(item.collectedAmount)}
+                  </span>
+                </Tooltip>
+
+                {/* Bars Pair */}
+                <div className="adm-bars-pair">
+                  {/* Revenue Bar */}
+                  <Tooltip title={`Doanh thu T${item.month}: ${currencyFormatter(item.collectedAmount)}`}>
+                    <div
+                      className={`adm-bar adm-bar-revenue ${isCurrentMonth ? "current" : ""}`}
+                      style={{ height: `${revenueHeight}px` }}
+                    />
+                  </Tooltip>
+
+                  {/* Profit Bar */}
+                  <Tooltip title={`Lợi nhuận T${item.month}: ${currencyFormatter(item.profitAmount)}`}>
+                    <div
+                      className={`adm-bar ${
+                        Number(item.profitAmount || 0) >= 0
+                          ? "adm-bar-profit-pos"
+                          : "adm-bar-profit-neg"
+                      }`}
+                      style={{
+                        height: `${profitHeight}px`,
+                        opacity: item.profitAmount ? 1 : 0.4,
+                      }}
+                    />
+                  </Tooltip>
+                </div>
+
+                {/* Growth indicator badge */}
+                <span
+                  className="adm-month-growth-tag"
                   style={{
-                    alignItems: "end",
-                    display: "flex",
-                    gap: 4,
-                    height: 196,
-                    justifyContent: "center",
-                    width: "100%",
+                    background:
+                      item.growthRate === null
+                        ? "#f1f5f9"
+                        : item.growthRate >= 0
+                        ? "#dcfce7"
+                        : "#fee2e2",
+                    color:
+                      item.growthRate === null
+                        ? "#94a3b8"
+                        : item.growthRate >= 0
+                        ? "#15803d"
+                        : "#b91c1c",
                   }}
                 >
-                  <div
-                    title={`Doanh thu tháng ${item.month}: ${currencyFormatter(item.collectedAmount)}`}
-                    style={{
-                      background: isCurrentMonth ? "#0f766e" : "#1677ff",
-                      borderRadius: "6px 6px 2px 2px",
-                      boxShadow: isCurrentMonth ? "0 8px 18px rgba(15, 118, 110, 0.24)" : "none",
-                      height: revenueHeight,
-                      width: 16,
-                    }}
-                  />
-                  <div
-                    title={`Lợi nhuận tháng ${item.month}: ${currencyFormatter(item.profitAmount)}`}
-                    style={{
-                      background: Number(item.profitAmount || 0) >= 0 ? "#16a34a" : "#dc2626",
-                      borderRadius: "6px 6px 2px 2px",
-                      height: profitHeight,
-                      opacity: item.profitAmount ? 1 : 0.35,
-                      width: 16,
-                    }}
-                  />
-                </div>
-                <Typography.Text type={Number(item.profitAmount || 0) >= 0 ? "success" : "danger"} style={{ fontSize: 12 }}>
-                  {compactCurrencyFormatter(item.profitAmount)}
-                </Typography.Text>
-                <Tag color={item.growthRate === null ? "default" : item.growthRate >= 0 ? "success" : "error"}>
-                  {item.growthRate === null ? "--" : `${item.growthRate >= 0 ? "+" : ""}${item.growthRate}%`}
-                </Tag>
-                <Typography.Text type={isCurrentMonth ? "success" : "secondary"}>T{item.month}</Typography.Text>
-              </Space>
+                  {item.growthRate === null
+                    ? "--"
+                    : `${item.growthRate >= 0 ? "+" : ""}${item.growthRate}%`}
+                </span>
+
+                {/* Month label */}
+                <span className="adm-month-label">
+                  {isCurrentMonth ? `★ T${item.month}` : `T${item.month}`}
+                </span>
+              </div>
             );
           })}
         </div>
-      </Card>
+      </div>
 
-      <Row gutter={[16, 16]}>
-        <Col xs={24} lg={10}>
-          <Card loading={loading} title="Trạng thái hóa đơn">
-            <Space direction="vertical" size={14} className="page-stack">
-              {invoiceSegments.map((item) => (
-                <div key={item.status}>
-                  <Space style={{ justifyContent: "space-between", width: "100%" }}>
-                    <Tag color={item.color}>{item.label}</Tag>
-                    <Typography.Text strong>{item.count}</Typography.Text>
-                  </Space>
-                  <Progress percent={item.percent} size="small" strokeColor={item.status === "overdue" ? "#dc2626" : undefined} />
-                </div>
-              ))}
-              <Space wrap>
-                <Tag color="blue">Tổng hóa đơn: {invoiceTotal}</Tag>
-                <Tag color="red">Còn nợ: {currencyFormatter(dashboard?.invoices?.outstandingAmount || 0)}</Tag>
-              </Space>
-            </Space>
-          </Card>
-        </Col>
-        <Col xs={24} lg={14}>
-          <Card
-            loading={loading}
-            title="Hợp đồng sắp hết hạn"
-            extra={<Button type="link" onClick={() => navigate("/admin/contracts")}>Xem tất cả</Button>}
-          >
-            <Table
-              rowKey="id"
-              columns={expiringContractColumns}
-              dataSource={dashboard?.recent?.expiringContracts || []}
-              pagination={false}
+      {/* Two Column Grid: Invoices Breakdown & Room Breakdown */}
+      <div className="adm-two-col-grid">
+        {/* Left: Invoice Breakdown & Cash Flow */}
+        <div className="adm-section-card">
+          <div className="adm-section-header">
+            <h4 className="adm-section-title">
+              <FileTextOutlined style={{ color: "#2563eb" }} />
+              Cơ Cấu Trạng Thái Hóa Đơn
+            </h4>
+            <Button
+              type="link"
               size="small"
-            />
-          </Card>
-        </Col>
-      </Row>
-    </Space>
+              onClick={() => navigate("/admin/invoices")}
+            >
+              Xem tất cả <RightOutlined />
+            </Button>
+          </div>
+
+          <div className="adm-invoice-status-list">
+            {invoiceSegments.map((item) => (
+              <div key={item.status} className="adm-invoice-status-item">
+                <div className="adm-invoice-status-item-top">
+                  <div className="adm-status-left">
+                    <div
+                      className="adm-status-dot"
+                      style={{ background: item.color }}
+                    />
+                    <span className="adm-status-name">{item.label}</span>
+                  </div>
+                  <div>
+                    <span className="adm-status-count">{item.count}</span>
+                    <span className="adm-status-pct">({item.percent}%)</span>
+                  </div>
+                </div>
+                <Progress
+                  percent={item.percent}
+                  size="small"
+                  strokeColor={item.color}
+                  showInfo={false}
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="adm-invoice-summary-banner">
+            <div>
+              <div className="adm-summary-label">Tổng công nợ chưa thu hồi</div>
+              <div className="adm-summary-val">
+                {currencyFormatter(dashboard?.invoices?.outstandingAmount || 0)}
+              </div>
+            </div>
+            <Button
+              type="primary"
+              danger
+              size="small"
+              onClick={() => navigate("/admin/invoices")}
+            >
+              Đôn đốc thu nợ
+            </Button>
+          </div>
+        </div>
+
+        {/* Right: Room Occupancy Status Breakdown */}
+        <div className="adm-section-card">
+          <div className="adm-section-header">
+            <h4 className="adm-section-title">
+              <HomeOutlined style={{ color: "#0f766e" }} />
+              Phân Bổ Tình Trạng Phòng Trọ
+            </h4>
+            <Button
+              type="link"
+              size="small"
+              onClick={() => navigate("/admin/rooms")}
+            >
+              Quản lý phòng <RightOutlined />
+            </Button>
+          </div>
+
+          <div className="adm-room-breakdown-grid">
+            {/* Occupied */}
+            <div className="adm-room-breakdown-box">
+              <div className="adm-room-box-header">
+                <span>ĐANG THUÊ</span>
+                <Tag color="blue">{totalRooms ? Math.round((occupiedRooms / totalRooms) * 100) : 0}%</Tag>
+              </div>
+              <div className="adm-room-box-val" style={{ color: "#2563eb" }}>
+                {occupiedRooms}
+              </div>
+              <div className="adm-room-box-bar">
+                <div
+                  className="adm-room-box-bar-fill"
+                  style={{
+                    background: "#2563eb",
+                    width: `${totalRooms ? (occupiedRooms / totalRooms) * 100 : 0}%`,
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Available */}
+            <div className="adm-room-breakdown-box">
+              <div className="adm-room-box-header">
+                <span>CÒN TRỐNG</span>
+                <Tag color="success">{totalRooms ? Math.round((availableRooms / totalRooms) * 100) : 0}%</Tag>
+              </div>
+              <div className="adm-room-box-val" style={{ color: "#10b981" }}>
+                {availableRooms}
+              </div>
+              <div className="adm-room-box-bar">
+                <div
+                  className="adm-room-box-bar-fill"
+                  style={{
+                    background: "#10b981",
+                    width: `${totalRooms ? (availableRooms / totalRooms) * 100 : 0}%`,
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Reserved */}
+            <div className="adm-room-breakdown-box">
+              <div className="adm-room-box-header">
+                <span>ĐÃ GIỮ CHỖ</span>
+                <Tag color="warning">{totalRooms ? Math.round((reservedRooms / totalRooms) * 100) : 0}%</Tag>
+              </div>
+              <div className="adm-room-box-val" style={{ color: "#f59e0b" }}>
+                {reservedRooms}
+              </div>
+              <div className="adm-room-box-bar">
+                <div
+                  className="adm-room-box-bar-fill"
+                  style={{
+                    background: "#f59e0b",
+                    width: `${totalRooms ? (reservedRooms / totalRooms) * 100 : 0}%`,
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Maintenance */}
+            <div className="adm-room-breakdown-box">
+              <div className="adm-room-box-header">
+                <span>BẢO TRÌ</span>
+                <Tag color="error">{totalRooms ? Math.round((maintenanceRooms / totalRooms) * 100) : 0}%</Tag>
+              </div>
+              <div className="adm-room-box-val" style={{ color: "#ef4444" }}>
+                {maintenanceRooms}
+              </div>
+              <div className="adm-room-box-bar">
+                <div
+                  className="adm-room-box-bar-fill"
+                  style={{
+                    background: "#ef4444",
+                    width: `${totalRooms ? (maintenanceRooms / totalRooms) * 100 : 0}%`,
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "12px 16px",
+              background: "#f8fafc",
+              borderRadius: 12,
+              border: "1px solid #f1f5f9",
+            }}
+          >
+            <Typography.Text type="secondary">
+              Tổng số phòng trong hệ thống:
+            </Typography.Text>
+            <Typography.Text strong style={{ fontSize: 16, color: "#0f766e" }}>
+              {totalRooms} phòng
+            </Typography.Text>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Tabs & Urgent Operational Lists */}
+      <div className="adm-tabs-card">
+        <Tabs
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          items={[
+            {
+              key: "expiringContracts",
+              label: (
+                <span>
+                  <FileProtectOutlined style={{ marginRight: 6 }} />
+                  Hợp đồng sắp hết hạn ({dashboard?.recent?.expiringContracts?.length || 0})
+                </span>
+              ),
+              children: (
+                <Table
+                  className="adm-table"
+                  rowKey="id"
+                  columns={expiringContractColumns}
+                  dataSource={dashboard?.recent?.expiringContracts || []}
+                  pagination={false}
+                  size="middle"
+                  locale={{
+                    emptyText: <Empty description="Không có hợp đồng nào sắp hết hạn trong 30 ngày tới" />,
+                  }}
+                />
+              ),
+            },
+            {
+              key: "overdueInvoices",
+              label: (
+                <span>
+                  <ExclamationCircleOutlined style={{ marginRight: 6, color: "#ef4444" }} />
+                  Hóa đơn quá hạn / Cần thu ({dashboard?.recent?.overdueInvoices?.length || 0})
+                </span>
+              ),
+              children: (
+                <Table
+                  className="adm-table"
+                  rowKey="id"
+                  columns={overdueInvoiceColumns}
+                  dataSource={dashboard?.recent?.overdueInvoices || []}
+                  pagination={false}
+                  size="middle"
+                  locale={{
+                    emptyText: <Empty description="Hiện không có hóa đơn quá hạn cần thu" />,
+                  }}
+                />
+              ),
+            },
+            {
+              key: "availableRooms",
+              label: (
+                <span>
+                  <CheckCircleOutlined style={{ marginRight: 6, color: "#10b981" }} />
+                  Phòng trống sẵn sàng cho thuê ({dashboard?.recent?.availableRooms?.length || 0})
+                </span>
+              ),
+              children: (
+                <Table
+                  className="adm-table"
+                  rowKey="id"
+                  columns={availableRoomColumns}
+                  dataSource={dashboard?.recent?.availableRooms || []}
+                  pagination={false}
+                  size="middle"
+                  locale={{
+                    emptyText: <Empty description="Hiện tại không có phòng nào còn trống" />,
+                  }}
+                />
+              ),
+            },
+          ]}
+        />
+      </div>
+    </div>
   );
 };
 
