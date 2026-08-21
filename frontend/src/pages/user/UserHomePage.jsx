@@ -924,64 +924,41 @@ const UserHomePage = () => {
     <>
       <div className="user-portal-container" style={{ paddingTop: 20, paddingBottom: 40 }}>
         
-        {/* ====== 1. STATUS HERO BANNER (Item 13) ====== */}
+        {/* ====== WELCOME BANNER ====== */}
         <div className="user-welcome-banner">
-          <div className="welcome-banner-content">
-            <div className="welcome-banner-header">
-              <Space align="center" size="middle">
-                <Avatar size={56} icon={<UserOutlined />} style={{ background: "rgba(255,255,255,0.18)", border: "2px solid rgba(255,255,255,0.3)", fontSize: 24 }} />
-                <div>
-                  <Title level={3} style={{ color: "#ffffff", margin: 0, letterSpacing: "-0.5px", fontSize: 20 }}>
-                    Xin chào, {user?.name || "Khách hàng"} 👋
-                  </Title>
-                  <Text style={{ color: "#cbd5e1", fontSize: 13 }}>
-                    {user?.email} {user?.phone ? `• SĐT: ${user.phone}` : ""}
-                  </Text>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16, position: "relative", zIndex: 2 }}>
+            <Space align="center" size="large">
+              <Avatar size={64} icon={<UserOutlined />} style={{ background: "rgba(255,255,255,0.15)", border: "2px solid rgba(255,255,255,0.3)", fontSize: 28 }} />
+              <div>
+                <Title level={3} style={{ color: "#ffffff", margin: 0, letterSpacing: "-0.5px" }}>
+                  Xin chào, {user?.name || "Khách hàng"} 👋
+                </Title>
+                <Text style={{ color: "#94a3b8", fontSize: 14 }}>
+                  {user?.email} {user?.phone ? `• SĐT: ${user.phone}` : ""}
+                </Text>
+                <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
                   {activeTenancies.length > 0 && (
-                    <div style={{ marginTop: 4, color: "#99f6e4", fontSize: 13, fontWeight: 600 }}>
-                      🏠 Đang thuê Phòng {activeTenancies[0]?.roomNumber} - {activeTenancies[0]?.roomName}
-                    </div>
+                    <Tag style={{ background: "rgba(16, 185, 129, 0.2)", border: "1px solid rgba(16, 185, 129, 0.4)", color: "#6ee7b7", borderRadius: 6, fontWeight: 600 }}>
+                      <CheckCircleOutlined /> Đang thuê {activeTenancies.length} phòng
+                    </Tag>
+                  )}
+                  {unpaidInvoicesCount > 0 && (
+                    <Tag style={{ background: "rgba(245, 158, 11, 0.2)", border: "1px solid rgba(245, 158, 11, 0.4)", color: "#fcd34d", borderRadius: 6, fontWeight: 600 }}>
+                      <ClockCircleOutlined /> {unpaidInvoicesCount} hóa đơn chưa TT
+                    </Tag>
                   )}
                 </div>
-              </Space>
+              </div>
+            </Space>
 
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={fetchUserData}
-                loading={loading}
-                className="welcome-refresh-btn"
-              >
-                Làm mới
-              </Button>
-            </div>
-
-            <div className="welcome-flat-kpi">
-              <div className="kpi-item">
-                <CheckCircleOutlined className="kpi-icon" />
-                <span className="kpi-val">{activeTenancies.length}</span>
-                <span className="kpi-lbl">Phòng đang ở</span>
-              </div>
-              <div className="kpi-divider" />
-              <div className="kpi-item">
-                <FileProtectOutlined className="kpi-icon" />
-                <span className="kpi-val">{contracts.filter((c) => c.status === "active").length}</span>
-                <span className="kpi-lbl">Hợp đồng hiệu lực</span>
-              </div>
-              <div className="kpi-divider" />
-              <div className="kpi-item" style={{ cursor: "pointer" }} onClick={scrollToInvoices}>
-                <ClockCircleOutlined className="kpi-icon" style={{ color: unpaidInvoicesCount > 0 ? "#fcd34d" : "#5eead4" }} />
-                <span className="kpi-val" style={{ color: unpaidInvoicesCount > 0 ? "#fcd34d" : "#ffffff" }}>{unpaidInvoicesCount}</span>
-                <span className="kpi-lbl" style={{ color: unpaidInvoicesCount > 0 ? "#fef08a" : "#cbd5e1" }}>
-                  {unpaidInvoicesCount > 0 ? "Hóa đơn cần TT ⚡" : "Hóa đơn chưa TT"}
-                </span>
-              </div>
-              <div className="kpi-divider" />
-              <div className="kpi-item">
-                <ToolOutlined className="kpi-icon" />
-                <span className="kpi-val">{pendingRepairCount}</span>
-                <span className="kpi-lbl">Sự cố chờ xử lý</span>
-              </div>
-            </div>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={fetchUserData}
+              loading={loading}
+              style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", color: "#ffffff", borderRadius: 8, fontWeight: 600, height: 40 }}
+            >
+              Làm mới
+            </Button>
           </div>
         </div>
 
