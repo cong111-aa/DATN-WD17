@@ -159,7 +159,7 @@ const UserLayout = () => {
 
   return (
     <Layout className="app-shell">
-      <Header className="app-header user-portal-header">
+      <Header className="app-header">
         <div className="brand" onClick={() => navigate("/")}>
           <HomeOutlined style={{ fontSize: 24, color: "#0d9488" }} />
           <span>TRO PLUS</span>
