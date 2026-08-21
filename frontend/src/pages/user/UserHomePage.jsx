@@ -1,4 +1,6 @@
 import {
+  ArrowRightOutlined,
+  BellOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   CreditCardOutlined,
@@ -12,6 +14,8 @@ import {
   InfoCircleOutlined,
   LogoutOutlined,
   PhoneOutlined,
+  PlusOutlined,
+  QrcodeOutlined,
   ReloadOutlined,
   SafetyCertificateOutlined,
   ToolOutlined,
@@ -53,6 +57,8 @@ const { Content, Header } = Layout;
 const { Title, Text, Paragraph } = Typography;
 
 const apiOrigin = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/api\/?$/, "");
+const fallbackRoomImage =
+  "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=600&q=80";
 
 const formatCurrency = (value) => `${Number(value || 0).toLocaleString("vi-VN")} đ`;
 const formatDate = (value) => (value ? new Date(value).toLocaleDateString("vi-VN") : "-");
@@ -94,6 +100,8 @@ const roomRequestStatusMeta = {
   cancelled: { color: "default", label: "Đã hủy" },
   expired: { color: "warning", label: "Hết hạn" },
 };
+
+const requestStatusMeta = roomRequestStatusMeta;
 
 const paymentStatusMeta = {
   unpaid: { color: "default", label: "Chưa thanh toán" },
@@ -162,7 +170,6 @@ const toIdentityFileList = (url) =>
     : [];
 
 const UserHomePage = () => {
-  const [form] = Form.useForm();
   const [repairForm] = Form.useForm();
   const [roomRequestForm] = Form.useForm();
   const { logout, refreshProfile, user } = useAuth();
@@ -179,6 +186,61 @@ const UserHomePage = () => {
       }
     }, 50);
   };
+
+  const scrollToAvailableRooms = () => {
+    const el = document.getElementById("available-rooms-section");
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const scrollToMyRooms = () => {
+    const el = document.getElementById("my-rooms-section");
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const scrollToInterestedRooms = () => {
+    const el = document.getElementById("interested-rooms-section");
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const scrollToInvoices = () => {
+    const el = document.getElementById("invoices-section");
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const scrollToRoomRequests = () => {
+    const el = document.getElementById("room-requests-section");
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const scrollToRepairRequests = () => {
+    const el = document.getElementById("repair-requests-section");
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const scrollToContracts = () => {
+    const el = document.getElementById("contracts-section");
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const [payingInvoiceId, setPayingInvoiceId] = useState("");
+
+  const handleCreateVnpayPayment = async (invoice) => {
+    setPayingInvoiceId(invoice.id);
+    try {
+      const { data } = await http.post("/payments/vnpay/create", {
+        targetId: invoice.id,
+        targetType: "invoice",
+      });
+      if (data.paymentUrl) {
+        window.location.href = data.paymentUrl;
+      }
+    } catch (error) {
+      message.error(error.response?.data?.message || "Không tạo được giao dịch VNPay");
+    } finally {
+      setPayingInvoiceId("");
+    }
+  };
+
   const [tenancies, setTenancies] = useState([]);
   const [availableRooms, setAvailableRooms] = useState([]);
   const [interestedRooms, setInterestedRooms] = useState([]);
@@ -219,10 +281,9 @@ const UserHomePage = () => {
   );
 
   useEffect(() => {
-    form.setFieldsValue(user);
     setIdentityBackFileList(toIdentityFileList(user?.identityBackImage));
     setIdentityFrontFileList(toIdentityFileList(user?.identityFrontImage));
-  }, [form, user]);
+  }, [user]);
 
   const fetchUserData = async () => {
     setLoading(true);
@@ -861,158 +922,1003 @@ const UserHomePage = () => {
 
   return (
     <>
-      <div className="user-portal-container" style={{ paddingTop: 24, paddingBottom: 40 }}>
-        {/* ====== WELCOME BANNER ====== */}
+      <div className="user-portal-container" style={{ paddingTop: 20, paddingBottom: 40 }}>
+        
+        {/* ====== 1. STATUS HERO BANNER (Item 13) ====== */}
         <div className="user-welcome-banner">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16, position: "relative", zIndex: 2 }}>
-          <Space align="center" size="large">
-            <Avatar size={64} icon={<UserOutlined />} style={{ background: "rgba(255,255,255,0.15)", border: "2px solid rgba(255,255,255,0.3)", fontSize: 28 }} />
-            <div>
-              <Title level={3} style={{ color: "#ffffff", margin: 0, letterSpacing: "-0.5px" }}>
-                Xin chào, {user?.name || "Khách hàng"} 👋
-              </Title>
-              <Text style={{ color: "#94a3b8", fontSize: 14 }}>
-                {user?.email} {user?.phone ? `• SĐT: ${user.phone}` : ""}
-              </Text>
-              <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {activeTenancies.length > 0 && (
-                  <Tag style={{ background: "rgba(16, 185, 129, 0.2)", border: "1px solid rgba(16, 185, 129, 0.4)", color: "#6ee7b7", borderRadius: 6, fontWeight: 600 }}>
-                    <CheckCircleOutlined /> Đang thuê {activeTenancies.length} phòng
-                  </Tag>
-                )}
-                {unpaidInvoicesCount > 0 && (
-                  <Tag style={{ background: "rgba(245, 158, 11, 0.2)", border: "1px solid rgba(245, 158, 11, 0.4)", color: "#fcd34d", borderRadius: 6, fontWeight: 600 }}>
-                    <ClockCircleOutlined /> {unpaidInvoicesCount} hóa đơn chưa TT
-                  </Tag>
-                )}
+          <div className="welcome-banner-content">
+            <div className="welcome-banner-header">
+              <Space align="center" size="middle">
+                <Avatar size={56} icon={<UserOutlined />} style={{ background: "rgba(255,255,255,0.18)", border: "2px solid rgba(255,255,255,0.3)", fontSize: 24 }} />
+                <div>
+                  <Title level={3} style={{ color: "#ffffff", margin: 0, letterSpacing: "-0.5px", fontSize: 20 }}>
+                    Xin chào, {user?.name || "Khách hàng"} 👋
+                  </Title>
+                  <Text style={{ color: "#cbd5e1", fontSize: 13 }}>
+                    {user?.email} {user?.phone ? `• SĐT: ${user.phone}` : ""}
+                  </Text>
+                  {activeTenancies.length > 0 && (
+                    <div style={{ marginTop: 4, color: "#99f6e4", fontSize: 13, fontWeight: 600 }}>
+                      🏠 Đang thuê Phòng {activeTenancies[0]?.roomNumber} - {activeTenancies[0]?.roomName}
+                    </div>
+                  )}
+                </div>
+              </Space>
+
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={fetchUserData}
+                loading={loading}
+                className="welcome-refresh-btn"
+              >
+                Làm mới
+              </Button>
+            </div>
+
+            <div className="welcome-flat-kpi">
+              <div className="kpi-item">
+                <CheckCircleOutlined className="kpi-icon" />
+                <span className="kpi-val">{activeTenancies.length}</span>
+                <span className="kpi-lbl">Phòng đang ở</span>
+              </div>
+              <div className="kpi-divider" />
+              <div className="kpi-item">
+                <FileProtectOutlined className="kpi-icon" />
+                <span className="kpi-val">{contracts.filter((c) => c.status === "active").length}</span>
+                <span className="kpi-lbl">Hợp đồng hiệu lực</span>
+              </div>
+              <div className="kpi-divider" />
+              <div className="kpi-item" style={{ cursor: "pointer" }} onClick={scrollToInvoices}>
+                <ClockCircleOutlined className="kpi-icon" style={{ color: unpaidInvoicesCount > 0 ? "#fcd34d" : "#5eead4" }} />
+                <span className="kpi-val" style={{ color: unpaidInvoicesCount > 0 ? "#fcd34d" : "#ffffff" }}>{unpaidInvoicesCount}</span>
+                <span className="kpi-lbl" style={{ color: unpaidInvoicesCount > 0 ? "#fef08a" : "#cbd5e1" }}>
+                  {unpaidInvoicesCount > 0 ? "Hóa đơn cần TT ⚡" : "Hóa đơn chưa TT"}
+                </span>
+              </div>
+              <div className="kpi-divider" />
+              <div className="kpi-item">
+                <ToolOutlined className="kpi-icon" />
+                <span className="kpi-val">{pendingRepairCount}</span>
+                <span className="kpi-lbl">Sự cố chờ xử lý</span>
               </div>
             </div>
-          </Space>
+          </div>
+        </div>
 
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={fetchUserData}
-            loading={loading}
-            style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", color: "#ffffff", borderRadius: 8, fontWeight: 600, height: 40 }}
-          >
-            Làm mới
-          </Button>
+        {/* ====== 2. 4 STAT KPI WIDGETS (Item 3) ====== */}
+        <div className="stat-widget-grid" style={{ marginBottom: 24 }}>
+          <div className="stat-widget teal-border" onClick={scrollToMyRooms} style={{ cursor: "pointer" }}>
+            <div className="stat-widget-icon teal"><HomeOutlined /></div>
+            <div className="stat-widget-info">
+              <span className="stat-widget-value">{activeTenancies.length}</span>
+              <span className="stat-widget-label">Phòng đang ở</span>
+            </div>
+          </div>
+          <div className="stat-widget blue-border" onClick={scrollToContracts} style={{ cursor: "pointer" }}>
+            <div className="stat-widget-icon blue"><FileProtectOutlined /></div>
+            <div className="stat-widget-info">
+              <span className="stat-widget-value">{contracts.filter((c) => c.status === "active").length}</span>
+              <span className="stat-widget-label">Hợp đồng hiệu lực</span>
+            </div>
+          </div>
+          <div className="stat-widget amber-border" onClick={scrollToInvoices} style={{ cursor: "pointer" }}>
+            <div className="stat-widget-icon amber"><FileTextOutlined /></div>
+            <div className="stat-widget-info">
+              <span className="stat-widget-value" style={{ color: unpaidInvoicesCount > 0 ? "#b45309" : undefined }}>{unpaidInvoicesCount}</span>
+              <span className="stat-widget-label">Hóa đơn cần TT</span>
+            </div>
+          </div>
+          <div className="stat-widget rose-border" onClick={scrollToRepairRequests} style={{ cursor: "pointer" }}>
+            <div className="stat-widget-icon rose"><ToolOutlined /></div>
+            <div className="stat-widget-info">
+              <span className="stat-widget-value">{pendingRepairCount}</span>
+              <span className="stat-widget-label">Sự cố chờ xử lý</span>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* ====== STAT WIDGETS ====== */}
-      <div className="stat-widget-grid">
-        <div className="stat-widget teal-border" onClick={() => navigate("/user/my-rooms")} style={{ cursor: "pointer" }}>
-          <div className="stat-widget-icon teal"><HomeOutlined /></div>
-          <div className="stat-widget-info">
-            <span className="stat-widget-value">{activeTenancies.length}</span>
-            <span className="stat-widget-label">Phòng đang ở</span>
-          </div>
-        </div>
-        <div className="stat-widget blue-border" onClick={() => navigate("/user/contracts")} style={{ cursor: "pointer" }}>
-          <div className="stat-widget-icon blue"><FileProtectOutlined /></div>
-          <div className="stat-widget-info">
-            <span className="stat-widget-value">{contracts.filter((c) => c.status === "active").length}</span>
-            <span className="stat-widget-label">Hợp đồng hiệu lực</span>
-          </div>
-        </div>
-        <div className="stat-widget amber-border" onClick={() => navigate("/user/invoices")} style={{ cursor: "pointer" }}>
-          <div className="stat-widget-icon amber"><FileTextOutlined /></div>
-          <div className="stat-widget-info">
-            <span className="stat-widget-value" style={{ color: unpaidInvoicesCount > 0 ? "#b45309" : undefined }}>{unpaidInvoicesCount}</span>
-            <span className="stat-widget-label">Hóa đơn cần TT</span>
-          </div>
-        </div>
-        <div className="stat-widget rose-border" onClick={() => navigate("/user/repair-requests")} style={{ cursor: "pointer" }}>
-          <div className="stat-widget-icon rose"><ToolOutlined /></div>
-          <div className="stat-widget-info">
-            <span className="stat-widget-value">{pendingRepairCount}</span>
-            <span className="stat-widget-label">Sự cố chờ xử lý</span>
-          </div>
-        </div>
-      </div>
+        {/* ====== 3. ⚡ VIỆC CẦN LÀM (ACTION REQUIRED BLOCK - Item 14 & 6) ====== */}
+        {(unpaidInvoicesCount > 0 || pendingRepairCount > 0) && (
+          <div className="action-required-container">
+            <div className="action-required-header">
+              <span style={{ fontSize: 18 }}>⚡</span> VIỆC CẦN LÀM ({unpaidInvoicesCount + pendingRepairCount})
+            </div>
+            <div className="action-required-list">
+              {invoices.filter((inv) => inv.status === "unpaid" || inv.status === "overdue").map((inv) => (
+                <div key={inv.id} className="action-required-item danger">
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <Tag color="error" style={{ margin: 0, borderRadius: 6, fontWeight: 700 }}>
+                      {inv.status === "overdue" ? "HÓA ĐƠN QUÁ HẠN" : "HÓA ĐƠN CHƯA TT"}
+                    </Tag>
+                    <div>
+                      <Text strong style={{ fontSize: 14, color: "#9f1239" }}>
+                        Hóa đơn Tháng {inv.month}/{inv.year} - Phòng {inv.roomNumber} ({inv.invoiceCode})
+                      </Text>
+                      <div style={{ fontSize: 13, color: "#be123c" }}>
+                        Số tiền: <strong>{formatCurrency(inv.totalAmount)}</strong> • Hạn: {formatDate(inv.dueDate)}
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    type="primary"
+                    danger
+                    icon={<CreditCardOutlined />}
+                    loading={payingInvoiceId === inv.id}
+                    onClick={() => handleCreateVnpayPayment(inv)}
+                    style={{ borderRadius: 8, fontWeight: 600, background: "#e11d48", borderColor: "#e11d48" }}
+                  >
+                    Thanh toán ngay
+                  </Button>
+                </div>
+              ))}
 
-      {/* ====== QUICK ACTIONS ====== */}
-      <div className="section-header">
-        <h3 className="section-title"><span className="section-title-dot" /> Thao tác nhanh</h3>
-      </div>
-      <div className="quick-action-grid">
-        <div className="quick-action-card" onClick={() => navigate("/")}>
-          <div className="quick-action-icon" style={{ background: "#ecfdf5", color: "#0f766e" }}><HomeOutlined /></div>
-          <div className="quick-action-text">
-            <span className="quick-action-label">Tìm phòng trống</span>
-            <span className="quick-action-desc">Duyệt danh sách phòng khả dụng & đặt cọc</span>
+              {repairRequests.filter((req) => req.status === "pending" || req.status === "processing").map((req) => (
+                <div key={req.id} className="action-required-item">
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <Tag color="warning" style={{ margin: 0, borderRadius: 6, fontWeight: 700 }}>
+                      SỰ CỐ ĐANG XỬ LÝ
+                    </Tag>
+                    <div>
+                      <Text strong style={{ fontSize: 14, color: "#92400e" }}>
+                        Sự cố: "{req.title}" - Phòng {req.roomNumber}
+                      </Text>
+                      <div style={{ fontSize: 12, color: "#b45309" }}>
+                        Mô tả: {req.description?.slice(0, 50)}... • Gửi ngày: {formatDate(req.createdAt)}
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    size="small"
+                    onClick={() => setDetailRepairRequest(req)}
+                    style={{ borderRadius: 8, fontWeight: 600, borderColor: "#fcd34d", color: "#92400e" }}
+                  >
+                    Xem chi tiết
+                  </Button>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-        <div className="quick-action-card" onClick={activeRoomOptions.length > 0 ? openRepairModal : undefined} style={activeRoomOptions.length === 0 ? { opacity: 0.5, cursor: "not-allowed" } : {}}>
-          <div className="quick-action-icon" style={{ background: "#fef3c7", color: "#b45309" }}><ToolOutlined /></div>
-          <div className="quick-action-text">
-            <span className="quick-action-label">Báo sự cố mới</span>
-            <span className="quick-action-desc">Gửi yêu cầu sửa chữa cho chủ trọ</span>
-          </div>
-        </div>
-        <div className="quick-action-card" onClick={() => navigate("/user/invoices")}>
-          <div className="quick-action-icon" style={{ background: "#dbeafe", color: "#1d4ed8" }}><FileTextOutlined /></div>
-          <div className="quick-action-text">
-            <span className="quick-action-label">Xem hóa đơn</span>
-            <span className="quick-action-desc">Tra cứu hóa đơn điện nước hàng tháng</span>
-          </div>
-        </div>
-        <div className="quick-action-card" onClick={() => navigate("/user/profile")}>
-          <div className="quick-action-icon" style={{ background: "#ffe4e6", color: "#be123c" }}><UserOutlined /></div>
-          <div className="quick-action-text">
-            <span className="quick-action-label">Cập nhật hồ sơ</span>
-            <span className="quick-action-desc">Thông tin cá nhân & ảnh CCCD</span>
-          </div>
-        </div>
-      </div>
+        )}
 
-      {/* ====== AVAILABLE ROOMS SECTION ====== */}
-      {availableRooms.length > 0 && (
-        <div style={{ marginBottom: 28 }}>
+        {/* ====== 4. 🎯 QUẢN LÝ NHANH (COMPACT FUNCTION HUB - Item 4, 5) ====== */}
+        <div className="dashboard-section" style={{ marginBottom: 32 }}>
+          <div className="section-header" style={{ marginBottom: 14 }}>
+            <h3 className="section-title" style={{ fontSize: 16 }}>
+              <span className="section-title-dot" style={{ background: "#0f766e" }} /> QUẢN LÝ NHANH
+            </h3>
+          </div>
+
+          <div className="hub-card-grid">
+            {/* Card 1: Phòng của tôi */}
+            <div className="hub-function-card" onClick={scrollToMyRooms}>
+              <div className="hub-card-top">
+                <div className="hub-card-icon teal">
+                  <HomeOutlined />
+                </div>
+                <ArrowRightOutlined className="hub-card-arrow" />
+              </div>
+              <div>
+                <div className="hub-card-title">Phòng của tôi</div>
+                <div className="hub-card-desc">{activeTenancies.length} phòng đang ở</div>
+              </div>
+              <span className="hub-smart-badge success">
+                🟢 {activeTenancies.length} active
+              </span>
+            </div>
+
+            {/* Card 2: Hóa đơn */}
+            <div className="hub-function-card" onClick={scrollToInvoices}>
+              <div className="hub-card-top">
+                <div className="hub-card-icon amber">
+                  <FileTextOutlined />
+                </div>
+                <ArrowRightOutlined className="hub-card-arrow" />
+              </div>
+              <div>
+                <div className="hub-card-title">Hóa đơn</div>
+                <div className="hub-card-desc">{unpaidInvoicesCount} chưa thanh toán</div>
+              </div>
+              <span className={`hub-smart-badge ${unpaidInvoicesCount > 0 ? "warning" : "success"}`}>
+                {unpaidInvoicesCount > 0 ? `⚠️ ${unpaidInvoicesCount} chưa TT` : "✅ Hoàn tất"}
+              </span>
+            </div>
+
+            {/* Card 3: Đặt cọc */}
+            <div className="hub-function-card" onClick={scrollToRoomRequests}>
+              <div className="hub-card-top">
+                <div className="hub-card-icon purple">
+                  <CreditCardOutlined />
+                </div>
+                <ArrowRightOutlined className="hub-card-arrow" />
+              </div>
+              <div>
+                <div className="hub-card-title">Đặt cọc</div>
+                <div className="hub-card-desc">{roomRequests.length} yêu cầu</div>
+              </div>
+              <span className="hub-smart-badge info">
+                🔑 {roomRequests.length} phiếu cọc
+              </span>
+            </div>
+
+            {/* Card 4: Báo sự cố */}
+            <div className="hub-function-card" onClick={scrollToRepairRequests}>
+              <div className="hub-card-top">
+                <div className="hub-card-icon rose">
+                  <ToolOutlined />
+                </div>
+                <ArrowRightOutlined className="hub-card-arrow" />
+              </div>
+              <div>
+                <div className="hub-card-title">Báo sự cố</div>
+                <div className="hub-card-desc">{pendingRepairCount} đang xử lý</div>
+              </div>
+              <span className={`hub-smart-badge ${pendingRepairCount > 0 ? "warning" : "info"}`}>
+                {pendingRepairCount > 0 ? `🔧 ${pendingRepairCount} chờ xử lý` : "✅ Bình thường"}
+              </span>
+            </div>
+
+            {/* Card 5: Hợp đồng */}
+            <div className="hub-function-card" onClick={scrollToContracts}>
+              <div className="hub-card-top">
+                <div className="hub-card-icon blue">
+                  <FileProtectOutlined />
+                </div>
+                <ArrowRightOutlined className="hub-card-arrow" />
+              </div>
+              <div>
+                <div className="hub-card-title">Hợp đồng</div>
+                <div className="hub-card-desc">{contracts.length} hợp đồng</div>
+              </div>
+              <span className="hub-smart-badge info">
+                📄 {contracts.length} file HĐ
+              </span>
+            </div>
+
+            {/* Card 6: Phòng đã lưu */}
+            <div className="hub-function-card" onClick={scrollToInterestedRooms}>
+              <div className="hub-card-top">
+                <div className="hub-card-icon rose">
+                  <HeartOutlined />
+                </div>
+                <ArrowRightOutlined className="hub-card-arrow" />
+              </div>
+              <div>
+                <div className="hub-card-title">Phòng đã lưu</div>
+                <div className="hub-card-desc">{interestedRooms.length} phòng yêu thích</div>
+              </div>
+              <span className="hub-smart-badge info">
+                ❤️ {interestedRooms.length} yêu thích
+              </span>
+            </div>
+
+            {/* Card 7: Thông báo */}
+            <div className="hub-function-card" onClick={() => navigate("/user/profile")}>
+              <div className="hub-card-top">
+                <div className="hub-card-icon teal">
+                  <BellOutlined />
+                </div>
+                <ArrowRightOutlined className="hub-card-arrow" />
+              </div>
+              <div>
+                <div className="hub-card-title">Thông báo</div>
+                <div className="hub-card-desc">Nhắc nhở hệ thống</div>
+              </div>
+              <span className="hub-smart-badge info">
+                🔔 Liên tục
+              </span>
+            </div>
+
+            {/* Card 8: Hỗ trợ */}
+            <div className="hub-function-card" onClick={() => navigate("/")}>
+              <div className="hub-card-top">
+                <div className="hub-card-icon teal">
+                  <InfoCircleOutlined />
+                </div>
+                <ArrowRightOutlined className="hub-card-arrow" />
+              </div>
+              <div>
+                <div className="hub-card-title">Hỗ trợ</div>
+                <div className="hub-card-desc">Quy định & Hướng dẫn</div>
+              </div>
+              <span className="hub-smart-badge info">
+                💬 Hỗ trợ 24/7
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* ====== 5. 🔎 PHÒNG TRỐNG ĐỀ XUẤT (Item 7, 8, 9) ====== */}
+        {availableRooms.length > 0 && (
+          <div id="available-rooms-section" className="dashboard-section">
+            <div className="section-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+              <div>
+                <h3 className="section-title">
+                  <span className="section-title-dot" style={{ background: "#0d9488" }} /> Phòng trống đề xuất ({availableRooms.length})
+                </h3>
+                <Text type="secondary" style={{ fontSize: 13 }}>Dựa trên tiêu chí bạn quan tâm</Text>
+              </div>
+              <Button type="link" onClick={() => navigate("/")} style={{ color: "#0f766e", fontWeight: 600, padding: 0 }}>
+                Xem tất cả phòng →
+              </Button>
+            </div>
+            
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 18 }}>
+              {availableRooms.slice(0, 8).map((room) => {
+                const roomCover = room.images?.[0] ? toImageUrl(room.images[0]) : fallbackRoomImage;
+                return (
+                  <Card
+                    key={room.id}
+                    hoverable
+                    className="property-listing-card"
+                    style={{
+                      borderRadius: 12,
+                      overflow: "hidden",
+                      border: "1px solid #e2e8f0",
+                      boxShadow: "0 3px 10px rgba(0,0,0,0.03)",
+                    }}
+                    styles={{ body: { padding: 14 } }}
+                    cover={
+                      <div style={{ position: "relative", height: 145, background: "#f1f5f9" }}>
+                        <img
+                          alt={`Phòng ${room.roomNumber}`}
+                          src={roomCover}
+                          onError={(e) => { e.target.onerror = null; e.target.src = fallbackRoomImage; }}
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        />
+                        <Tag
+                          color="success"
+                          style={{
+                            position: "absolute",
+                            top: 10,
+                            left: 10,
+                            fontWeight: 700,
+                            borderRadius: 6,
+                            padding: "1px 7px",
+                            margin: 0,
+                            fontSize: 11,
+                          }}
+                        >
+                          🟢 Đang trống
+                        </Tag>
+                      </div>
+                    }
+                  >
+                    <div style={{ marginBottom: 4 }}>
+                      <Text strong style={{ fontSize: 15, color: "#0f172a" }}>
+                        Phòng {room.roomNumber} - {room.name || "Phòng trọ cao cấp"}
+                      </Text>
+                    </div>
+
+                    <Title level={4} style={{ margin: "0 0 8px 0", color: "#0f766e", fontSize: 18, fontWeight: 700 }}>
+                      {formatCurrency(room.price)}<span style={{ fontSize: 12, fontWeight: 500, color: "#64748b" }}> / tháng</span>
+                    </Title>
+
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 12 }}>
+                      <span className="room-spec-chip" style={{ fontSize: 11, background: "#f8fafc", padding: "2px 6px", borderRadius: 4, border: "1px solid #e2e8f0" }}>
+                        📐 {room.area || 0} m²
+                      </span>
+                      <span className="room-spec-chip" style={{ fontSize: 11, background: "#f8fafc", padding: "2px 6px", borderRadius: 4, border: "1px solid #e2e8f0" }}>
+                        👥 {room.capacity || 1} người
+                      </span>
+                      <span className="room-spec-chip" style={{ fontSize: 11, background: "#f8fafc", padding: "2px 6px", borderRadius: 4, border: "1px solid #e2e8f0" }}>
+                        🏢 Tầng {room.floor ?? "-"}
+                      </span>
+                    </div>
+
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <Button
+                        size="small"
+                        type="primary"
+                        onClick={() => navigate(`/user/rooms/${room.id}`)}
+                        style={{ flex: 1, background: "#0f766e", borderColor: "#0f766e", borderRadius: 6, fontWeight: 600, height: 30, fontSize: 12 }}
+                      >
+                        Chi tiết
+                      </Button>
+                      <Button
+                        size="small"
+                        onClick={() => openRoomRequestModal("hold_deposit", room)}
+                        style={{ flex: 1, borderRadius: 6, fontWeight: 600, height: 30, fontSize: 12 }}
+                      >
+                        Đặt cọc
+                      </Button>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ====== 6. 🏠 PHÒNG ĐANG Ở CỦA TÔI (Item 1, 16) ====== */}
+        <div id="my-rooms-section" className="dashboard-section">
           <div className="section-header">
-            <h3 className="section-title"><span className="section-title-dot" style={{ background: "#0d9488" }} /> Phòng trống khả dụng</h3>
-            <Button type="link" onClick={() => navigate("/")} style={{ color: "#0f766e", fontWeight: 600, padding: 0 }}>
-              Xem tất cả →
+            <h3 className="section-title">
+              <span className="section-title-dot" style={{ background: "#0f766e" }} /> Phòng đang ở của tôi ({activeTenancies.length})
+            </h3>
+          </div>
+
+          {activeTenancies.length > 0 ? (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 18 }}>
+              {activeTenancies.map((tenancy) => {
+                const coverImg = tenancy.roomImages?.[0] ? toImageUrl(tenancy.roomImages[0]) : fallbackRoomImage;
+                const roleMeta = roomRoleMeta[tenancy.roomRole] || roomRoleMeta.member;
+                return (
+                  <Card
+                    key={tenancy.id}
+                    hoverable
+                    style={{
+                      borderRadius: 12,
+                      overflow: "hidden",
+                      border: "1px solid #e2e8f0",
+                      boxShadow: "0 3px 10px rgba(0,0,0,0.03)",
+                    }}
+                    styles={{ body: { padding: 16 } }}
+                    cover={
+                      <div style={{ position: "relative", height: 155, overflow: "hidden", background: "#f1f5f9" }}>
+                        <img
+                          src={coverImg}
+                          alt={`Phòng ${tenancy.roomNumber}`}
+                          onError={(e) => { e.target.onerror = null; e.target.src = fallbackRoomImage; }}
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        />
+                        <div style={{ position: "absolute", top: 10, left: 10, display: "flex", gap: 6 }}>
+                          <Tag color="success" style={{ fontWeight: 600, borderRadius: 6, padding: "1px 7px", margin: 0, fontSize: 11 }}>
+                            <CheckCircleOutlined /> Đang thuê
+                          </Tag>
+                          <Tag color={roleMeta.color} style={{ fontWeight: 600, borderRadius: 6, padding: "1px 7px", margin: 0, fontSize: 11 }}>
+                            {roleMeta.label}
+                          </Tag>
+                        </div>
+                      </div>
+                    }
+                  >
+                    <div style={{ marginBottom: 6 }}>
+                      <Title level={4} style={{ margin: 0, color: "#0f172a", fontSize: 16 }}>
+                        Phòng {tenancy.roomNumber} - {tenancy.roomName}
+                      </Title>
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        Ngày chuyển vào: {formatDate(tenancy.moveInDate)}
+                      </Text>
+                    </div>
+
+                    <Title level={4} style={{ margin: "6px 0 10px 0", color: "#0f766e", fontSize: 18, fontWeight: 700 }}>
+                      {formatCurrency(tenancy.roomPrice)}<span style={{ fontSize: 12, fontWeight: 500, color: "#64748b" }}>/tháng</span>
+                    </Title>
+
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
+                      <span className="room-spec-chip" style={{ fontSize: 11, background: "#f8fafc", padding: "3px 7px", borderRadius: 4, border: "1px solid #e2e8f0" }}>
+                        📐 {tenancy.roomArea || 0} m²
+                      </span>
+                      <span className="room-spec-chip" style={{ fontSize: 11, background: "#f8fafc", padding: "3px 7px", borderRadius: 4, border: "1px solid #e2e8f0" }}>
+                        👥 {tenancy.roomCapacity || 1} người
+                      </span>
+                      <span className="room-spec-chip" style={{ fontSize: 11, background: "#f8fafc", padding: "3px 7px", borderRadius: 4, border: "1px solid #e2e8f0" }}>
+                        🏢 Tầng {tenancy.roomFloor ?? "-"}
+                      </span>
+                    </div>
+
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <Button
+                        type="primary"
+                        onClick={() => setDetailTenancy(tenancy)}
+                        style={{ flex: 1, background: "#0f766e", borderColor: "#0f766e", borderRadius: 6, fontWeight: 600, height: 32, fontSize: 12 }}
+                      >
+                        Chi tiết phòng
+                      </Button>
+                      <Button
+                        icon={<ToolOutlined />}
+                        onClick={() => openRepairModal(tenancy.room)}
+                        style={{ borderRadius: 6, color: "#b45309", borderColor: "#fcd34d", background: "#fffbeb", fontWeight: 600, height: 32, fontSize: 12 }}
+                      >
+                        Báo hỏng
+                      </Button>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <Card style={{ borderRadius: 12, textAlign: "center", padding: "28px 20px", background: "#f8fafc", border: "1px dashed #cbd5e1" }}>
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={
+                  <div>
+                    <Text strong style={{ fontSize: 15, color: "#334155", display: "block", marginBottom: 4 }}>
+                      🏠 Bạn chưa thuê phòng nào
+                    </Text>
+                    <Text type="secondary" style={{ fontSize: 13 }}>
+                      Tìm phòng phù hợp với nhu cầu của bạn và bắt đầu thuê ngay hôm nay.
+                    </Text>
+                  </div>
+                }
+              >
+                <Button type="primary" onClick={() => navigate("/")} style={{ background: "#0f766e", borderColor: "#0f766e", borderRadius: 8, fontWeight: 600, marginTop: 8 }}>
+                  Tìm phòng ngay
+                </Button>
+              </Empty>
+            </Card>
+          )}
+        </div>
+
+        {/* ====== 7. 💰 HÓA ĐƠN & THANH TOÁN (Item 6) ====== */}
+        <div id="invoices-section" className="dashboard-section">
+          <div className="section-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h3 className="section-title">
+              <span className="section-title-dot" style={{ background: "#d97706" }} /> Hóa đơn dịch vụ & tiền trọ ({invoices.length})
+            </h3>
+            <Button type="link" onClick={() => navigate("/user/invoices")} style={{ color: "#0f766e", fontWeight: 600, padding: 0 }}>
+              Quản lý hóa đơn →
             </Button>
           </div>
-          <div className="rooms-horizontal-scroll">
-            {availableRooms.map((room) => (
-              <div key={room.id} className="rooms-h-card">
-                <img
-                  className="rooms-h-card-img"
-                  alt={`${room.roomNumber} - ${room.name}`}
-                  src={room.images?.[0] ? toImageUrl(room.images[0]) : "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=600&q=80"}
-                />
-                <div className="rooms-h-card-body">
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                    <Text strong style={{ fontSize: 15 }}>Phòng {room.roomNumber}</Text>
-                    <Tag color="success" style={{ margin: 0, borderRadius: 4, fontWeight: 600, fontSize: 11 }}>Trống</Tag>
-                  </div>
-                  <Title level={4} style={{ margin: "0 0 6px 0", color: "#0f766e", fontSize: 18 }}>
-                    {formatCurrency(room.price)}<span style={{ fontSize: 13, fontWeight: 500, color: "#64748b" }}>/tháng</span>
-                  </Title>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-                    <span className="room-spec-chip" style={{ fontSize: 12 }}>📐 {room.area || 0}m²</span>
-                    <span className="room-spec-chip" style={{ fontSize: 12 }}>👥 {room.capacity || 1}</span>
-                    <span className="room-spec-chip" style={{ fontSize: 12 }}>🏢 T{room.floor ?? "-"}</span>
-                  </div>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <Button size="small" type="primary" onClick={() => navigate(`/user/rooms/${room.id}`)} style={{ flex: 1, background: "#0f766e", borderColor: "#0f766e", borderRadius: 6, fontWeight: 600, fontSize: 12 }}>
-                      Chi tiết
-                    </Button>
-                    <Button size="small" icon={<HeartOutlined />} onClick={() => handleInterestedRoom(room)} style={{ borderRadius: 6, color: "#e11d48", borderColor: "#fecdd3", fontSize: 12 }} />
-                    <Button size="small" onClick={() => openRoomRequestModal("hold_deposit", room)} style={{ flex: 1, borderRadius: 6, fontWeight: 600, fontSize: 12 }}>
-                      Đặt cọc
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+
+          {invoices.length > 0 ? (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 18 }}>
+              {invoices.map((inv) => {
+                const meta = invoiceStatusMeta[inv.status] || { color: "default", label: inv.status };
+                const isPending = inv.status === "unpaid" || inv.status === "overdue";
+                return (
+                  <Card
+                    key={inv.id}
+                    hoverable
+                    style={{
+                      borderRadius: 12,
+                      border: isPending ? "2px solid #f59e0b" : "1px solid #e2e8f0",
+                      background: isPending ? "#fffdf5" : "#ffffff",
+                      boxShadow: isPending ? "0 4px 14px rgba(245, 158, 11, 0.1)" : "0 3px 10px rgba(0,0,0,0.03)",
+                    }}
+                    styles={{ body: { padding: 16 } }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                      <div>
+                        <Tag color="blue" style={{ borderRadius: 6, fontWeight: 700, margin: "0 0 4px 0" }}>
+                          {inv.invoiceCode}
+                        </Tag>
+                        <Title level={4} style={{ margin: 0, color: "#0f172a", fontSize: 16 }}>
+                          Phòng {inv.roomNumber} - {inv.roomName}
+                        </Title>
+                      </div>
+                      <Tag color={meta.color} style={{ fontWeight: 700, borderRadius: 6, padding: "2px 8px", margin: 0 }}>
+                        {meta.label}
+                      </Tag>
+                    </div>
+
+                    <div style={{ background: isPending ? "#fffbe6" : "#f8fafc", padding: "10px 12px", borderRadius: 8, marginBottom: 12, border: "1px solid rgba(0,0,0,0.05)" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                        <Text type="secondary" style={{ fontSize: 13 }}>Kỳ thanh toán:</Text>
+                        <Text strong style={{ fontSize: 13 }}>Tháng {inv.month}/{inv.year}</Text>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                        <Text type="secondary" style={{ fontSize: 13 }}>Tổng số tiền:</Text>
+                        <Text strong style={{ fontSize: 16, color: isPending ? "#b45309" : "#0f766e" }}>{formatCurrency(inv.totalAmount)}</Text>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <Text type="secondary" style={{ fontSize: 13 }}>Hạn thanh toán:</Text>
+                        <Text type={isPending ? "danger" : "secondary"} style={{ fontSize: 13, fontWeight: isPending ? 600 : 400 }}>
+                          {formatDate(inv.dueDate)}
+                        </Text>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <Button
+                        size="small"
+                        onClick={() => setDetailInvoice(inv)}
+                        style={{ flex: 1, borderRadius: 6, fontWeight: 600, height: 32, fontSize: 12 }}
+                      >
+                        Chi tiết
+                      </Button>
+                      {isPending && (
+                        <Button
+                          size="small"
+                          type="primary"
+                          icon={<CreditCardOutlined />}
+                          loading={payingInvoiceId === inv.id}
+                          onClick={() => handleCreateVnpayPayment(inv)}
+                          style={{ flex: 1, background: "#d97706", borderColor: "#d97706", borderRadius: 6, fontWeight: 600, height: 32, fontSize: 12 }}
+                        >
+                          Thanh toán VNPay
+                        </Button>
+                      )}
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <Card style={{ borderRadius: 12, textAlign: "center", padding: "28px 20px", background: "#fffbeb", border: "1px dashed #fde68a" }}>
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={<Text type="secondary">Chưa có hóa đơn nào phát sinh</Text>}
+              />
+            </Card>
+          )}
         </div>
-      )}
-    </div>
+
+        {/* ====== 8. 🔧 SỰ CỐ & SỬA CHỮA (Item 9, 16, 17) ====== */}
+        <div id="repair-requests-section" className="dashboard-section">
+          <div className="section-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h3 className="section-title">
+              <span className="section-title-dot" style={{ background: "#e11d48" }} /> Yêu cầu sửa chữa & sự cố ({repairRequests.length})
+            </h3>
+            <Space>
+              {activeRoomOptions.length > 0 && (
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => openRepairModal()}
+                  style={{ background: "#e11d48", borderColor: "#e11d48", borderRadius: 6, fontWeight: 600, height: 32, fontSize: 13 }}
+                >
+                  Báo sự cố mới
+                </Button>
+              )}
+              <Button type="link" onClick={() => navigate("/user/repair-requests")} style={{ color: "#e11d48", fontWeight: 600, padding: 0 }}>
+                Quản lý báo hỏng →
+              </Button>
+            </Space>
+          </div>
+
+          {repairRequests.length > 0 ? (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 18 }}>
+              {repairRequests.map((req) => {
+                const meta = repairStatusMeta[req.status] || { color: "default", label: req.status };
+                const priority = repairPriorityMeta[req.priority] || repairPriorityMeta.medium;
+                return (
+                  <Card
+                    key={req.id}
+                    hoverable
+                    style={{
+                      borderRadius: 12,
+                      border: "1px solid #ffe4e6",
+                      boxShadow: "0 3px 10px rgba(225, 29, 72, 0.03)",
+                    }}
+                    styles={{ body: { padding: 16 } }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                      <div>
+                        <Tag color={priority.color} style={{ borderRadius: 6, fontWeight: 700, margin: "0 0 4px 0" }}>
+                          {priority.label}
+                        </Tag>
+                        <Title level={4} style={{ margin: 0, color: "#0f172a", fontSize: 16 }}>
+                          {req.title}
+                        </Title>
+                      </div>
+                      <Tag color={meta.color} style={{ fontWeight: 700, borderRadius: 6, padding: "2px 8px", margin: 0 }}>
+                        {meta.label}
+                      </Tag>
+                    </div>
+
+                    <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>
+                      📍 Phòng {req.roomNumber} - {req.roomName} • Ngày gửi: {formatDate(req.createdAt)}
+                    </Text>
+
+                    <div style={{ background: "#f8fafc", padding: "8px 10px", borderRadius: 8, marginBottom: 12, border: "1px solid #e2e8f0" }}>
+                      <Text style={{ fontSize: 13, color: "#334155" }}>{req.description}</Text>
+                      {req.adminNote && (
+                        <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px dashed #cbd5e1" }}>
+                          <Text type="secondary" style={{ fontSize: 12 }}>💬 Phản hồi chủ trọ:</Text>
+                          <Text strong style={{ fontSize: 12, color: "#0f766e", display: "block" }}>{req.adminNote}</Text>
+                        </div>
+                      )}
+                    </div>
+
+                    <Button
+                      size="small"
+                      onClick={() => setDetailRepairRequest(req)}
+                      style={{ width: "100%", borderRadius: 6, fontWeight: 600, height: 32, fontSize: 12 }}
+                    >
+                      Xem chi tiết xử lý
+                    </Button>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <Card style={{ borderRadius: 12, textAlign: "center", padding: "28px 20px", background: "#fff1f2", border: "1px dashed #fecdd3" }}>
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={
+                  <div>
+                    <Text strong style={{ fontSize: 15, color: "#9f1239", display: "block", marginBottom: 4 }}>
+                      🔧 Chưa có yêu cầu sửa chữa
+                    </Text>
+                    <Text type="secondary" style={{ fontSize: 13 }}>
+                      Mọi thứ đang hoạt động bình thường ✓
+                    </Text>
+                  </div>
+                }
+              />
+            </Card>
+          )}
+        </div>
+
+        {/* ====== 9. 🔑 YÊU CẦU ĐẶT CỌC (Item 15) ====== */}
+        <div id="room-requests-section" className="dashboard-section">
+          <div className="section-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h3 className="section-title">
+              <span className="section-title-dot" style={{ background: "#7c3aed" }} /> Yêu cầu đặt cọc & giữ phòng ({roomRequests.length})
+            </h3>
+            <Button type="link" onClick={() => navigate("/user/room-requests")} style={{ color: "#7c3aed", fontWeight: 600, padding: 0 }}>
+              Xem tất cả yêu cầu →
+            </Button>
+          </div>
+
+          {roomRequests.length > 0 ? (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 18 }}>
+              {roomRequests.map((req) => {
+                const meta = requestStatusMeta[req.status] || { color: "default", label: req.status };
+                const isHold = req.requestType === "hold_deposit";
+                return (
+                  <Card
+                    key={req.id}
+                    hoverable
+                    style={{
+                      borderRadius: 12,
+                      border: "1px solid #f3e8ff",
+                      boxShadow: "0 3px 10px rgba(124, 58, 237, 0.03)",
+                    }}
+                    styles={{ body: { padding: 16 } }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                      <div>
+                        <Tag color={isHold ? "purple" : "cyan"} style={{ borderRadius: 6, fontWeight: 700, margin: "0 0 4px 0" }}>
+                          {isHold ? "Giữ phòng" : "Thuê phòng"}
+                        </Tag>
+                        <Title level={4} style={{ margin: 0, color: "#0f172a", fontSize: 16 }}>
+                          Phòng {req.roomNumber} - {req.roomName}
+                        </Title>
+                      </div>
+                      <Tag color={meta.color} style={{ fontWeight: 700, borderRadius: 6, padding: "2px 8px", margin: 0 }}>
+                        {meta.label}
+                      </Tag>
+                    </div>
+
+                    <div style={{ background: "#f8fafc", padding: "8px 10px", borderRadius: 8, marginBottom: 12, border: "1px solid #e2e8f0" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                        <Text type="secondary" style={{ fontSize: 13 }}>Số tiền cọc:</Text>
+                        <Text strong style={{ fontSize: 15, color: "#7c3aed" }}>{formatCurrency(req.depositAmount)}</Text>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                        <Text type="secondary" style={{ fontSize: 13 }}>Trạng thái thanh toán:</Text>
+                        <Tag color={req.paymentStatus === "paid" ? "success" : "warning"} style={{ margin: 0, borderRadius: 4 }}>
+                          {req.paymentStatus === "paid" ? "Đã cọc" : "Chưa cọc"}
+                        </Tag>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <Text type="secondary" style={{ fontSize: 13 }}>Ngày tạo yêu cầu:</Text>
+                        <Text style={{ fontSize: 13 }}>{formatDate(req.createdAt)}</Text>
+                      </div>
+                    </div>
+
+                    {req.paymentStatus !== "paid" && (
+                      <Button
+                        size="small"
+                        type="primary"
+                        icon={<QrcodeOutlined />}
+                        onClick={() => setPaymentRequest(req)}
+                        style={{ width: "100%", background: "#7c3aed", borderColor: "#7c3aed", borderRadius: 6, fontWeight: 600, height: 32, fontSize: 12 }}
+                      >
+                        Mở QR Thanh toán
+                      </Button>
+                    )}
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <Card style={{ borderRadius: 12, textAlign: "center", padding: "28px 20px", background: "#f3e8ff", border: "1px dashed #d8b4fe" }}>
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={<Text type="secondary">Chưa có yêu cầu đặt cọc giữ phòng nào</Text>}
+              />
+            </Card>
+          )}
+        </div>
+
+        {/* ====== 10. ❤️ PHÒNG ĐÃ LƯU (Item 15, 16) ====== */}
+        <div id="interested-rooms-section" className="dashboard-section">
+          <div className="section-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h3 className="section-title">
+              <span className="section-title-dot" style={{ background: "#e11d48" }} /> Phòng trọ đã lưu / yêu thích ({interestedRooms.length})
+            </h3>
+            <Button type="link" onClick={() => navigate("/user/interested-rooms")} style={{ color: "#e11d48", fontWeight: 600, padding: 0 }}>
+              Xem tất cả phòng lưu →
+            </Button>
+          </div>
+
+          {interestedRooms.length > 0 ? (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 18 }}>
+              {interestedRooms.map((item) => {
+                const coverImg = item.roomImages?.[0] || item.images?.[0] ? toImageUrl(item.roomImages?.[0] || item.images?.[0]) : fallbackRoomImage;
+                const isAvailable = item.roomStatus === "available" || item.status === "available";
+                return (
+                  <Card
+                    key={item.id || item._id}
+                    hoverable
+                    style={{
+                      borderRadius: 12,
+                      overflow: "hidden",
+                      border: "1px solid #ffe4e6",
+                      boxShadow: "0 3px 10px rgba(225, 29, 72, 0.03)",
+                    }}
+                    styles={{ body: { padding: 14 } }}
+                    cover={
+                      <div style={{ position: "relative", height: 145, background: "#fff1f2" }}>
+                        <img
+                          alt={`Phòng ${item.roomNumber}`}
+                          src={coverImg}
+                          onError={(e) => { e.target.onerror = null; e.target.src = fallbackRoomImage; }}
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        />
+                        <Tag
+                          color={isAvailable ? "success" : "default"}
+                          style={{
+                            position: "absolute",
+                            top: 10,
+                            left: 10,
+                            fontWeight: 700,
+                            borderRadius: 6,
+                            padding: "1px 7px",
+                            margin: 0,
+                            fontSize: 11,
+                          }}
+                        >
+                          {isAvailable ? "🟢 Đang trống" : "⚪ Đã thuê"}
+                        </Tag>
+                      </div>
+                    }
+                  >
+                    <div style={{ marginBottom: 4 }}>
+                      <Text strong style={{ fontSize: 15, color: "#0f172a" }}>
+                        Phòng {item.roomNumber} - {item.name || item.roomName || "Phòng trọ đã lưu"}
+                      </Text>
+                    </div>
+
+                    <Title level={4} style={{ margin: "0 0 8px 0", color: "#e11d48", fontSize: 18, fontWeight: 700 }}>
+                      {formatCurrency(item.price || item.roomPrice)}<span style={{ fontSize: 12, fontWeight: 500, color: "#64748b" }}> / tháng</span>
+                    </Title>
+
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 12 }}>
+                      <span className="room-spec-chip" style={{ fontSize: 11, background: "#fff1f2", color: "#be123c", padding: "2px 6px", borderRadius: 4, border: "1px solid #fecdd3" }}>
+                        📐 {item.area || item.roomArea || 0} m²
+                      </span>
+                      <span className="room-spec-chip" style={{ fontSize: 11, background: "#fff1f2", color: "#be123c", padding: "2px 6px", borderRadius: 4, border: "1px solid #fecdd3" }}>
+                        👥 {item.capacity || item.roomCapacity || 1} người
+                      </span>
+                    </div>
+
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <Button
+                        size="small"
+                        type="primary"
+                        onClick={() => navigate(`/user/rooms/${item.room || item.id}`)}
+                        style={{ flex: 1, background: "#e11d48", borderColor: "#e11d48", borderRadius: 6, fontWeight: 600, height: 30, fontSize: 12 }}
+                      >
+                        Xem chi tiết
+                      </Button>
+                      <Button
+                        size="small"
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={() => handleRemoveInterestedRoom(item)}
+                        style={{ borderRadius: 6, height: 30, fontSize: 12 }}
+                      >
+                        Bỏ lưu
+                      </Button>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <Card style={{ borderRadius: 12, textAlign: "center", padding: "28px 20px", background: "#fff1f2", border: "1px dashed #fecdd3" }}>
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={
+                  <div>
+                    <Text strong style={{ fontSize: 15, color: "#be123c", display: "block", marginBottom: 4 }}>
+                      ❤️ Chưa có phòng yêu thích
+                    </Text>
+                    <Text type="secondary" style={{ fontSize: 13 }}>
+                      Khám phá danh sách phòng trọ phù hợp ngay.
+                    </Text>
+                  </div>
+                }
+              >
+                <Button type="primary" onClick={() => navigate("/")} style={{ background: "#e11d48", borderColor: "#e11d48", borderRadius: 8, fontWeight: 600, marginTop: 8 }}>
+                  Khám phá phòng ngay
+                </Button>
+              </Empty>
+            </Card>
+          )}
+        </div>
+
+        {/* ====== 11. 📄 HỢP ĐỒNG (Item 15) ====== */}
+        <div id="contracts-section" className="dashboard-section">
+          <div className="section-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h3 className="section-title">
+              <span className="section-title-dot" style={{ background: "#2563eb" }} /> Hợp đồng thuê phòng ({contracts.length})
+            </h3>
+            <Button type="link" onClick={() => navigate("/user/contracts")} style={{ color: "#2563eb", fontWeight: 600, padding: 0 }}>
+              Quản lý hợp đồng →
+            </Button>
+          </div>
+
+          {contracts.length > 0 ? (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 18 }}>
+              {contracts.map((c) => {
+                const meta = contractStatusMeta[c.status] || { color: "default", label: c.status };
+                return (
+                  <Card
+                    key={c.id}
+                    hoverable
+                    style={{
+                      borderRadius: 12,
+                      border: "1px solid #dbeafe",
+                      boxShadow: "0 3px 10px rgba(37, 99, 235, 0.03)",
+                    }}
+                    styles={{ body: { padding: 16 } }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                      <div>
+                        <Tag color="blue" style={{ borderRadius: 6, fontWeight: 700, margin: "0 0 4px 0" }}>
+                          {c.contractCode}
+                        </Tag>
+                        <Title level={4} style={{ margin: 0, color: "#0f172a", fontSize: 16 }}>
+                          Phòng {c.roomNumber} - {c.roomName}
+                        </Title>
+                      </div>
+                      <Tag color={meta.color} style={{ fontWeight: 700, borderRadius: 6, padding: "2px 8px", margin: 0 }}>
+                        {meta.label}
+                      </Tag>
+                    </div>
+
+                    <div style={{ background: "#f8fafc", padding: "8px 10px", borderRadius: 8, marginBottom: 12, border: "1px solid #e2e8f0" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                        <Text type="secondary" style={{ fontSize: 13 }}>Giá thuê phòng:</Text>
+                        <Text strong style={{ fontSize: 15, color: "#2563eb" }}>{formatCurrency(c.monthlyRent)}/tháng</Text>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                        <Text type="secondary" style={{ fontSize: 13 }}>Thời hạn hợp đồng:</Text>
+                        <Text style={{ fontSize: 13 }}>{c.durationMonths} tháng</Text>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <Text type="secondary" style={{ fontSize: 13 }}>Hiệu lực:</Text>
+                        <Text style={{ fontSize: 13 }}>{formatDate(c.startDate)} - {formatDate(c.endDate)}</Text>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <Button
+                        size="small"
+                        onClick={() => setDetailContract(c)}
+                        style={{ flex: 1, borderRadius: 6, fontWeight: 600, height: 32, fontSize: 12 }}
+                      >
+                        Chi tiết HĐ
+                      </Button>
+                      <Button
+                        size="small"
+                        type="primary"
+                        onClick={() => handleOpenContractFile(c)}
+                        style={{ flex: 1, background: "#2563eb", borderColor: "#2563eb", borderRadius: 6, fontWeight: 600, height: 32, fontSize: 12 }}
+                      >
+                        Xem file PDF
+                      </Button>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <Card style={{ borderRadius: 12, textAlign: "center", padding: "28px 20px", background: "#eff6ff", border: "1px dashed #bfdbfe" }}>
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={<Text type="secondary">Bạn chưa ký hợp đồng thuê phòng nào</Text>}
+              />
+            </Card>
+          )}
+        </div>
+
+      </div>
 
       {/* ====== ALL MODALS ====== */}
 
