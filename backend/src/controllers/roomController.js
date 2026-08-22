@@ -5,7 +5,7 @@ const RoomRequest = require("../models/RoomRequest");
 const Tenant = require("../models/Tenant");
 const { clearExpiredHoldDeposits } = require("../utils/roomPaymentLock");
 
-const roomStatuses = ["available", "payment_pending", "reserved", "occupied", "maintenance"];
+const roomStatuses = ["available", "payment_pending", "reserved", "occupied", "coming_available", "maintenance"];
 
 const toRoomResponse = (room) => ({
   id: room._id,
@@ -25,6 +25,7 @@ const toRoomResponse = (room) => ({
   description: room.description,
   images: room.images || [],
   status: room.status,
+  availableFrom: room.availableFrom,
   paymentHoldBy: room.paymentHoldBy,
   paymentHoldRequest: room.paymentHoldRequest,
   paymentHoldExpiresAt: room.paymentHoldExpiresAt,
@@ -246,7 +247,16 @@ const getRoomDetail = async (req, res, next) => {
         .sort({ roomRole: -1, moveInDate: 1 }),
       Contract.findOne({
         room: room._id,
-        status: { $in: ["pending_user_signature", "revision_requested", "active"] },
+        status: {
+          $in: [
+            "pending_user_signature",
+            "revision_requested",
+            "active",
+            "renewal_requested",
+            "checkout_requested",
+            "expired_pending",
+          ],
+        },
       })
         .populate("tenant", "name email phone identityNumber")
         .sort({ createdAt: -1 }),

@@ -29,6 +29,7 @@ import {
   Descriptions,
   Empty,
   Input,
+  InputNumber,
   Modal,
   Segmented,
   Space,
@@ -91,6 +92,38 @@ const contractStatusMeta = {
     label: "Đã chấm dứt",
     icon: <ExclamationCircleOutlined />,
   },
+  renewal_requested: {
+    color: "processing",
+    badgeBg: "#eff6ff",
+    text: "#1d4ed8",
+    border: "#bfdbfe",
+    label: "Da yeu cau gia han",
+    icon: <ClockCircleOutlined />,
+  },
+  renewed: {
+    color: "success",
+    badgeBg: "#f0fdf4",
+    text: "#15803d",
+    border: "#bbf7d0",
+    label: "Da gia han",
+    icon: <CheckCircleOutlined />,
+  },
+  checkout_requested: {
+    color: "orange",
+    badgeBg: "#fff7ed",
+    text: "#c2410c",
+    border: "#fed7aa",
+    label: "Da dang ky tra phong",
+    icon: <ExportOutlined />,
+  },
+  expired_pending: {
+    color: "error",
+    badgeBg: "#fef2f2",
+    text: "#b91c1c",
+    border: "#fecaca",
+    label: "Qua han can xu ly",
+    icon: <ExclamationCircleOutlined />,
+  },
 };
 
 const UserContractsPage = () => {
@@ -113,6 +146,12 @@ const UserContractsPage = () => {
   const [revisionModalOpen, setRevisionModalOpen] = useState(false);
   const [revisionSubmitting, setRevisionSubmitting] = useState(false);
   const [revisionText, setRevisionText] = useState("");
+  const [lifecycleContract, setLifecycleContract] = useState(null);
+  const [lifecycleMode, setLifecycleMode] = useState("");
+  const [lifecycleSubmitting, setLifecycleSubmitting] = useState(false);
+  const [renewalDurationMonths, setRenewalDurationMonths] = useState(12);
+  const [checkoutDate, setCheckoutDate] = useState("");
+  const [lifecycleNote, setLifecycleNote] = useState("");
 
   const fetchContracts = async () => {
     setLoading(true);
@@ -129,6 +168,55 @@ const UserContractsPage = () => {
   useEffect(() => {
     fetchContracts();
   }, []);
+
+  const expiringContracts = useMemo(
+    () =>
+      contracts.filter(
+        (contract) =>
+          ["active", "renewal_requested", "checkout_requested", "expired_pending"].includes(contract.status) &&
+          Number(contract.daysUntilEnd ?? 9999) <= 30
+      ),
+    [contracts]
+  );
+
+  const openLifecycleModal = (contract, mode) => {
+    setLifecycleContract(contract);
+    setLifecycleMode(mode);
+    setLifecycleNote("");
+    setRenewalDurationMonths(12);
+    setCheckoutDate(contract.endDate ? new Date(contract.endDate).toISOString().slice(0, 10) : "");
+  };
+
+  const closeLifecycleModal = () => {
+    setLifecycleContract(null);
+    setLifecycleMode("");
+    setLifecycleNote("");
+  };
+
+  const submitLifecycleRequest = async () => {
+    if (!lifecycleContract) return;
+
+    setLifecycleSubmitting(true);
+    try {
+      const endpoint =
+        lifecycleMode === "renewal"
+          ? `/me/contracts/${lifecycleContract.id}/renewal-request`
+          : `/me/contracts/${lifecycleContract.id}/checkout-request`;
+      const payload =
+        lifecycleMode === "renewal"
+          ? { durationMonths: renewalDurationMonths, note: lifecycleNote }
+          : { checkoutDate, note: lifecycleNote };
+
+      await http.post(endpoint, payload);
+      message.success(lifecycleMode === "renewal" ? "Da gui yeu cau gia han" : "Da gui yeu cau tra phong");
+      closeLifecycleModal();
+      fetchContracts();
+    } catch (error) {
+      message.error(error.response?.data?.message || "Khong gui duoc yeu cau");
+    } finally {
+      setLifecycleSubmitting(false);
+    }
+  };
 
   const prepareCanvas = () => {
     const canvas = canvasRef.current;
@@ -485,6 +573,64 @@ const UserContractsPage = () => {
           </div>
         </div>
       </div>
+
+      {expiringContracts.length > 0 && (
+        <Card
+          title={
+            <Space>
+              <ExclamationCircleOutlined style={{ color: "#f97316" }} />
+              <span>Hop dong sap het han</span>
+            </Space>
+          }
+          style={{ borderRadius: 16, border: "1px solid #fed7aa", marginBottom: 18 }}
+        >
+          <Space direction="vertical" size={12} style={{ width: "100%" }}>
+            {expiringContracts.map((contract) => (
+              <div
+                key={contract.id}
+                style={{
+                  alignItems: "center",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 12,
+                  display: "flex",
+                  gap: 12,
+                  justifyContent: "space-between",
+                  padding: 14,
+                }}
+              >
+                <Space direction="vertical" size={2}>
+                  <Text strong>
+                    Phong {contract.roomNumber || "-"} - {contract.contractCode}
+                  </Text>
+                  <Text type="secondary">
+                    Het han: {formatDate(contract.endDate)} | Con lai: {contract.daysUntilEnd ?? "-"} ngay
+                  </Text>
+                  <Tag color={Number(contract.daysUntilEnd || 0) <= 7 ? "error" : "warning"}>
+                    {contract.status === "expired_pending" ? "Qua han can xu ly" : Number(contract.daysUntilEnd || 0) <= 7 ? "Can xu ly gap" : "Sap het han"}
+                  </Tag>
+                </Space>
+                <Space wrap>
+                  <Button
+                    disabled={contract.status !== "active"}
+                    onClick={() => openLifecycleModal(contract, "renewal")}
+                    style={{ borderRadius: 8 }}
+                  >
+                    Dang ky gia han
+                  </Button>
+                  <Button
+                    danger
+                    disabled={contract.status !== "active"}
+                    onClick={() => openLifecycleModal(contract, "checkout")}
+                    style={{ borderRadius: 8 }}
+                  >
+                    Khong gia han & Dang ky tra phong
+                  </Button>
+                </Space>
+              </div>
+            ))}
+          </Space>
+        </Card>
+      )}
 
       {/* Control Toolbar */}
       <div className="my-contracts-control-bar">
@@ -926,6 +1072,60 @@ const UserContractsPage = () => {
             )}
           </Space>
         )}
+      </Modal>
+
+      <Modal
+        title={lifecycleMode === "renewal" ? "Dang ky gia han hop dong" : "Dang ky tra phong"}
+        open={Boolean(lifecycleContract)}
+        onCancel={closeLifecycleModal}
+        onOk={submitLifecycleRequest}
+        confirmLoading={lifecycleSubmitting}
+        okText="Gui yeu cau"
+        cancelText="Dong"
+        centered
+      >
+        <Space direction="vertical" size={14} style={{ width: "100%" }}>
+          <Descriptions bordered size="small" column={1}>
+            <Descriptions.Item label="Hop dong">{lifecycleContract?.contractCode || "-"}</Descriptions.Item>
+            <Descriptions.Item label="Phong">
+              Phong {lifecycleContract?.roomNumber || "-"} - {lifecycleContract?.roomName || "-"}
+            </Descriptions.Item>
+            <Descriptions.Item label="Ngay het han">{formatDate(lifecycleContract?.endDate)}</Descriptions.Item>
+          </Descriptions>
+
+          {lifecycleMode === "renewal" ? (
+            <div>
+              <Text strong>Thoi han muon gia han (thang)</Text>
+              <InputNumber
+                min={1}
+                value={renewalDurationMonths}
+                onChange={(value) => setRenewalDurationMonths(value || 1)}
+                style={{ width: "100%", marginTop: 8 }}
+              />
+            </div>
+          ) : (
+            <div>
+              <Text strong>Ngay du kien tra phong</Text>
+              <Input
+                type="date"
+                value={checkoutDate}
+                onChange={(event) => setCheckoutDate(event.target.value)}
+                style={{ marginTop: 8 }}
+              />
+            </div>
+          )}
+
+          <div>
+            <Text strong>Ghi chu</Text>
+            <Input.TextArea
+              rows={3}
+              value={lifecycleNote}
+              onChange={(event) => setLifecycleNote(event.target.value)}
+              placeholder="Nhap ghi chu neu co"
+              style={{ marginTop: 8 }}
+            />
+          </div>
+        </Space>
       </Modal>
 
       {/* Revision Request Modal */}

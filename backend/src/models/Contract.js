@@ -27,6 +27,40 @@ const contractSchema = new mongoose.Schema(
     contractHtmlSnapshot: { type: String, default: "" },
     lockedAt: { type: Date },
     version: { type: Number, default: 1, min: 1 },
+    previousContract: { type: mongoose.Schema.Types.ObjectId, ref: "Contract" },
+    renewalContract: { type: mongoose.Schema.Types.ObjectId, ref: "Contract" },
+    expiryNotice30SentAt: { type: Date },
+    expiryNotice15SentAt: { type: Date },
+    urgentNoticeSentAt: { type: Date },
+    expiredPendingNotifiedAt: { type: Date },
+    overstayInvoiceCreatedAt: { type: Date },
+    dailyRentPolicy: {
+      type: {
+        method: {
+          type: String,
+          enum: ["monthly_divided_by_30", "fixed"],
+          default: "monthly_divided_by_30",
+        },
+        fixedDailyRent: { type: Number, default: 0, min: 0 },
+      },
+      default: undefined,
+    },
+    checkoutRequestedAt: { type: Date },
+    checkoutDate: { type: Date },
+    checkoutCompletedAt: { type: Date },
+    lifecycleHistory: [
+      {
+        action: { type: String, required: true, trim: true },
+        note: { type: String, default: "", trim: true },
+        performedAt: { type: Date, default: Date.now },
+        performedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        performedByRole: {
+          type: String,
+          enum: ["admin", "user", "system"],
+          default: "system",
+        },
+      },
+    ],
     revisionRequests: [
       {
         message: { type: String, required: true, trim: true },
@@ -43,7 +77,17 @@ const contractSchema = new mongoose.Schema(
     ],
     status: {
       type: String,
-      enum: ["pending_user_signature", "revision_requested", "active", "expired", "terminated"],
+      enum: [
+        "pending_user_signature",
+        "revision_requested",
+        "active",
+        "renewal_requested",
+        "renewed",
+        "checkout_requested",
+        "expired_pending",
+        "expired",
+        "terminated",
+      ],
       default: "pending_user_signature",
     }, // Trang thai hop dong
   },
@@ -51,6 +95,8 @@ const contractSchema = new mongoose.Schema(
 );
 
 contractSchema.index({ room: 1, status: 1 });
+contractSchema.index({ endDate: 1, status: 1 });
+contractSchema.index({ previousContract: 1 });
 contractSchema.index({ contractCode: 1 }, { unique: true });
 
 module.exports = mongoose.model("Contract", contractSchema);

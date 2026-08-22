@@ -1010,6 +1010,35 @@ const UserRoomRequestsPage = () => {
                               </Button>
                             </Upload>
                           </Form.Item>
+                          <Form.Item label="CCCD mat sau" required>
+                            <Upload
+                              accept="image/jpeg,image/png,image/webp"
+                              customRequest={(options) =>
+                                handleIdentityUpload(options, ["occupants", field.name, "identityBackImage"])
+                              }
+                              maxCount={1}
+                            >
+                              <Button icon={<UploadOutlined />} style={{ borderRadius: 6 }}>
+                                Upload mat sau
+                              </Button>
+                            </Upload>
+                          </Form.Item>
+                          <Form.Item
+                            {...field}
+                            name={[field.name, "identityFrontImage"]}
+                            hidden
+                            rules={[{ required: true, message: "Vui long upload CCCD mat truoc" }]}
+                          >
+                            <Input />
+                          </Form.Item>
+                          <Form.Item
+                            {...field}
+                            name={[field.name, "identityBackImage"]}
+                            hidden
+                            rules={[{ required: true, message: "Vui long upload CCCD mat sau" }]}
+                          >
+                            <Input />
+                          </Form.Item>
                         </div>
                       </Card>
                     ))}

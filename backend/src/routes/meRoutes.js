@@ -20,7 +20,9 @@ const {
   getMyRoomRequests,
   getMyTenancies,
   removeMyInterestedRoom,
+  requestMyContractCheckout,
   requestMyContractRevision,
+  requestMyContractRenewal,
   signMyContract,
   updateMyRepairRequest,
   updateMyRoomRequestPaymentProof,
@@ -43,6 +45,8 @@ router.post("/room-requests/:id/rent", protect, createMyRentRequestFromHoldDepos
 router.patch("/room-requests/:id/payment-proof", protect, updateMyRoomRequestPaymentProof);
 router.patch("/room-requests/:id/cancel", protect, cancelMyRoomRequest);
 router.get("/contracts", protect, getMyContracts);
+router.post("/contracts/:id/renewal-request", protect, requestMyContractRenewal);
+router.post("/contracts/:id/checkout-request", protect, requestMyContractCheckout);
 router.patch("/contracts/:id/revision-request", protect, requestMyContractRevision);
 router.patch("/contracts/:id/sign", protect, signMyContract);
 router.get("/contracts/:id/file", protect, getMyContractFile);
