@@ -124,7 +124,16 @@ const clearExpiredHoldDeposits = async () => {
         Tenant.exists({ room: request.room, status: "active" }),
         Contract.exists({
           room: request.room,
-          status: { $in: ["pending_user_signature", "revision_requested", "active"] },
+          status: {
+            $in: [
+              "pending_user_signature",
+              "revision_requested",
+              "active",
+              "renewal_requested",
+              "checkout_requested",
+              "expired_pending",
+            ],
+          },
         }),
         RoomRequest.exists({
           room: request.room,

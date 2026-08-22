@@ -107,6 +107,16 @@ const ContractManagementPage = () => {
   const [detailOpen, setDetailOpen] = useState(false);
   const [editingContract, setEditingContract] = useState(null);
   const [detailContract, setDetailContract] = useState(null);
+  const [expiringContracts, setExpiringContracts] = useState([]);
+  const [lifecycleContract, setLifecycleContract] = useState(null);
+  const [lifecycleMode, setLifecycleMode] = useState("");
+  const [lifecycleSubmitting, setLifecycleSubmitting] = useState(false);
+  const [lifecycleForm, setLifecycleForm] = useState({
+    checkoutDate: "",
+    durationMonths: 12,
+    monthlyRent: 0,
+    note: "",
+  });
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -163,14 +173,25 @@ const ContractManagementPage = () => {
     }
   };
 
+  const fetchExpiringContracts = async () => {
+    try {
+      const { data } = await http.get("/contracts/expiring");
+      setExpiringContracts(data || []);
+    } catch (error) {
+      message.error(error.response?.data?.message || "Khong tai duoc hop dong sap het han");
+    }
+  };
+
   useEffect(() => {
     fetchOptions();
     fetchContracts();
+    fetchExpiringContracts();
   }, []);
 
   const refreshAll = () => {
     fetchOptions();
     fetchContracts();
+    fetchExpiringContracts();
   };
 
   const resetFilters = () => {
@@ -281,6 +302,161 @@ const ContractManagementPage = () => {
     }
   };
 
+  const openLifecycleModal = (record, mode) => {
+    setLifecycleContract(record);
+    setLifecycleMode(mode);
+    setLifecycleForm({
+      checkoutDate: record.checkoutDate
+        ? new Date(record.checkoutDate).toISOString().slice(0, 10)
+        : record.endDate
+          ? new Date(record.endDate).toISOString().slice(0, 10)
+          : "",
+      durationMonths: record.pendingLifecycleRequest?.requestedDurationMonths || record.durationMonths || 12,
+      monthlyRent: record.monthlyRent || 0,
+      note: "",
+    });
+  };
+
+  const closeLifecycleModal = () => {
+    setLifecycleContract(null);
+    setLifecycleMode("");
+    setLifecycleForm({ checkoutDate: "", durationMonths: 12, monthlyRent: 0, note: "" });
+  };
+
+  const handleSendReminder = async (record) => {
+    try {
+      await http.patch(`/contracts/${record.id}/remind-expiry`, {
+        note: "Admin nhac khach xu ly hop dong sap het han.",
+      });
+      message.success("Da gui nhac nho");
+      refreshAll();
+    } catch (error) {
+      message.error(error.response?.data?.message || "Gui nhac nho that bai");
+    }
+  };
+
+  const handleCompleteCheckout = async (record) => {
+    try {
+      await http.post(`/contracts/${record.id}/complete-checkout`, {
+        note: "Admin da hoan tat checkout.",
+      });
+      message.success("Da hoan tat checkout");
+      refreshAll();
+    } catch (error) {
+      message.error(error.response?.data?.message || "Hoan tat checkout that bai");
+    }
+  };
+
+  const submitLifecycleAction = async () => {
+    if (!lifecycleContract) return;
+
+    setLifecycleSubmitting(true);
+    try {
+      if (lifecycleMode === "renew") {
+        await http.post(`/contracts/${lifecycleContract.id}/renew`, {
+          durationMonths: lifecycleForm.durationMonths,
+          monthlyRent: lifecycleForm.monthlyRent,
+          note: lifecycleForm.note,
+        });
+        message.success("Da xu ly gia han");
+      } else {
+        await http.post(`/contracts/${lifecycleContract.id}/checkout`, {
+          checkoutDate: lifecycleForm.checkoutDate,
+          note: lifecycleForm.note,
+        });
+        message.success("Da tao thu tuc tra phong");
+      }
+
+      closeLifecycleModal();
+      refreshAll();
+    } catch (error) {
+      message.error(error.response?.data?.message || "Xu ly that bai");
+    } finally {
+      setLifecycleSubmitting(false);
+    }
+  };
+
+  const expiryBucketMeta = {
+    expiring: { color: "gold", label: "Sap het han" },
+    no_response: { color: "orange", label: "Chua phan hoi" },
+    urgent: { color: "red", label: "Can xu ly gap" },
+    overdue: { color: "red", label: "Qua han" },
+  };
+
+  const expiringColumns = [
+    {
+      title: "Hop dong",
+      key: "contract",
+      render: (_, record) => (
+        <Space direction="vertical" size={0}>
+          <Typography.Text strong>{record.contractCode}</Typography.Text>
+          <Typography.Text type="secondary">
+            Phong {record.roomNumber || "-"} - {record.tenantName || "-"}
+          </Typography.Text>
+        </Space>
+      ),
+    },
+    {
+      title: "Het han",
+      key: "endDate",
+      render: (_, record) => (
+        <Space direction="vertical" size={0}>
+          <Typography.Text>{formatDate(record.endDate)}</Typography.Text>
+          <Typography.Text type={Number(record.daysUntilEnd || 0) <= 7 ? "danger" : "secondary"}>
+            {record.daysUntilEnd < 0 ? `Qua han ${Math.abs(record.daysUntilEnd)} ngay` : `Con ${record.daysUntilEnd} ngay`}
+          </Typography.Text>
+        </Space>
+      ),
+    },
+    {
+      title: "Phan loai",
+      dataIndex: "expiryBucket",
+      key: "expiryBucket",
+      render: (value) => {
+        const meta = expiryBucketMeta[value] || expiryBucketMeta.expiring;
+        return <Tag color={meta.color}>{meta.label}</Tag>;
+      },
+    },
+    {
+      title: "Phan hoi",
+      key: "request",
+      render: (_, record) =>
+        record.pendingLifecycleRequest ? (
+          <Tag color={record.pendingLifecycleRequest.type === "renewal" ? "blue" : "orange"}>
+            {record.pendingLifecycleRequest.type === "renewal" ? "Yeu cau gia han" : "Yeu cau tra phong"}
+          </Tag>
+        ) : (
+          <Tag>Chua co</Tag>
+        ),
+    },
+    {
+      title: "Thao tac",
+      key: "actions",
+      width: 320,
+      render: (_, record) => (
+        <Space wrap size={6}>
+          <Button size="small" onClick={() => handleViewDetail(record)} style={{ borderRadius: 6 }}>
+            Xem
+          </Button>
+          <Button size="small" onClick={() => handleSendReminder(record)} style={{ borderRadius: 6 }}>
+            Nhac
+          </Button>
+          <Button size="small" type="primary" onClick={() => openLifecycleModal(record, "renew")} style={{ borderRadius: 6 }}>
+            Gia han
+          </Button>
+          <Button size="small" danger onClick={() => openLifecycleModal(record, "checkout")} style={{ borderRadius: 6 }}>
+            Tra phong
+          </Button>
+          {["checkout_requested", "expired_pending"].includes(record.status) ? (
+            <Button size="small" onClick={() => handleCompleteCheckout(record)} style={{ borderRadius: 6 }}>
+              Hoan tat
+            </Button>
+          ) : null}
+        </Space>
+      ),
+    },
+  ];
+
   const columns = useMemo(
     () => [
       {
@@ -351,7 +527,7 @@ const ContractManagementPage = () => {
         dataIndex: "status",
         key: "status",
         render: (status) => {
-          const meta = statusMeta[status] || statusMeta.active;
+          const meta = statusMeta[status] || { label: status };
           return <Tag bordered={false} icon={status === "active" ? <CheckCircleOutlined /> : <StopOutlined />} style={{ background: status === "active" ? "#dcfce7" : status === "terminated" ? "#fee2e2" : "#f1f5f9", borderRadius: 5, color: status === "active" ? "#15803d" : status === "terminated" ? "#dc2626" : "#64748b", fontWeight: 700, padding: "3px 10px" }}>{meta.label}</Tag>;
         },
       },
@@ -431,6 +607,89 @@ const ContractManagementPage = () => {
           pagination={{ pageSize: 8, showSizeChanger: false, showTotal: (total) => `${total} hợp đồng` }}
         />
       </Card>
+
+      <Card
+        title={
+          <Space>
+            <CalendarOutlined style={{ color: "#f97316" }} />
+            <Typography.Text strong style={sectionTitleStyle}>Hop dong sap het han</Typography.Text>
+          </Space>
+        }
+        extra={<Tag color="orange">{expiringContracts.length} can theo doi</Tag>}
+        style={{ ...panelStyle, overflow: "hidden" }}
+        styles={{ body: { padding: 0 } }}
+      >
+        <Table
+          rowKey="id"
+          columns={expiringColumns}
+          dataSource={expiringContracts}
+          pagination={{ pageSize: 5, showSizeChanger: false }}
+          locale={{ emptyText: <Empty description="Khong co hop dong sap het han" /> }}
+          scroll={{ x: 900 }}
+        />
+      </Card>
+
+      <Modal
+        title={lifecycleMode === "renew" ? "Xu ly gia han hop dong" : "Tao thu tuc tra phong"}
+        open={Boolean(lifecycleContract)}
+        onCancel={closeLifecycleModal}
+        onOk={submitLifecycleAction}
+        confirmLoading={lifecycleSubmitting}
+        okText="Xac nhan"
+        cancelText="Dong"
+        width={640}
+      >
+        {lifecycleContract ? (
+          <Space direction="vertical" size={14} style={{ width: "100%" }}>
+            <Descriptions bordered size="small" column={1}>
+              <Descriptions.Item label="Hop dong">{lifecycleContract.contractCode}</Descriptions.Item>
+              <Descriptions.Item label="Phong">
+                {lifecycleContract.roomNumber || "-"} - {lifecycleContract.roomName || "-"}
+              </Descriptions.Item>
+              <Descriptions.Item label="Nguoi thue">{lifecycleContract.tenantName || "-"}</Descriptions.Item>
+              <Descriptions.Item label="Het han">{formatDate(lifecycleContract.endDate)}</Descriptions.Item>
+            </Descriptions>
+
+            {lifecycleMode === "renew" ? (
+              <div className="form-grid">
+                <Form.Item label="Thoi han moi (thang)">
+                  <InputNumber
+                    min={1}
+                    value={lifecycleForm.durationMonths}
+                    onChange={(value) => setLifecycleForm((current) => ({ ...current, durationMonths: value || 1 }))}
+                    className="full-width-input"
+                  />
+                </Form.Item>
+                <Form.Item label="Gia thue moi">
+                  <InputNumber
+                    min={0}
+                    value={lifecycleForm.monthlyRent}
+                    onChange={(value) => setLifecycleForm((current) => ({ ...current, monthlyRent: value || 0 }))}
+                    className="full-width-input"
+                    addonAfter="VND"
+                  />
+                </Form.Item>
+              </div>
+            ) : (
+              <Form.Item label="Ngay tra phong">
+                <Input
+                  type="date"
+                  value={lifecycleForm.checkoutDate}
+                  onChange={(event) => setLifecycleForm((current) => ({ ...current, checkoutDate: event.target.value }))}
+                />
+              </Form.Item>
+            )}
+
+            <Form.Item label="Ghi chu">
+              <Input.TextArea
+                rows={3}
+                value={lifecycleForm.note}
+                onChange={(event) => setLifecycleForm((current) => ({ ...current, note: event.target.value }))}
+              />
+            </Form.Item>
+          </Space>
+        ) : null}
+      </Modal>
 
       <Modal
         title={

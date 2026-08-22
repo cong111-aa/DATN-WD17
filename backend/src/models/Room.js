@@ -19,9 +19,10 @@ const roomSchema = new mongoose.Schema(
     images: [{ type: String, trim: true }], // Danh sach anh phong
     status: {
       type: String,
-      enum: ["available", "payment_pending", "reserved", "occupied", "maintenance"],
+      enum: ["available", "payment_pending", "reserved", "occupied", "coming_available", "maintenance"],
       default: "available",
     }, // Trang thai phong
+    availableFrom: { type: Date },
     paymentHoldBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     paymentHoldRequest: { type: mongoose.Schema.Types.ObjectId, ref: "RoomRequest" },
     paymentHoldExpiresAt: { type: Date },

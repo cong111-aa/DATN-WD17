@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const Contract = require("../models/Contract");
+const ContractLifecycleRequest = require("../models/ContractLifecycleRequest");
 const InterestedRoom = require("../models/InterestedRoom");
 const Invoice = require("../models/Invoice");
 const RepairRequest = require("../models/RepairRequest");
@@ -9,6 +10,7 @@ const Tenant = require("../models/Tenant");
 const renderContractHtml = require("../utils/renderContractHtml");
 const { buildBankTransferPayment, buildPaymentContent, buildVietQrUrl } = require("../utils/paymentQr");
 const { notifyAdmins } = require("../services/notificationService");
+const { daysUntil } = require("../services/contractExpiryService");
 const { acquireRoomPaymentLock, clearExpiredRoomPaymentLock } = require("../utils/roomPaymentLock");
 const { toRepairRequestResponse } = require("./repairRequestController");
 
@@ -181,6 +183,13 @@ const toContractResponse = (contract) => ({
   lockedAt: contract.lockedAt,
   version: contract.version,
   revisionRequests: contract.revisionRequests || [],
+  previousContract: contract.previousContract,
+  renewalContract: contract.renewalContract,
+  checkoutRequestedAt: contract.checkoutRequestedAt,
+  checkoutDate: contract.checkoutDate,
+  checkoutCompletedAt: contract.checkoutCompletedAt,
+  lifecycleHistory: contract.lifecycleHistory || [],
+  daysUntilEnd: contract.endDate ? daysUntil(contract.endDate) : null,
   status: contract.status,
   createdAt: contract.createdAt,
   updatedAt: contract.updatedAt,
@@ -825,6 +834,166 @@ const getMyContracts = async (req, res, next) => {
   }
 };
 
+const ensureContractCanReceiveLifecycleRequest = async ({ contract, type }) => {
+  if (!["active", "expired_pending"].includes(contract.status)) {
+    throw new Error("Only active or expired-pending contracts can receive this request");
+  }
+
+  if (type === "renewal" && new Date(contract.endDate) < new Date()) {
+    throw new Error("Cannot renew an already ended contract");
+  }
+
+  const pendingRequest = await ContractLifecycleRequest.findOne({
+    contract: contract._id,
+    status: "pending",
+    type: { $in: ["renewal", "checkout"] },
+  });
+
+  if (pendingRequest) {
+    throw new Error("This contract already has a pending renewal or checkout request");
+  }
+};
+
+const requestMyContractRenewal = async (req, res, next) => {
+  try {
+    const durationMonths = Number(req.body.durationMonths || 0);
+
+    if (!durationMonths || durationMonths < 1) {
+      throw new Error("Duration months must be greater than or equal to 1");
+    }
+
+    const contract = await Contract.findOne({
+      _id: req.params.id,
+      tenant: req.user._id,
+    }).populate(contractPopulate);
+
+    if (!contract) {
+      res.status(404);
+      throw new Error("Contract not found");
+    }
+
+    await ensureContractCanReceiveLifecycleRequest({ contract, type: "renewal" });
+
+    const request = await ContractLifecycleRequest.create({
+      contract: contract._id,
+      history: [
+        {
+          action: "created",
+          note: req.body.note || "",
+          performedAt: new Date(),
+          performedBy: req.user._id,
+          performedByRole: "user",
+        },
+      ],
+      note: req.body.note || "",
+      requestedBy: req.user._id,
+      requestedByRole: "user",
+      requestedDurationMonths: durationMonths,
+      room: contract.room?._id || contract.room,
+      tenant: req.user._id,
+      type: "renewal",
+    });
+
+    contract.status = "renewal_requested";
+    contract.lifecycleHistory.push({
+      action: "renewal_requested",
+      note: req.body.note || "",
+      performedAt: new Date(),
+      performedBy: req.user._id,
+      performedByRole: "user",
+    });
+    await contract.save();
+
+    await notifyAdmins({
+      link: "/admin/contracts",
+      message: `${req.user.name} dang ky gia han hop dong phong ${contract.room?.roomNumber || "-"}. Thoi han mong muon: ${durationMonths} thang.`,
+      metadata: { contract: contract._id, lifecycleRequest: request._id, room: contract.room?._id || contract.room, user: req.user._id },
+      title: "Yeu cau gia han hop dong",
+      type: "contract_renewal_requested",
+    });
+
+    await contract.populate(contractPopulate);
+    res.status(201).json(toContractResponse(contract));
+  } catch (error) {
+    if (!res.statusCode || res.statusCode < 400) {
+      res.status(400);
+    }
+
+    next(error);
+  }
+};
+
+const requestMyContractCheckout = async (req, res, next) => {
+  try {
+    const contract = await Contract.findOne({
+      _id: req.params.id,
+      tenant: req.user._id,
+    }).populate(contractPopulate);
+
+    if (!contract) {
+      res.status(404);
+      throw new Error("Contract not found");
+    }
+
+    await ensureContractCanReceiveLifecycleRequest({ contract, type: "checkout" });
+
+    const checkoutDate = req.body.checkoutDate ? new Date(req.body.checkoutDate) : new Date(contract.endDate);
+    const request = await ContractLifecycleRequest.create({
+      contract: contract._id,
+      history: [
+        {
+          action: "created",
+          note: req.body.note || "",
+          performedAt: new Date(),
+          performedBy: req.user._id,
+          performedByRole: "user",
+        },
+      ],
+      note: req.body.note || "",
+      requestedBy: req.user._id,
+      requestedByRole: "user",
+      requestedCheckoutDate: checkoutDate,
+      room: contract.room?._id || contract.room,
+      tenant: req.user._id,
+      type: "checkout",
+    });
+
+    contract.status = "checkout_requested";
+    contract.checkoutDate = checkoutDate;
+    contract.checkoutRequestedAt = new Date();
+    contract.lifecycleHistory.push({
+      action: "checkout_requested",
+      note: req.body.note || "",
+      performedAt: new Date(),
+      performedBy: req.user._id,
+      performedByRole: "user",
+    });
+    await contract.save();
+
+    await Room.findByIdAndUpdate(contract.room?._id || contract.room, {
+      availableFrom: checkoutDate,
+      status: "coming_available",
+    });
+
+    await notifyAdmins({
+      link: "/admin/contracts",
+      message: `${req.user.name} dang ky tra phong ${contract.room?.roomNumber || "-"} vao ngay ${checkoutDate.toLocaleDateString("vi-VN")}.`,
+      metadata: { contract: contract._id, lifecycleRequest: request._id, room: contract.room?._id || contract.room, user: req.user._id },
+      title: "Yeu cau tra phong",
+      type: "contract_checkout_requested",
+    });
+
+    await contract.populate(contractPopulate);
+    res.status(201).json(toContractResponse(contract));
+  } catch (error) {
+    if (!res.statusCode || res.statusCode < 400) {
+      res.status(400);
+    }
+
+    next(error);
+  }
+};
+
 const signMyContract = async (req, res, next) => {
   try {
     const { acceptedTerms, signatureDataUrl = "", signatureMethod = "drawn" } = req.body;
@@ -1174,7 +1343,9 @@ module.exports = {
   getMyRoomRequestById,
   getMyTenancies,
   removeMyInterestedRoom,
+  requestMyContractCheckout,
   requestMyContractRevision,
+  requestMyContractRenewal,
   signMyContract,
   updateMyRepairRequest,
   updateMyRoomRequestPaymentProof,

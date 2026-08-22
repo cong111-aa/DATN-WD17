@@ -106,6 +106,36 @@ const addMonths = (date, months) => {
 const generateContractCode = (requestCode) =>
   `HD-${String(requestCode || Date.now()).replace(/^RQ-/, "")}-${Math.floor(Math.random() * 900 + 100)}`;
 
+const contractBlockingStatuses = [
+  "pending_user_signature",
+  "revision_requested",
+  "active",
+  "renewal_requested",
+  "checkout_requested",
+  "expired_pending",
+];
+
+const canReusePendingContractForRequest = async ({ contract, request }) => {
+  if (!["pending_user_signature", "revision_requested"].includes(contract.status)) {
+    return false;
+  }
+
+  if (String(contract.tenant) !== String(request.user)) {
+    return false;
+  }
+
+  const linkedRequest = await RoomRequest.findOne({
+    _id: { $ne: request._id },
+    contract: contract._id,
+  }).select("_id requestCode");
+
+  if (linkedRequest) {
+    return false;
+  }
+
+  return !contract.terms || contract.terms.includes(request.requestCode);
+};
+
 const createTenancyAndContractFromRentRequest = async (request) => {
   if (request.type !== "rent") {
     return {};
@@ -121,17 +151,30 @@ const createTenancyAndContractFromRentRequest = async (request) => {
     throw new Error("Room not found");
   }
 
-  if (!["available", "reserved"].includes(room.status)) {
-    throw new Error("Room is not available for rent");
-  }
-
   const activeContract = await Contract.findOne({
     room: request.room,
-    status: { $in: ["pending_user_signature", "active"] },
+    status: { $in: contractBlockingStatuses },
   });
 
   if (activeContract) {
+    if (await canReusePendingContractForRequest({ contract: activeContract, request })) {
+      const tenantRecord =
+        activeContract.tenantRecord ||
+        (await Tenant.findOne({
+          room: request.room,
+          status: "active",
+          user: request.user,
+        }).select("_id"));
+
+      await Room.findByIdAndUpdate(request.room, { status: "reserved" });
+      return { contract: activeContract, tenantRecord };
+    }
+
     throw new Error("Room already has active contract");
+  }
+
+  if (!["available", "reserved"].includes(room.status)) {
+    throw new Error("Room is not available for rent");
   }
 
   const activeTenantForUser = await Tenant.findOne({ user: request.user, status: "active" });
@@ -175,7 +218,7 @@ const createTenancyAndContractFromRentRequest = async (request) => {
     startDate: moveInDate,
     endDate,
     monthlyRent: Number(room.price || 0),
-    deposit: Number(request.amount || room.price || 0),
+    deposit: Number(request.depositCreditAmount || 0) + Number(request.amount ?? room.price ?? 0),
     terms: `Hop dong duoc tao tu yeu cau thue phong ${request.requestCode}.`,
     status: "pending_user_signature",
   });
