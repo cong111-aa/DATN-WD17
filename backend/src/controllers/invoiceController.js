@@ -3,6 +3,7 @@ const MeterReading = require("../models/MeterReading");
 const Room = require("../models/Room");
 const Tenant = require("../models/Tenant");
 const User = require("../models/User");
+const { activateContractAfterInitialPaymentIfNeeded } = require("../services/contractInitialPaymentService");
 const { createNotification } = require("../services/notificationService");
 
 const invoiceStatuses = ["unpaid", "partial", "paid", "overdue"];
@@ -41,6 +42,7 @@ const toInvoiceResponse = (invoice) => ({
   tenantPhone: invoice.tenant?.phone,
   tenantIdentityNumber: invoice.tenant?.identityNumber,
   contract: invoice.contract,
+  invoiceType: invoice.invoiceType,
   meterReading: invoice.meterReading?._id || invoice.meterReading,
   electricityOld: invoice.meterReading?.electricityOld,
   electricityNew: invoice.meterReading?.electricityNew,
@@ -568,6 +570,7 @@ const updateInvoice = async (req, res, next) => {
         : deriveStatus(invoice.paidAmount, totalAmount, payload.status ?? invoice.status);
 
     const updatedInvoice = await invoice.save();
+    await activateContractAfterInitialPaymentIfNeeded(updatedInvoice._id);
     const populatedInvoice = await populateInvoice(Invoice.findById(updatedInvoice._id));
     res.json(toInvoiceResponse(populatedInvoice));
   } catch (error) {
@@ -605,6 +608,7 @@ const updateInvoiceStatus = async (req, res, next) => {
       invoice.status = deriveStatus(invoice.paidAmount, invoice.totalAmount, status);
     }
     const updatedInvoice = await invoice.save();
+    await activateContractAfterInitialPaymentIfNeeded(updatedInvoice._id);
     const populatedInvoice = await populateInvoice(Invoice.findById(updatedInvoice._id));
     res.json(toInvoiceResponse(populatedInvoice));
   } catch (error) {

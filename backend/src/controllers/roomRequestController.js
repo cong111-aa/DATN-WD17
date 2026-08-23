@@ -109,6 +109,7 @@ const generateContractCode = (requestCode) =>
 const contractBlockingStatuses = [
   "pending_user_signature",
   "revision_requested",
+  "signed_pending_payment",
   "active",
   "renewal_requested",
   "checkout_requested",
@@ -116,7 +117,7 @@ const contractBlockingStatuses = [
 ];
 
 const canReusePendingContractForRequest = async ({ contract, request }) => {
-  if (!["pending_user_signature", "revision_requested"].includes(contract.status)) {
+  if (!["pending_user_signature", "revision_requested", "signed_pending_payment"].includes(contract.status)) {
     return false;
   }
 
@@ -136,13 +137,19 @@ const canReusePendingContractForRequest = async ({ contract, request }) => {
   return !contract.terms || contract.terms.includes(request.requestCode);
 };
 
-const createTenancyAndContractFromRentRequest = async (request) => {
+const createContractFromRentRequest = async (request) => {
   if (request.type !== "rent") {
     return {};
   }
 
-  if (request.contract || request.tenantRecord) {
-    throw new Error("This request already created a tenancy or contract");
+  if (request.contract) {
+    const existingContract = await Contract.findById(request.contract);
+
+    if (existingContract) {
+      return { contract: existingContract, tenantRecord: request.tenantRecord };
+    }
+
+    throw new Error("This request already created a contract");
   }
 
   const room = await Room.findById(request.room);
@@ -183,21 +190,7 @@ const createTenancyAndContractFromRentRequest = async (request) => {
     throw new Error("User already has an active tenancy");
   }
 
-  await Tenant.updateMany(
-    { room: request.room, roomRole: "representative", status: "active" },
-    { roomRole: "member" }
-  );
-
   const moveInDate = new Date();
-  const tenantRecord = await Tenant.create({
-    user: request.user,
-    room: request.room,
-    roomRole: "representative",
-    moveInDate,
-    status: "active",
-    note: `Tao tu yeu cau ${request.requestCode}`,
-  });
-
   let contractCode = generateContractCode(request.requestCode);
   const existingCode = await Contract.findOne({ contractCode }).select("_id");
 
@@ -210,7 +203,7 @@ const createTenancyAndContractFromRentRequest = async (request) => {
   const contract = await Contract.create({
     contractCode,
     tenant: request.user,
-    tenantRecord: tenantRecord._id,
+    roomRequest: request._id,
     room: request.room,
     memberCount: Math.max(Number(request.occupantCount || 0), (request.occupants || []).length, 1),
     moveInDate,
@@ -218,14 +211,15 @@ const createTenancyAndContractFromRentRequest = async (request) => {
     startDate: moveInDate,
     endDate,
     monthlyRent: Number(room.price || 0),
-    deposit: Number(request.depositCreditAmount || 0) + Number(request.amount ?? room.price ?? 0),
+    deposit: Number(room.deposit || room.price || 0),
+    depositCreditAmount: Number(request.depositCreditAmount || 0),
     terms: `Hop dong duoc tao tu yeu cau thue phong ${request.requestCode}.`,
     status: "pending_user_signature",
   });
 
   await Room.findByIdAndUpdate(request.room, { status: "reserved" });
 
-  return { contract, tenantRecord };
+  return { contract };
 };
 
 const getRoomRequests = async (req, res, next) => {
@@ -270,13 +264,13 @@ const processRoomRequest = async (req, res, next, status) => {
       throw new Error("Only pending requests can be processed");
     }
 
-    if (status === "approved" && request.paymentStatus !== "paid") {
+    if (status === "approved" && request.type !== "rent" && request.paymentStatus !== "paid") {
       res.status(400);
       throw new Error("Payment must be confirmed before approving this request");
     }
 
     const createdRecords =
-      status === "approved" ? await createTenancyAndContractFromRentRequest(request) : {};
+      status === "approved" ? await createContractFromRentRequest(request) : {};
 
     request.status = status;
     request.adminNote = req.body.adminNote ?? request.adminNote;

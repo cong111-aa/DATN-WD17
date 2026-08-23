@@ -1,6 +1,7 @@
 const Invoice = require("../models/Invoice");
 const Payment = require("../models/Payment");
 const RoomRequest = require("../models/RoomRequest");
+const { activateContractAfterInitialPaymentIfNeeded } = require("../services/contractInitialPaymentService");
 const { createNotification, notifyAdmins } = require("../services/notificationService");
 const {
   acquireRoomPaymentLock,
@@ -72,6 +73,7 @@ const markRoomRequestPaid = async (roomRequest, paidAt = new Date()) => {
       type: "room_request_paid",
     }),
   ]);
+
 };
 
 const markInvoicePaid = async (invoice, amount) => {
@@ -110,6 +112,10 @@ const markInvoicePaid = async (invoice, amount) => {
       type: "invoice_paid",
     }),
   ]);
+
+  if (invoice.invoiceType === "initial_contract") {
+    await activateContractAfterInitialPaymentIfNeeded(invoice._id);
+  }
 };
 
 const findPayableTarget = async ({ targetId, targetType, userId }) => {

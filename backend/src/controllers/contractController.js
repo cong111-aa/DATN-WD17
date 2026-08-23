@@ -9,6 +9,7 @@ const renderContractHtml = require("../utils/renderContractHtml");
 const contractStatuses = [
   "pending_user_signature",
   "revision_requested",
+  "signed_pending_payment",
   "active",
   "renewal_requested",
   "renewed",
@@ -33,6 +34,18 @@ const addMonths = (date, months) => {
 };
 
 const addDays = (date, days) => new Date(date.getTime() + Number(days || 0) * 24 * 60 * 60 * 1000);
+
+const startOfDay = (value = new Date()) => {
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+const endOfDay = (value = new Date()) => {
+  const date = new Date(value);
+  date.setHours(23, 59, 59, 999);
+  return date;
+};
 
 const generateRenewalContractCode = (contractCode) =>
   `HD-RENEW-${String(contractCode || Date.now()).replace(/^HD-/, "")}-${Math.floor(Math.random() * 900 + 100)}`;
@@ -89,6 +102,8 @@ const toContractResponse = (contract) => ({
   terms: contract.terms,
   signatureMethod: contract.signatureMethod,
   signedAt: contract.signedAt,
+  initialInvoice: contract.initialInvoice?._id || contract.initialInvoice,
+  depositCreditAmount: contract.depositCreditAmount || 0,
   contentHash: contract.contentHash,
   lockedAt: contract.lockedAt,
   version: contract.version,
@@ -215,11 +230,11 @@ const getContracts = async (req, res, next) => {
 const getExpiringContracts = async (req, res, next) => {
   try {
     const now = new Date();
-    const limit = addDays(now, Number(req.query.days || 30));
+    const limit = endOfDay(addDays(startOfDay(now), Number(req.query.days || 30)));
     const contracts = await populateContract(
       Contract.find({
         status: { $in: ["active", "renewal_requested", "checkout_requested", "expired_pending"] },
-        endDate: { $lte: limit },
+        $or: [{ endDate: { $lte: limit } }, { durationMonths: { $lte: 1 } }],
       }).sort({ endDate: 1 })
     );
 
@@ -283,6 +298,7 @@ const createContract = async (req, res, next) => {
       status: {
         $in: [
           "pending_user_signature",
+          "signed_pending_payment",
           "active",
           "renewal_requested",
           "checkout_requested",
@@ -341,6 +357,7 @@ const updateContract = async (req, res, next) => {
         status: {
           $in: [
             "pending_user_signature",
+            "signed_pending_payment",
             "active",
             "renewal_requested",
             "checkout_requested",

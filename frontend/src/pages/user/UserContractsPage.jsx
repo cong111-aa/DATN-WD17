@@ -68,6 +68,15 @@ const contractStatusMeta = {
     label: "Đang yêu cầu sửa",
     icon: <EditOutlined />,
   },
+  signed_pending_payment: {
+    color: "processing",
+    badgeBg: "#ecfeff",
+    text: "#0e7490",
+    border: "#a5f3fc",
+    label: "Cho thanh toan dau ky",
+    icon: <DollarOutlined />,
+    urgent: true,
+  },
   active: {
     color: "success",
     badgeBg: "#f0fdf4",
@@ -174,7 +183,7 @@ const UserContractsPage = () => {
       contracts.filter(
         (contract) =>
           ["active", "renewal_requested", "checkout_requested", "expired_pending"].includes(contract.status) &&
-          Number(contract.daysUntilEnd ?? 9999) <= 30
+          (Number(contract.daysUntilEnd ?? 9999) <= 30 || Number(contract.durationMonths || 0) <= 1)
       ),
     [contracts]
   );
@@ -502,6 +511,17 @@ const UserContractsPage = () => {
           >
             {record.status === "pending_user_signature" ? "Ký ngay" : "Chi tiết"}
           </Button>
+          {record.status === "signed_pending_payment" ? (
+            <Button
+              type="primary"
+              size="small"
+              icon={<DollarOutlined />}
+              onClick={() => navigate("/user/invoices")}
+              style={{ borderRadius: 6, fontWeight: 600, background: "#0d9488" }}
+            >
+              Thanh toan dau ky
+            </Button>
+          ) : null}
           <Button
             size="small"
             icon={<ExportOutlined />}
@@ -844,6 +864,16 @@ const UserContractsPage = () => {
                     >
                       {isUrgent ? "Xem & Ký ngay" : "Chi tiết HĐ"}
                     </Button>
+                    {contract.status === "signed_pending_payment" ? (
+                      <Button
+                        type="primary"
+                        icon={<DollarOutlined />}
+                        onClick={() => navigate("/user/invoices")}
+                        style={{ borderRadius: 10, fontWeight: 700, background: "#0d9488" }}
+                      >
+                        Thanh toan dau ky
+                      </Button>
+                    ) : null}
                     <Button
                       icon={<ExportOutlined />}
                       onClick={() => openContractInNewTab(contract)}
@@ -942,6 +972,17 @@ const UserContractsPage = () => {
               }}
             >
               Xác nhận ký hợp đồng
+            </Button>
+          ) : null,
+          detailContract?.status === "signed_pending_payment" ? (
+            <Button
+              key="initial-payment"
+              type="primary"
+              icon={<DollarOutlined />}
+              onClick={() => navigate("/user/invoices")}
+              style={{ background: "#0d9488", borderRadius: 8, fontWeight: 700 }}
+            >
+              Thanh toan dau ky
             </Button>
           ) : null,
           <Button key="close" onClick={() => setDetailContract(null)} style={{ borderRadius: 8 }}>

@@ -12,6 +12,12 @@ const startOfDay = (value = new Date()) => {
   return date;
 };
 
+const endOfDay = (value = new Date()) => {
+  const date = new Date(value);
+  date.setHours(23, 59, 59, 999);
+  return date;
+};
+
 const addDays = (date, days) => new Date(date.getTime() + days * DAY_MS);
 
 const daysUntil = (endDate, now = new Date()) =>
@@ -153,6 +159,7 @@ const createOverstayInvoiceIfNeeded = async (contract, now = new Date()) => {
     contract: contract._id,
     dueDate: addDays(now, 3),
     invoiceCode,
+    invoiceType: "overstay",
     month: now.getMonth() + 1,
     note: `OVERSTAY:${contract._id} | ${overstayDays} ngay x ${dailyRent.toLocaleString("vi-VN")} VND/ngay`,
     otherAmount: totalAmount,
@@ -178,7 +185,10 @@ const checkContractExpirations = async () => {
   const now = new Date();
   const contracts = await Contract.find({
     status: { $in: ["active", "expired_pending"] },
-    endDate: { $lte: addDays(startOfDay(now), 30) },
+    $or: [
+      { endDate: { $lte: endOfDay(addDays(startOfDay(now), 30)) } },
+      { durationMonths: { $lte: 1 } },
+    ],
   })
     .populate("tenant", "name email phone")
     .populate("room", "roomNumber name");
@@ -186,7 +196,12 @@ const checkContractExpirations = async () => {
   for (const contract of contracts) {
     const left = daysUntil(contract.endDate, now);
 
-    if (contract.status === "active" && left <= 30 && left > 15 && !contract.expiryNotice30SentAt) {
+    if (
+      contract.status === "active" &&
+      (left <= 30 || Number(contract.durationMonths || 0) <= 1) &&
+      left > 15 &&
+      !contract.expiryNotice30SentAt
+    ) {
       await notifyContractExpiry({ contract, daysLeft: left, type: "contract_expiry_30" });
       contract.expiryNotice30SentAt = new Date();
       await contract.save();

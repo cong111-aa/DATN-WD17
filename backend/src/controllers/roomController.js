@@ -251,6 +251,7 @@ const getRoomDetail = async (req, res, next) => {
           $in: [
             "pending_user_signature",
             "revision_requested",
+            "signed_pending_payment",
             "active",
             "renewal_requested",
             "checkout_requested",

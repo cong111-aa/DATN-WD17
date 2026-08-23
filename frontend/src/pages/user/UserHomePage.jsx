@@ -472,7 +472,7 @@ const UserHomePage = () => {
       );
       message.success("Đã gửi yêu cầu phòng thành công");
       closeRoomRequestModal();
-      setPaymentRequest(data);
+      setPaymentRequest(roomRequestType === "hold_deposit" ? data : null);
       fetchUserData();
     } catch (error) {
       message.error(error.response?.data?.message || "Gửi yêu cầu phòng thất bại");

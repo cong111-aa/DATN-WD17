@@ -289,7 +289,7 @@ const RoomRequestManagementPage = () => {
               Xác nhận đã nhận tiền
             </Button>
           ) : null}
-          {record.type === "rent" && record.paymentStatus === "paid" && record.status === "pending" ? (
+          {record.type === "rent" && record.status === "pending" ? (
             <Button
               type="primary"
               onClick={() => openProcessModal("approve", record)}

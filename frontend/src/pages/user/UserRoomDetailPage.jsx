@@ -142,9 +142,9 @@ const UserRoomDetailPage = () => {
       );
       message.success("Đã gửi yêu cầu phòng thành công");
       closeRoomRequestModal();
-      setPaymentRequest(data);
+      setPaymentRequest(roomRequestType === "hold_deposit" ? data : null);
 
-      if ((values.paymentProvider || roomRequestPaymentProvider) === "vnpay") {
+      if (roomRequestType === "hold_deposit" && (values.paymentProvider || roomRequestPaymentProvider) === "vnpay") {
         await handleCreateVnpayPayment(data);
       }
     } catch (error) {
@@ -529,16 +529,27 @@ const UserRoomDetailPage = () => {
             key="manual"
             loading={roomRequestSubmitting && roomRequestPaymentProvider === "manual_qr"}
             onClick={() => submitRoomRequestWithProvider("manual_qr")}
-            style={{ borderRadius: 8 }}
+            style={{ borderRadius: 8, display: roomRequestType === "rent" ? "none" : undefined }}
           >
             Thanh toán thủ công bằng QR
           </Button>,
+          roomRequestType === "rent" ? (
+            <Button
+              key="rent-request"
+              type="primary"
+              loading={roomRequestSubmitting}
+              onClick={() => submitRoomRequestWithProvider("manual_qr")}
+              style={{ background: "#0f766e", borderRadius: 8 }}
+            >
+              Gui yeu cau thue
+            </Button>
+          ) : null,
           <Button
             key="vnpay"
             type="primary"
             loading={roomRequestSubmitting && roomRequestPaymentProvider === "vnpay"}
             onClick={() => submitRoomRequestWithProvider("vnpay")}
-            style={{ background: "#0f766e", borderRadius: 8 }}
+            style={{ background: "#0f766e", borderRadius: 8, display: roomRequestType === "rent" ? "none" : undefined }}
           >
             Thanh toán online / VNPay
           </Button>,
