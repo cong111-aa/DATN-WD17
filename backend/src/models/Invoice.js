@@ -3,6 +3,11 @@ const mongoose = require("mongoose");
 const invoiceSchema = new mongoose.Schema(
   {
     invoiceCode: { type: String, required: true, unique: true, trim: true }, // Ma hoa don
+    invoiceType: {
+      type: String,
+      enum: ["monthly", "initial_contract", "overstay"],
+      default: "monthly",
+    },
     room: { type: mongoose.Schema.Types.ObjectId, ref: "Room", required: true }, // Phong
     tenant: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, // Nguoi thue
     contract: { type: mongoose.Schema.Types.ObjectId, ref: "Contract" }, // Hop dong giay, khong bat buoc tren he thong
@@ -30,6 +35,13 @@ const invoiceSchema = new mongoose.Schema(
 );
 
 invoiceSchema.index({ tenant: 1, room: 1, month: 1, year: 1 }, { unique: true });
+invoiceSchema.index(
+  { contract: 1, invoiceType: 1 },
+  {
+    partialFilterExpression: { invoiceType: "initial_contract" },
+    unique: true,
+  }
+);
 invoiceSchema.index({ status: 1 });
 invoiceSchema.index({ createdAt: -1 });
 

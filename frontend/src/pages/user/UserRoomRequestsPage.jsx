@@ -284,12 +284,9 @@ const UserRoomRequestsPage = () => {
 
       message.success("Đã tạo yêu cầu thuê phòng từ khoản tiền cọc thành công!");
       closeRentModal();
-      setPaymentRequest(data);
+      setPaymentRequest(null);
       fetchRoomRequests();
 
-      if ((values.paymentProvider || paymentProvider) === "vnpay") {
-        await handleCreateVnpayPayment(data);
-      }
     } catch (error) {
       message.error(error.response?.data?.message || "Không thể tạo yêu cầu thuê phòng");
     } finally {
@@ -886,9 +883,10 @@ const UserRoomRequestsPage = () => {
           </Button>,
           <Button
             key="manual"
+            type="primary"
             loading={rentSubmitting && paymentProvider === "manual_qr"}
             onClick={() => submitRentFromHold("manual_qr")}
-            style={{ borderRadius: 8 }}
+            style={{ background: "#0f766e", borderRadius: 8, fontWeight: 700 }}
           >
             Thanh toán VietQR thủ công
           </Button>,
@@ -900,6 +898,7 @@ const UserRoomRequestsPage = () => {
             style={{
               background: "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
               borderRadius: 8,
+              display: "none",
               fontWeight: 700,
             }}
           >

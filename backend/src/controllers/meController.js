@@ -11,6 +11,7 @@ const renderContractHtml = require("../utils/renderContractHtml");
 const { buildBankTransferPayment, buildPaymentContent, buildVietQrUrl } = require("../utils/paymentQr");
 const { notifyAdmins } = require("../services/notificationService");
 const { daysUntil } = require("../services/contractExpiryService");
+const { createInitialContractInvoiceIfNeeded } = require("../services/contractInitialPaymentService");
 const { acquireRoomPaymentLock, clearExpiredRoomPaymentLock } = require("../utils/roomPaymentLock");
 const { toRepairRequestResponse } = require("./repairRequestController");
 
@@ -179,6 +180,8 @@ const toContractResponse = (contract) => ({
   terms: contract.terms,
   signatureMethod: contract.signatureMethod,
   signedAt: contract.signedAt,
+  initialInvoice: contract.initialInvoice?._id || contract.initialInvoice,
+  depositCreditAmount: contract.depositCreditAmount || 0,
   contentHash: contract.contentHash,
   lockedAt: contract.lockedAt,
   version: contract.version,
@@ -198,6 +201,7 @@ const toContractResponse = (contract) => ({
 const toInvoiceResponse = (invoice) => ({
   id: invoice._id,
   invoiceCode: invoice.invoiceCode,
+  invoiceType: invoice.invoiceType,
   room: invoice.room?._id || invoice.room,
   roomNumber: invoice.room?.roomNumber,
   roomName: invoice.room?.name,
@@ -557,9 +561,7 @@ const createMyRentRequest = async (req, res, next) => {
     }
 
     const requestCode = generateRoomRequestCode("rent");
-    const amount = Number(room.price || 0);
-    const normalizedPaymentProvider = normalizePaymentProvider(paymentProvider);
-    const normalizedPaymentProofImages = normalizePaymentProofImages(paymentProofImages);
+    const amount = 0;
 
     const roomRequest = await RoomRequest.create({
       requestCode,
@@ -571,20 +573,14 @@ const createMyRentRequest = async (req, res, next) => {
       occupants: normalizedOccupants,
       amount,
       ...buildPaymentFields(requestCode, amount),
-      paymentProvider: normalizedPaymentProvider,
-      paymentProofImages: normalizedPaymentProofImages,
-      paymentStatus: normalizedPaymentProvider === "manual_qr" ? "pending" : "unpaid",
+      paymentProvider: "manual_qr",
+      paymentProofImages: [],
+      paymentStatus: "unpaid",
       status: "pending",
       message,
     });
 
-    if (normalizedPaymentProvider === "manual_qr") {
-      await acquireRoomPaymentLock({
-        requestId: roomRequest._id,
-        roomId: room._id,
-        userId: req.user._id,
-      });
-    }
+    await Room.findByIdAndUpdate(room._id, { status: "reserved" });
 
     const populatedRequest = await roomRequest.populate(roomRequestPopulate);
     await notifyAdmins({
@@ -685,9 +681,7 @@ const createMyRentRequestFromHoldDeposit = async (req, res, next) => {
 
     const requestCode = generateRoomRequestCode("rent");
     const depositCreditAmount = Number(holdRequest.amount || 0);
-    const amount = Math.max(Number(room.price || 0) - depositCreditAmount, 0);
-    const normalizedPaymentProvider = normalizePaymentProvider(paymentProvider);
-    const normalizedPaymentProofImages = normalizePaymentProofImages(paymentProofImages);
+    const amount = 0;
 
     const roomRequest = await RoomRequest.create({
       requestCode,
@@ -700,10 +694,9 @@ const createMyRentRequestFromHoldDeposit = async (req, res, next) => {
       amount,
       ...buildPaymentFields(requestCode, amount),
       depositCreditAmount,
-      paymentProvider: normalizedPaymentProvider,
-      paymentProofImages: normalizedPaymentProofImages,
-      paymentStatus: amount <= 0 ? "paid" : normalizedPaymentProvider === "manual_qr" ? "pending" : "unpaid",
-      paidAt: amount <= 0 ? new Date() : undefined,
+      paymentProvider: "manual_qr",
+      paymentProofImages: [],
+      paymentStatus: "unpaid",
       sourceHoldRequest: holdRequest._id,
       status: "pending",
       message,
@@ -1038,10 +1031,18 @@ const signMyContract = async (req, res, next) => {
     const unsignedSnapshot = renderContractHtml({ contract, members });
     contract.contentHash = crypto.createHash("sha256").update(unsignedSnapshot, "utf8").digest("hex");
     contract.contractHtmlSnapshot = renderContractHtml({ contract, members });
-    contract.status = "active";
+    contract.status = "signed_pending_payment";
     await contract.save();
 
-    await Room.findByIdAndUpdate(contract.room?._id || contract.room, { status: "occupied" });
+    const initialInvoice = await createInitialContractInvoiceIfNeeded(contract._id);
+
+    await notifyAdmins({
+      link: "/admin/contracts",
+      message: `${req.user.name} da ky hop dong ${contract.contractCode}. Vui long theo doi thanh toan dau ky.`,
+      metadata: { contract: contract._id, invoice: initialInvoice?._id, room: contract.room?._id || contract.room, user: req.user._id },
+      title: "Khach da ky hop dong",
+      type: "contract_waiting_signature",
+    });
 
     await contract.populate(contractPopulate);
     res.json(toContractResponse(contract));
