@@ -184,12 +184,6 @@ const createContractFromRentRequest = async (request) => {
     throw new Error("Room is not available for rent");
   }
 
-  const activeTenantForUser = await Tenant.findOne({ user: request.user, status: "active" });
-
-  if (activeTenantForUser) {
-    throw new Error("User already has an active tenancy");
-  }
-
   const moveInDate = new Date();
   let contractCode = generateContractCode(request.requestCode);
   const existingCode = await Contract.findOne({ contractCode }).select("_id");

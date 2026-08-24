@@ -14,6 +14,10 @@ const invoiceSchema = new mongoose.Schema(
     meterReading: { type: mongoose.Schema.Types.ObjectId, ref: "MeterReading" }, // Chi so dien nuoc
     month: { type: Number, required: true, min: 1, max: 12 }, // Thang
     year: { type: Number, required: true, min: 2000 }, // Nam
+    rentPeriodMonth: { type: Number, min: 1, max: 12 }, // Thang thu tien phong
+    rentPeriodYear: { type: Number, min: 2000 }, // Nam thu tien phong
+    servicePeriodMonth: { type: Number, min: 1, max: 12 }, // Thang thu phi dich vu
+    servicePeriodYear: { type: Number, min: 2000 }, // Nam thu phi dich vu
     rentAmount: { type: Number, default: 0, min: 0 }, // Tien phong
     electricityAmount: { type: Number, default: 0, min: 0 }, // Tien dien
     waterAmount: { type: Number, default: 0, min: 0 }, // Tien nuoc
@@ -34,7 +38,7 @@ const invoiceSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-invoiceSchema.index({ tenant: 1, room: 1, month: 1, year: 1 }, { unique: true });
+invoiceSchema.index({ tenant: 1, room: 1, month: 1, year: 1, invoiceType: 1 }, { unique: true });
 invoiceSchema.index(
   { contract: 1, invoiceType: 1 },
   {

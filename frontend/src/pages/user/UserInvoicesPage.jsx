@@ -44,6 +44,7 @@ const { Title, Text, Paragraph } = Typography;
 
 const formatCurrency = (value) => `${Number(value || 0).toLocaleString("vi-VN")} đ`;
 const formatDate = (value) => (value ? new Date(value).toLocaleDateString("vi-VN") : "-");
+const formatPeriod = (month, year) => (month && year ? `${month}/${year}` : "-");
 
 const invoiceStatusMeta = {
   unpaid: {
@@ -212,7 +213,7 @@ const UserInvoicesPage = () => {
       ),
     },
     {
-      title: "Kỳ hóa đơn",
+      title: "Kỳ chốt điện nước",
       key: "period",
       render: (_, record) => (
         <Tag color="cyan" style={{ borderRadius: 6, fontWeight: 700 }}>
@@ -513,7 +514,7 @@ const UserInvoicesPage = () => {
                   <div>
                     <h3 className="my-invoice-code">{invoice.invoiceCode}</h3>
                     <div style={{ fontSize: 13, color: "#64748b", marginTop: 2 }}>
-                      Phòng {invoice.roomNumber || "-"} • Tháng {invoice.month}/{invoice.year}
+                      Phòng {invoice.roomNumber || "-"} • Điện nước {invoice.month}/{invoice.year}
                     </div>
                   </div>
 
@@ -536,14 +537,14 @@ const UserInvoicesPage = () => {
                 <div className="my-invoice-card-body">
                   <div className="my-invoice-breakdown-grid">
                     <div className="my-invoice-item">
-                      <span className="my-invoice-item-lbl">🏠 Tiền thuê phòng</span>
+                      <span className="my-invoice-item-lbl">🏠 Tiền phòng tháng {formatPeriod(invoice.rentPeriodMonth, invoice.rentPeriodYear)}</span>
                       <span className="my-invoice-item-val">
                         {formatCurrency(invoice.rentAmount)}
                       </span>
                     </div>
 
                     <div className="my-invoice-item">
-                      <span className="my-invoice-item-lbl">🛠️ Phí dịch vụ</span>
+                      <span className="my-invoice-item-lbl">🛠️ Phí dịch vụ tháng {formatPeriod(invoice.servicePeriodMonth, invoice.servicePeriodYear)}</span>
                       <span className="my-invoice-item-val">
                         {formatCurrency(invoice.serviceAmount)}
                       </span>
@@ -683,7 +684,7 @@ const UserInvoicesPage = () => {
                 Bảng Kê Chi Tiết Hóa Đơn #{detailInvoice?.invoiceCode}
               </div>
               <div style={{ fontSize: 12, color: "#64748b", fontWeight: 400 }}>
-                Tháng {detailInvoice?.month}/{detailInvoice?.year} • Phòng {detailInvoice?.roomNumber}
+                Điện nước {detailInvoice?.month}/{detailInvoice?.year} • Phòng {detailInvoice?.roomNumber}
               </div>
             </div>
           </Space>
@@ -729,8 +730,11 @@ const UserInvoicesPage = () => {
               <Descriptions.Item label="Phòng trọ">
                 Phòng {detailInvoice.roomNumber} - {detailInvoice.roomName}
               </Descriptions.Item>
-              <Descriptions.Item label="Kỳ hóa đơn">
+              <Descriptions.Item label="Kỳ chốt điện nước">
                 Tháng {detailInvoice.month}/{detailInvoice.year}
+              </Descriptions.Item>
+              <Descriptions.Item label="Kỳ thu tiền phòng/dịch vụ">
+                Tháng {formatPeriod(detailInvoice.rentPeriodMonth, detailInvoice.rentPeriodYear)}
               </Descriptions.Item>
               <Descriptions.Item label="Hạn thanh toán">
                 {formatDate(detailInvoice.dueDate)}
@@ -769,7 +773,7 @@ const UserInvoicesPage = () => {
               </Text>
               <div className="my-rooms-cost-table">
                 <div className="my-rooms-cost-row">
-                  <span>Giá thuê phòng cố định:</span>
+                  <span>Tiền phòng tháng {formatPeriod(detailInvoice.rentPeriodMonth, detailInvoice.rentPeriodYear)}:</span>
                   <Text strong>{formatCurrency(detailInvoice.rentAmount)}</Text>
                 </div>
                 <div className="my-rooms-cost-row">
@@ -781,7 +785,7 @@ const UserInvoicesPage = () => {
                   <Text strong>{formatCurrency(detailInvoice.waterAmount)}</Text>
                 </div>
                 <div className="my-rooms-cost-row">
-                  <span>Phí dịch vụ chung (wifi, rác...):</span>
+                  <span>Phí dịch vụ tháng {formatPeriod(detailInvoice.servicePeriodMonth, detailInvoice.servicePeriodYear)}:</span>
                   <Text strong>{formatCurrency(detailInvoice.serviceAmount)}</Text>
                 </div>
                 {detailInvoice.otherAmount > 0 && (

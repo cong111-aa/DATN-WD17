@@ -107,6 +107,15 @@ const sectionTitleStyle = {
 const currencyFormatter = (value) => `${Number(value || 0).toLocaleString("vi-VN")} VND`;
 const formatDate = (value) => (value ? new Date(value).toLocaleDateString("vi-VN") : "-");
 const toNumber = (value) => Number(value || 0);
+const getNextPeriod = (month, year) => {
+  const selectedMonth = Number(month || new Date().getMonth() + 1);
+  const selectedYear = Number(year || new Date().getFullYear());
+
+  return selectedMonth === 12
+    ? { month: 1, year: selectedYear + 1 }
+    : { month: selectedMonth + 1, year: selectedYear };
+};
+const formatPeriod = (month, year) => (month && year ? `${month}/${year}` : "-");
 
 const monthOptions = Array.from({ length: 12 }, (_, index) => ({
   label: `Tháng ${index + 1}`,
@@ -179,6 +188,7 @@ const InvoiceManagementPage = () => {
   const totalAmount = Math.max(subtotal - toNumber(watchedValues.discountAmount), 0);
   const effectivePaidAmount = watchedValues.status === "paid" ? totalAmount : toNumber(watchedValues.paidAmount);
   const remainingAmount = Math.max(totalAmount - effectivePaidAmount, 0);
+  const nextBillingPeriod = getNextPeriod(watchedValues.month, watchedValues.year);
 
   const invoiceStats = useMemo(() => {
     const paid = invoices.filter((item) => item.status === "paid").length;
@@ -326,6 +336,10 @@ const InvoiceManagementPage = () => {
       const payload = toPayload({
         ...values,
         electricityAmount,
+        rentPeriodMonth: nextBillingPeriod.month,
+        rentPeriodYear: nextBillingPeriod.year,
+        servicePeriodMonth: nextBillingPeriod.month,
+        servicePeriodYear: nextBillingPeriod.year,
         waterAmount,
       });
 
@@ -383,7 +397,7 @@ const InvoiceManagementPage = () => {
               </Typography.Text>
               <br />
               <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                Kỳ {record.month}/{record.year}
+                Điện nước {record.month}/{record.year}
               </Typography.Text>
             </div>
           </Space>
@@ -725,6 +739,12 @@ const InvoiceManagementPage = () => {
           message={editingInvoice ? "Cập nhật thông tin hóa đơn" : "Nhập thông tin để tạo hóa đơn mới"}
           style={{ marginBottom: 18, borderRadius: 8 }}
         />
+        <Alert
+          showIcon
+          type="warning"
+          message={`Kỳ điện nước: ${formatPeriod(watchedValues.month, watchedValues.year)}. Tiền phòng và phí dịch vụ thu trước cho: ${formatPeriod(nextBillingPeriod.month, nextBillingPeriod.year)}.`}
+          style={{ marginBottom: 18, borderRadius: 8 }}
+        />
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
           <Space>
             <FileTextOutlined style={{ color: "#1677ff" }} />
@@ -743,7 +763,7 @@ const InvoiceManagementPage = () => {
               </Form.Item>
             </Col>
             <Col xs={24} md={6}>
-              <Form.Item name="month" label="Tháng" rules={[{ required: true, message: "Vui lòng nhập tháng!" }]}>
+              <Form.Item name="month" label="Tháng chốt điện nước" rules={[{ required: true, message: "Vui lòng nhập tháng!" }]}>
                 <InputNumber min={1} max={12} className="full-width-input" onChange={handlePeriodChange} />
               </Form.Item>
             </Col>
@@ -805,7 +825,7 @@ const InvoiceManagementPage = () => {
           <Divider style={{ margin: "12px 0 16px" }} />
           <Row gutter={16}>
             <Col xs={24} md={12}>
-              <Form.Item name="rentAmount" label="Tiền phòng">
+              <Form.Item name="rentAmount" label={`Tiền phòng tháng ${formatPeriod(nextBillingPeriod.month, nextBillingPeriod.year)}`}>
                 <InputNumber min={0} className="full-width-input" addonAfter="VND" />
               </Form.Item>
             </Col>
@@ -820,7 +840,7 @@ const InvoiceManagementPage = () => {
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
-              <Form.Item name="serviceAmount" label="Phí dịch vụ">
+              <Form.Item name="serviceAmount" label={`Phí dịch vụ tháng ${formatPeriod(nextBillingPeriod.month, nextBillingPeriod.year)}`}>
                 <InputNumber min={0} className="full-width-input" addonAfter="VND" />
               </Form.Item>
             </Col>
@@ -847,10 +867,10 @@ const InvoiceManagementPage = () => {
           <Descriptions bordered size="small" column={2}>
             <Descriptions.Item label="Điện tiêu thụ">{electricityUsage} số</Descriptions.Item>
             <Descriptions.Item label="Nước tiêu thụ">{waterUsage} khối</Descriptions.Item>
-            <SummaryItem label="Tiền phòng" value={watchedValues.rentAmount} />
+            <SummaryItem label={`Tiền phòng ${formatPeriod(nextBillingPeriod.month, nextBillingPeriod.year)}`} value={watchedValues.rentAmount} />
             <SummaryItem label="Tiền điện" value={electricityAmount} />
             <SummaryItem label="Tiền nước" value={waterAmount} />
-            <SummaryItem label="Phí dịch vụ" value={watchedValues.serviceAmount} />
+            <SummaryItem label={`Phí dịch vụ ${formatPeriod(nextBillingPeriod.month, nextBillingPeriod.year)}`} value={watchedValues.serviceAmount} />
             <SummaryItem label="Chi phí khác" value={watchedValues.otherAmount} />
             <SummaryItem label="Giảm trừ" value={watchedValues.discountAmount} />
             <SummaryItem label="Tổng tiền" value={totalAmount} strong />
@@ -896,8 +916,11 @@ const InvoiceManagementPage = () => {
               <Descriptions.Item label="Phòng">
                 {detailInvoice.roomNumber} - {detailInvoice.roomName}
               </Descriptions.Item>
-              <Descriptions.Item label="Kỳ hóa đơn">
+              <Descriptions.Item label="Kỳ chốt điện nước">
                 {detailInvoice.month}/{detailInvoice.year}
+              </Descriptions.Item>
+              <Descriptions.Item label="Kỳ thu tiền phòng/dịch vụ">
+                {formatPeriod(detailInvoice.rentPeriodMonth, detailInvoice.rentPeriodYear)}
               </Descriptions.Item>
               <Descriptions.Item label="Hạn thanh toán">{formatDate(detailInvoice.dueDate)}</Descriptions.Item>
               <Descriptions.Item label="Ngày tạo">{formatDate(detailInvoice.createdAt)}</Descriptions.Item>
@@ -917,8 +940,8 @@ const InvoiceManagementPage = () => {
 
             <Divider orientation="left">Tổng kết chi phí</Divider>
             <Descriptions bordered size="small" column={2}>
-              <Descriptions.Item label="Tiền phòng">{currencyFormatter(detailInvoice.rentAmount)}</Descriptions.Item>
-              <Descriptions.Item label="Phí dịch vụ">{currencyFormatter(detailInvoice.serviceAmount)}</Descriptions.Item>
+              <Descriptions.Item label={`Tiền phòng ${formatPeriod(detailInvoice.rentPeriodMonth, detailInvoice.rentPeriodYear)}`}>{currencyFormatter(detailInvoice.rentAmount)}</Descriptions.Item>
+              <Descriptions.Item label={`Phí dịch vụ ${formatPeriod(detailInvoice.servicePeriodMonth, detailInvoice.servicePeriodYear)}`}>{currencyFormatter(detailInvoice.serviceAmount)}</Descriptions.Item>
               <Descriptions.Item label="Chi phí khác">{currencyFormatter(detailInvoice.otherAmount)}</Descriptions.Item>
               <Descriptions.Item label="Giảm trừ">{currencyFormatter(detailInvoice.discountAmount)}</Descriptions.Item>
               <Descriptions.Item label="Tổng tiền">

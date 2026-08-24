@@ -58,6 +58,10 @@ const toInvoiceResponse = (invoice) => ({
       : undefined,
   month: invoice.month,
   year: invoice.year,
+  rentPeriodMonth: invoice.rentPeriodMonth,
+  rentPeriodYear: invoice.rentPeriodYear,
+  servicePeriodMonth: invoice.servicePeriodMonth,
+  servicePeriodYear: invoice.servicePeriodYear,
   rentAmount: invoice.rentAmount,
   electricityAmount: invoice.electricityAmount,
   waterAmount: invoice.waterAmount,
@@ -77,6 +81,36 @@ const toInvoiceResponse = (invoice) => ({
 const toNumber = (value, fallback = 0) => Number(value ?? fallback);
 
 const meterReadingFields = ["electricityOld", "electricityNew", "waterOld", "waterNew"];
+
+const getNextPeriod = (month, year) => {
+  const selectedMonth = Number(month);
+  const selectedYear = Number(year);
+
+  if (selectedMonth === 12) {
+    return { month: 1, year: selectedYear + 1 };
+  }
+
+  return { month: selectedMonth + 1, year: selectedYear };
+};
+
+const applyDefaultBillingPeriods = (payload) => {
+  if (!payload.month || !payload.year) {
+    return payload;
+  }
+
+  if ((payload.invoiceType || "monthly") !== "monthly") {
+    return payload;
+  }
+
+  const nextPeriod = getNextPeriod(payload.month, payload.year);
+
+  payload.rentPeriodMonth = payload.rentPeriodMonth ?? nextPeriod.month;
+  payload.rentPeriodYear = payload.rentPeriodYear ?? nextPeriod.year;
+  payload.servicePeriodMonth = payload.servicePeriodMonth ?? nextPeriod.month;
+  payload.servicePeriodYear = payload.servicePeriodYear ?? nextPeriod.year;
+
+  return payload;
+};
 
 const calculateTotalAmount = (payload) => {
   const subtotal =
@@ -267,6 +301,18 @@ const validateInvoicePayload = async (payload, isCreate) => {
     throw new Error("Year must be greater than or equal to 2000");
   }
 
+  ["rentPeriodMonth", "servicePeriodMonth"].forEach((field) => {
+    if (payload[field] !== undefined && (Number(payload[field]) < 1 || Number(payload[field]) > 12)) {
+      throw new Error(`${field} must be between 1 and 12`);
+    }
+  });
+
+  ["rentPeriodYear", "servicePeriodYear"].forEach((field) => {
+    if (payload[field] !== undefined && Number(payload[field]) < 2000) {
+      throw new Error(`${field} must be greater than or equal to 2000`);
+    }
+  });
+
   if (status && !invoiceStatuses.includes(status)) {
     throw new Error("Invalid status");
   }
@@ -432,6 +478,8 @@ const createInvoice = async (req, res, next) => {
     const payload = req.body;
 
     await validateInvoicePayload(payload, true);
+    payload.invoiceType = payload.invoiceType || "monthly";
+    applyDefaultBillingPeriods(payload);
     const representative = await findActiveRoomRepresentative(payload.room);
     payload.tenant = representative.user._id;
 
@@ -443,6 +491,7 @@ const createInvoice = async (req, res, next) => {
     }
 
     const existingInvoice = await Invoice.findOne({
+      invoiceType: payload.invoiceType,
       tenant: payload.tenant,
       room: payload.room,
       month: payload.month,
@@ -451,7 +500,7 @@ const createInvoice = async (req, res, next) => {
 
     if (existingInvoice) {
       res.status(400);
-      throw new Error("Invoice already exists for this tenant, room and period");
+      throw new Error("Invoice already exists for this tenant, room, period and invoice type");
     }
 
     await applyMeterReadingAmounts(payload);
@@ -462,6 +511,10 @@ const createInvoice = async (req, res, next) => {
     validatePaidAmount(paidAmount, totalAmount);
 
     const status = deriveStatus(paidAmount, totalAmount, payload.status);
+    if (payload.invoiceType === "monthly" && !payload.note) {
+      payload.note = `UTILITY_PERIOD:${payload.month}/${payload.year} | RENT_SERVICE_PERIOD:${payload.rentPeriodMonth}/${payload.rentPeriodYear}`;
+    }
+
     const invoice = await Invoice.create({
       ...payload,
       totalAmount,
@@ -512,8 +565,19 @@ const updateInvoice = async (req, res, next) => {
     const nextTenant = nextRepresentative?.user?._id || payload.tenant || invoice.tenant;
     const nextMonth = payload.month ?? invoice.month;
     const nextYear = payload.year ?? invoice.year;
+    const nextInvoiceType = payload.invoiceType || invoice.invoiceType || "monthly";
+    const nextBillingPayload = applyDefaultBillingPeriods({
+      invoiceType: nextInvoiceType,
+      month: nextMonth,
+      rentPeriodMonth: payload.rentPeriodMonth ?? invoice.rentPeriodMonth,
+      rentPeriodYear: payload.rentPeriodYear ?? invoice.rentPeriodYear,
+      servicePeriodMonth: payload.servicePeriodMonth ?? invoice.servicePeriodMonth,
+      servicePeriodYear: payload.servicePeriodYear ?? invoice.servicePeriodYear,
+      year: nextYear,
+    });
 
     const periodChanged =
+      String(nextInvoiceType) !== String(invoice.invoiceType || "monthly") ||
       String(nextTenant) !== String(invoice.tenant) ||
       String(nextRoom) !== String(invoice.room) ||
       Number(nextMonth) !== Number(invoice.month) ||
@@ -524,6 +588,7 @@ const updateInvoice = async (req, res, next) => {
 
       const existingInvoice = await Invoice.findOne({
         _id: { $ne: invoice._id },
+        invoiceType: nextInvoiceType,
         tenant: nextTenant,
         room: nextRoom,
         month: nextMonth,
@@ -532,14 +597,19 @@ const updateInvoice = async (req, res, next) => {
 
       if (existingInvoice) {
         res.status(400);
-        throw new Error("Invoice already exists for this tenant, room and period");
+        throw new Error("Invoice already exists for this tenant, room, period and invoice type");
       }
     }
 
+    invoice.invoiceType = nextInvoiceType;
     invoice.tenant = nextTenant;
     invoice.room = nextRoom;
     invoice.month = nextMonth;
     invoice.year = nextYear;
+    invoice.rentPeriodMonth = nextBillingPayload.rentPeriodMonth;
+    invoice.rentPeriodYear = nextBillingPayload.rentPeriodYear;
+    invoice.servicePeriodMonth = nextBillingPayload.servicePeriodMonth;
+    invoice.servicePeriodYear = nextBillingPayload.servicePeriodYear;
     invoice.rentAmount = payload.rentAmount ?? invoice.rentAmount;
     invoice.electricityAmount = payload.electricityAmount ?? invoice.electricityAmount;
     invoice.waterAmount = payload.waterAmount ?? invoice.waterAmount;
