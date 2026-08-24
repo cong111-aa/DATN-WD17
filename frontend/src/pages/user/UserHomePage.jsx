@@ -62,6 +62,7 @@ const fallbackRoomImage =
 
 const formatCurrency = (value) => `${Number(value || 0).toLocaleString("vi-VN")} đ`;
 const formatDate = (value) => (value ? new Date(value).toLocaleDateString("vi-VN") : "-");
+const formatPeriod = (month, year) => (month && year ? `${month}/${year}` : "-");
 const formatResolvedDate = (value) => (value ? formatDate(value) : "Chưa xử lý");
 
 const roomRoleMeta = {
@@ -1009,7 +1010,7 @@ const UserHomePage = () => {
                     </Tag>
                     <div>
                       <Text strong style={{ fontSize: 14, color: "#9f1239" }}>
-                        Hóa đơn Tháng {inv.month}/{inv.year} - Phòng {inv.roomNumber} ({inv.invoiceCode})
+                        Hóa đơn điện nước {inv.month}/{inv.year} - Phòng {inv.roomNumber} ({inv.invoiceCode})
                       </Text>
                       <div style={{ fontSize: 13, color: "#be123c" }}>
                         Số tiền: <strong>{formatCurrency(inv.totalAmount)}</strong> • Hạn: {formatDate(inv.dueDate)}
@@ -1462,7 +1463,7 @@ const UserHomePage = () => {
                     <div style={{ background: isPending ? "#fffbe6" : "#f8fafc", padding: "10px 12px", borderRadius: 8, marginBottom: 12, border: "1px solid rgba(0,0,0,0.05)" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                         <Text type="secondary" style={{ fontSize: 13 }}>Kỳ thanh toán:</Text>
-                        <Text strong style={{ fontSize: 13 }}>Tháng {inv.month}/{inv.year}</Text>
+                        <Text strong style={{ fontSize: 13 }}>Điện nước {inv.month}/{inv.year}</Text>
                       </div>
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                         <Text type="secondary" style={{ fontSize: 13 }}>Tổng số tiền:</Text>
@@ -1987,7 +1988,8 @@ const UserHomePage = () => {
                 <Tag color={invoiceStatusMeta[detailInvoice.status]?.color}>{invoiceStatusMeta[detailInvoice.status]?.label}</Tag>
               </Descriptions.Item>
               <Descriptions.Item label="Phòng">Phòng {detailInvoice.roomNumber} - {detailInvoice.roomName}</Descriptions.Item>
-              <Descriptions.Item label="Kỳ hóa đơn">Tháng {detailInvoice.month}/{detailInvoice.year}</Descriptions.Item>
+              <Descriptions.Item label="Kỳ chốt điện nước">Tháng {detailInvoice.month}/{detailInvoice.year}</Descriptions.Item>
+              <Descriptions.Item label="Kỳ thu tiền phòng/dịch vụ">Tháng {formatPeriod(detailInvoice.rentPeriodMonth, detailInvoice.rentPeriodYear)}</Descriptions.Item>
               <Descriptions.Item label="Hạn thanh toán">{formatDate(detailInvoice.dueDate)}</Descriptions.Item>
               <Descriptions.Item label="Ngày xuất HĐ">{formatDate(detailInvoice.createdAt)}</Descriptions.Item>
             </Descriptions>
@@ -2000,8 +2002,8 @@ const UserHomePage = () => {
               <Descriptions.Item label="Tiền nước">{formatCurrency(detailInvoice.waterAmount)}</Descriptions.Item>
             </Descriptions>
             <Descriptions title="Tổng kết chi phí" bordered size="small" column={2}>
-              <Descriptions.Item label="Tiền phòng">{formatCurrency(detailInvoice.rentAmount)}</Descriptions.Item>
-              <Descriptions.Item label="Phí dịch vụ">{formatCurrency(detailInvoice.serviceAmount)}</Descriptions.Item>
+              <Descriptions.Item label={`Tiền phòng ${formatPeriod(detailInvoice.rentPeriodMonth, detailInvoice.rentPeriodYear)}`}>{formatCurrency(detailInvoice.rentAmount)}</Descriptions.Item>
+              <Descriptions.Item label={`Phí dịch vụ ${formatPeriod(detailInvoice.servicePeriodMonth, detailInvoice.servicePeriodYear)}`}>{formatCurrency(detailInvoice.serviceAmount)}</Descriptions.Item>
               <Descriptions.Item label="Tổng cộng">
                 <Text strong style={{ fontSize: 16, color: "#0f766e" }}>{formatCurrency(detailInvoice.totalAmount)}</Text>
               </Descriptions.Item>
