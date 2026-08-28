@@ -160,6 +160,11 @@ const UserContractsPage = () => {
   const [lifecycleSubmitting, setLifecycleSubmitting] = useState(false);
   const [renewalDurationMonths, setRenewalDurationMonths] = useState(12);
   const [checkoutDate, setCheckoutDate] = useState("");
+  const [refundBankInfo, setRefundBankInfo] = useState({
+    refundBankAccountName: "",
+    refundBankAccountNumber: "",
+    refundBankName: "",
+  });
   const [lifecycleNote, setLifecycleNote] = useState("");
 
   const fetchContracts = async () => {
@@ -194,12 +199,22 @@ const UserContractsPage = () => {
     setLifecycleNote("");
     setRenewalDurationMonths(12);
     setCheckoutDate(contract.endDate ? new Date(contract.endDate).toISOString().slice(0, 10) : "");
+    setRefundBankInfo({
+      refundBankAccountName: "",
+      refundBankAccountNumber: "",
+      refundBankName: "",
+    });
   };
 
   const closeLifecycleModal = () => {
     setLifecycleContract(null);
     setLifecycleMode("");
     setLifecycleNote("");
+    setRefundBankInfo({
+      refundBankAccountName: "",
+      refundBankAccountNumber: "",
+      refundBankName: "",
+    });
   };
 
   const submitLifecycleRequest = async () => {
@@ -214,7 +229,7 @@ const UserContractsPage = () => {
       const payload =
         lifecycleMode === "renewal"
           ? { durationMonths: renewalDurationMonths, note: lifecycleNote }
-          : { checkoutDate, note: lifecycleNote };
+          : { checkoutDate, note: lifecycleNote, ...refundBankInfo };
 
       await http.post(endpoint, payload);
       message.success(lifecycleMode === "renewal" ? "Da gui yeu cau gia han" : "Da gui yeu cau tra phong");
@@ -1145,15 +1160,44 @@ const UserContractsPage = () => {
               />
             </div>
           ) : (
-            <div>
-              <Text strong>Ngay du kien tra phong</Text>
-              <Input
-                type="date"
-                value={checkoutDate}
-                onChange={(event) => setCheckoutDate(event.target.value)}
-                style={{ marginTop: 8 }}
-              />
-            </div>
+            <Space direction="vertical" size={12} style={{ width: "100%" }}>
+              <div>
+                <Text strong>Ngay du kien tra phong</Text>
+                <Input
+                  type="date"
+                  value={checkoutDate}
+                  onChange={(event) => setCheckoutDate(event.target.value)}
+                  style={{ marginTop: 8 }}
+                />
+              </div>
+              <div>
+                <Text strong>Thong tin tai khoan nhan hoan coc</Text>
+                <Input
+                  placeholder="Ten ngan hang / vi du: MB Bank"
+                  value={refundBankInfo.refundBankName}
+                  onChange={(event) =>
+                    setRefundBankInfo((current) => ({ ...current, refundBankName: event.target.value }))
+                  }
+                  style={{ marginTop: 8 }}
+                />
+                <Input
+                  placeholder="So tai khoan"
+                  value={refundBankInfo.refundBankAccountNumber}
+                  onChange={(event) =>
+                    setRefundBankInfo((current) => ({ ...current, refundBankAccountNumber: event.target.value }))
+                  }
+                  style={{ marginTop: 8 }}
+                />
+                <Input
+                  placeholder="Chu tai khoan"
+                  value={refundBankInfo.refundBankAccountName}
+                  onChange={(event) =>
+                    setRefundBankInfo((current) => ({ ...current, refundBankAccountName: event.target.value }))
+                  }
+                  style={{ marginTop: 8 }}
+                />
+              </div>
+            </Space>
           )}
 
           <div>

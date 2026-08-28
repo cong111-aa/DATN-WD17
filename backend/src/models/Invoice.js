@@ -5,7 +5,7 @@ const invoiceSchema = new mongoose.Schema(
     invoiceCode: { type: String, required: true, unique: true, trim: true }, // Ma hoa don
     invoiceType: {
       type: String,
-      enum: ["monthly", "initial_contract", "overstay"],
+      enum: ["monthly", "initial_contract", "checkout_final", "overstay"],
       default: "monthly",
     },
     room: { type: mongoose.Schema.Types.ObjectId, ref: "Room", required: true }, // Phong
