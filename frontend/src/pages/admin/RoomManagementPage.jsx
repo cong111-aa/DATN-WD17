@@ -70,6 +70,7 @@ const statusOptions = [
   { label: "Đã giữ chỗ", value: "reserved" },
   { label: "Còn trống", value: "available" },
   { label: "Đang thuê", value: "occupied" },
+  { label: "Sắp trống", value: "coming_available" },
   { label: "Bảo trì", value: "maintenance" },
 ];
 
@@ -78,6 +79,7 @@ const statusMeta = {
   reserved: { color: "gold", label: "Đã giữ chỗ", badgeColor: "#f59e0b" },
   available: { color: "success", label: "Còn trống", badgeColor: "#10b981" },
   occupied: { color: "blue", label: "Đang thuê", badgeColor: "#3b82f6" },
+  coming_available: { color: "orange", label: "Sắp trống", badgeColor: "#f97316" },
   maintenance: { color: "warning", label: "Bảo trì", badgeColor: "#ef4444" },
 };
 
@@ -209,6 +211,7 @@ const RoomManagementPage = () => {
     const occupied = rooms.filter((room) => room.status === "occupied").length;
     const available = rooms.filter((room) => room.status === "available").length;
     const reserved = rooms.filter((room) => room.status === "reserved").length;
+    const comingAvailable = rooms.filter((room) => room.status === "coming_available").length;
     const maintenance = rooms.filter((room) => room.status === "maintenance").length;
     const occupancyRate = total ? Math.round((occupied / total) * 100) : 0;
 
@@ -216,6 +219,7 @@ const RoomManagementPage = () => {
       total,
       occupied,
       available,
+      comingAvailable,
       reserved,
       maintenance,
       occupancyRate,
@@ -983,15 +987,15 @@ const RoomManagementPage = () => {
           </div>
         </div>
 
-        {/* Reserved & Maintenance */}
+        {/* Reserved, Coming Available & Maintenance */}
         <div className="rm-stat-card">
           <div className="rm-stat-info">
-            <span className="rm-stat-label">Giữ chỗ / Bảo trì</span>
+            <span className="rm-stat-label">Giữ chỗ / Sắp trống / Bảo trì</span>
             <span className="rm-stat-value" style={{ color: "#d97706" }}>
-              {roomOverview.reserved + roomOverview.maintenance}
+              {roomOverview.reserved + roomOverview.comingAvailable + roomOverview.maintenance}
             </span>
             <span className="rm-stat-sub">
-              {roomOverview.reserved} giữ chỗ · {roomOverview.maintenance} bảo trì
+              {roomOverview.reserved} giữ chỗ · {roomOverview.comingAvailable} sắp trống · {roomOverview.maintenance} bảo trì
             </span>
           </div>
           <div className="rm-stat-icon" style={{ background: "#fffbeb", color: "#d97706" }}>
@@ -1514,6 +1518,11 @@ const RoomManagementPage = () => {
                             {detailRoom.paymentHoldExpiresAt
                               ? new Date(detailRoom.paymentHoldExpiresAt).toLocaleTimeString("vi-VN")
                               : ""}
+                          </Descriptions.Item>
+                        )}
+                        {detailRoom.status === "coming_available" && (
+                          <Descriptions.Item label="Dự kiến trống từ" span={2}>
+                            {formatDate(detailRoom.availableFrom)}
                           </Descriptions.Item>
                         )}
                         <Descriptions.Item label="Địa chỉ cụ thể" span={2}>

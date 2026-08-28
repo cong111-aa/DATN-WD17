@@ -3,6 +3,7 @@ const {
   completeCheckout,
   createContract,
   createCheckoutProcedure,
+  createCheckoutFinalInvoice,
   deleteContract,
   getContractById,
   getContractFile,
@@ -22,6 +23,7 @@ router.get("/expiring", protect, adminOnly, getExpiringContracts);
 router.patch("/:id/remind-expiry", protect, adminOnly, sendExpiryReminder);
 router.post("/:id/renew", protect, adminOnly, processContractRenewal);
 router.post("/:id/checkout", protect, adminOnly, createCheckoutProcedure);
+router.post("/:id/checkout-final-invoice", protect, adminOnly, createCheckoutFinalInvoice);
 router.post("/:id/complete-checkout", protect, adminOnly, completeCheckout);
 router.get("/:id", protect, adminOnly, getContractById);
 router.get("/:id/file", protect, adminOnly, getContractFile);

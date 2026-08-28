@@ -276,6 +276,12 @@ const normalizePaymentProvider = (provider) => (provider === "vnpay" ? "vnpay" :
 const normalizePaymentProofImages = (images = []) =>
   Array.isArray(images) ? images.map((image) => String(image || "").trim()).filter(Boolean) : [];
 
+const normalizeRefundBankInfo = (body = {}) => ({
+  refundBankAccountName: String(body.refundBankAccountName || "").trim(),
+  refundBankAccountNumber: String(body.refundBankAccountNumber || "").trim(),
+  refundBankName: String(body.refundBankName || "").trim(),
+});
+
 const normalizeOccupants = (occupants = []) =>
   occupants.map((occupant) => ({
     name: String(occupant.name || "").trim(),
@@ -935,8 +941,20 @@ const requestMyContractCheckout = async (req, res, next) => {
     await ensureContractCanReceiveLifecycleRequest({ contract, type: "checkout" });
 
     const checkoutDate = req.body.checkoutDate ? new Date(req.body.checkoutDate) : new Date(contract.endDate);
+    const refundBankInfo = normalizeRefundBankInfo(req.body);
+
+    if (
+      !refundBankInfo.refundBankName ||
+      !refundBankInfo.refundBankAccountNumber ||
+      !refundBankInfo.refundBankAccountName
+    ) {
+      res.status(400);
+      throw new Error("Refund bank name, account number and account name are required");
+    }
+
     const request = await ContractLifecycleRequest.create({
       contract: contract._id,
+      ...refundBankInfo,
       history: [
         {
           action: "created",
