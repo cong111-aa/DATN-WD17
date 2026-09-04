@@ -1,5 +1,6 @@
 const Notification = require("../models/Notification");
 const User = require("../models/User");
+const { sendNotificationEmail } = require("./emailService");
 const { getIo } = require("../socket");
 
 const toNotificationResponse = (notification) => ({
@@ -33,6 +34,29 @@ const emitUnreadCount = async ({ recipient, recipientRole }) => {
   io.to(room).emit("notifications:unread-count", { unreadCount });
 };
 
+const sendNotificationEmailSafely = async ({ link, message, recipient, title }) => {
+  if (!recipient) {
+    return;
+  }
+
+  try {
+    const user = await User.findById(recipient).select("email status");
+
+    if (!user?.email || user.status !== "active") {
+      return;
+    }
+
+    await sendNotificationEmail({
+      link,
+      message,
+      title,
+      to: user.email,
+    });
+  } catch (error) {
+    console.error("Failed to send notification email:", error.message);
+  }
+};
+
 const createNotification = async ({
   link = "",
   message,
@@ -59,6 +83,7 @@ const createNotification = async ({
   }
 
   await emitUnreadCount({ recipient, recipientRole });
+  sendNotificationEmailSafely({ link, message, recipient, title });
 
   return notification;
 };
