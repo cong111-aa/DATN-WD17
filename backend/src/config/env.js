@@ -12,6 +12,12 @@ const env = {
   bankAccountName: process.env.BANK_ACCOUNT_NAME || "",
   bankName: process.env.BANK_NAME || "",
   paymentQrTemplate: process.env.PAYMENT_QR_TEMPLATE || "compact2",
+  smtpHost: process.env.SMTP_HOST || "",
+  smtpPort: Number(process.env.SMTP_PORT || 587),
+  smtpSecure: process.env.SMTP_SECURE === "true",
+  smtpUser: process.env.SMTP_USER || "",
+  smtpPass: process.env.SMTP_PASS || "",
+  mailFrom: process.env.MAIL_FROM || "",
   vnpayTmnCode: process.env.VNPAY_TMN_CODE || "",
   vnpayHashSecret: process.env.VNPAY_HASH_SECRET || "",
   vnpayPaymentUrl:
