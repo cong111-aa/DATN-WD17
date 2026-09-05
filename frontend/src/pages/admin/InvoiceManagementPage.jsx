@@ -37,6 +37,7 @@ import { useEffect, useMemo, useState } from "react";
 import http from "../../api/http";
 
 const statusOptions = [
+  { label: "Ch\u1edd nh\u1eadp ch\u1ec9 s\u1ed1", value: "draft" },
   { label: "Chưa thanh toán", value: "unpaid" },
   { label: "Thanh toán một phần", value: "partial" },
   { label: "Đã thanh toán", value: "paid" },
@@ -44,6 +45,7 @@ const statusOptions = [
 ];
 
 const statusMeta = {
+  draft: { bg: "#e0f2fe", color: "#0369a1", label: "Ch\u1edd nh\u1eadp ch\u1ec9 s\u1ed1" },
   unpaid: { bg: "#f1f5f9", color: "#64748b", label: "Chưa thanh toán" },
   partial: { bg: "#fef3c7", color: "#b45309", label: "Thanh toán một phần" },
   paid: { bg: "#dcfce7", color: "#15803d", label: "Đã thanh toán" },
@@ -191,12 +193,14 @@ const InvoiceManagementPage = () => {
   const nextBillingPeriod = getNextPeriod(watchedValues.month, watchedValues.year);
 
   const invoiceStats = useMemo(() => {
+    const draft = invoices.filter((item) => item.status === "draft").length;
     const paid = invoices.filter((item) => item.status === "paid").length;
     const unpaid = invoices.filter((item) => item.status === "unpaid").length;
     const overdue = invoices.filter((item) => item.status === "overdue").length;
     const totalAmountValue = invoices.reduce((sum, item) => sum + Number(item.totalAmount || 0), 0);
 
     return {
+      draft,
       overdue,
       paid,
       total: invoices.length,
@@ -340,6 +344,7 @@ const InvoiceManagementPage = () => {
         rentPeriodYear: nextBillingPeriod.year,
         servicePeriodMonth: nextBillingPeriod.month,
         servicePeriodYear: nextBillingPeriod.year,
+        status: values.status === "draft" ? "unpaid" : values.status,
         waterAmount,
       });
 

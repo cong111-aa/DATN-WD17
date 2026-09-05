@@ -30,7 +30,7 @@ const invoiceSchema = new mongoose.Schema(
     dueSoonNotifiedAt: { type: Date }, // Da gui thong bao sap het han
     status: {
       type: String,
-      enum: ["unpaid", "partial", "paid", "overdue"],
+      enum: ["draft", "unpaid", "partial", "paid", "overdue"],
       default: "unpaid",
     }, // Trang thai hoa don
     note: { type: String, default: "", trim: true }, // Ghi chu

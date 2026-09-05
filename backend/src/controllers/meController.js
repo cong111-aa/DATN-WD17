@@ -1130,7 +1130,7 @@ const requestMyContractRevision = async (req, res, next) => {
 
 const getMyInvoices = async (req, res, next) => {
   try {
-    const invoices = await Invoice.find({ tenant: req.user._id })
+    const invoices = await Invoice.find({ tenant: req.user._id, status: { $ne: "draft" } })
       .populate(invoicePopulate)
       .sort({ year: -1, month: -1, createdAt: -1 });
 
@@ -1144,6 +1144,7 @@ const getMyInvoiceById = async (req, res, next) => {
   try {
     const invoice = await Invoice.findOne({
       _id: req.params.id,
+      status: { $ne: "draft" },
       tenant: req.user._id,
     }).populate(invoicePopulate);
 

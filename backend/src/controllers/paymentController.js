@@ -159,6 +159,10 @@ const findPayableTarget = async ({ targetId, targetType, userId }) => {
       0
     );
 
+    if (invoice.status === "draft") {
+      throw new Error("This invoice is waiting for admin to finalize meter readings");
+    }
+
     if (remainingAmount <= 0 || invoice.status === "paid") {
       throw new Error("This invoice is already paid");
     }
