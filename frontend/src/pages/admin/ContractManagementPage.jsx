@@ -1,18 +1,27 @@
 import {
+  BellOutlined,
   CalendarOutlined,
   CheckCircleOutlined,
+  CheckOutlined,
+  ClockCircleOutlined,
+  CloseCircleOutlined,
   DeleteOutlined,
   EditOutlined,
+  ExclamationCircleOutlined,
   EyeOutlined,
-  FilterOutlined,
+  FileDoneOutlined,
   FileProtectOutlined,
   FileTextOutlined,
+  FilterOutlined,
+  HomeOutlined,
   PlusOutlined,
   ReloadOutlined,
   SearchOutlined,
   StopOutlined,
+  SyncOutlined,
   TeamOutlined,
   UploadOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import {
   Alert,
@@ -42,6 +51,7 @@ import {
 import dayjs from "dayjs";
 import { useEffect, useMemo, useState } from "react";
 import http from "../../api/http";
+import "./ContractManagement.css";
 
 const statusOptions = [
   { label: "Chờ khách ký", value: "pending_user_signature" },
@@ -57,41 +67,22 @@ const statusOptions = [
 ];
 
 const statusMeta = {
-  pending_user_signature: { color: "warning", label: "Chờ khách ký" },
-  revision_requested: { color: "orange", label: "Khách yêu cầu sửa" },
-  signed_pending_payment: { color: "gold", label: "Chờ thanh toán đầu kỳ" },
-  active: { color: "success", label: "Đang hiệu lực" },
-  renewal_requested: { color: "blue", label: "Yêu cầu gia hạn" },
-  checkout_requested: { color: "orange", label: "Yêu cầu trả phòng" },
-  expired_pending: { color: "red", label: "Quá hạn chờ xử lý" },
-  renewed: { color: "cyan", label: "Đã gia hạn" },
-  expired: { color: "default", label: "Hết hạn" },
-  terminated: { color: "error", label: "Đã chấm dứt" },
+  pending_user_signature: { bg: "#fffbeb", color: "#b45309", icon: <ClockCircleOutlined />, label: "Chờ khách ký" },
+  revision_requested: { bg: "#fff7ed", color: "#c2410c", icon: <ExclamationCircleOutlined />, label: "Khách yêu cầu sửa" },
+  signed_pending_payment: { bg: "#fefce8", color: "#a16207", icon: <ClockCircleOutlined />, label: "Chờ thanh toán đầu kỳ" },
+  active: { bg: "#ecfdf5", color: "#047857", icon: <CheckCircleOutlined />, label: "Đang hiệu lực" },
+  renewal_requested: { bg: "#eff6ff", color: "#1d4ed8", icon: <SyncOutlined />, label: "Yêu cầu gia hạn" },
+  checkout_requested: { bg: "#fff7ed", color: "#ea580c", icon: <ExclamationCircleOutlined />, label: "Yêu cầu trả phòng" },
+  expired_pending: { bg: "#fef2f2", color: "#b91c1c", icon: <CloseCircleOutlined />, label: "Quá hạn chờ xử lý" },
+  renewed: { bg: "#ecfeff", color: "#0e7490", icon: <CheckCircleOutlined />, label: "Đã gia hạn" },
+  expired: { bg: "#f1f5f9", color: "#64748b", icon: <StopOutlined />, label: "Hết hạn" },
+  terminated: { bg: "#fef2f2", color: "#dc2626", icon: <CloseCircleOutlined />, label: "Đã chấm dứt" },
 };
 
 const defaultFormValues = {
   durationMonths: 12,
   status: "pending_user_signature",
 };
-
-const panelStyle = {
-  border: "1px solid #eef1f7",
-  borderRadius: 8,
-  boxShadow: "0 8px 24px rgba(15, 23, 42, 0.05)",
-};
-
-const heroStyle = {
-  ...panelStyle,
-  overflow: "hidden",
-  background:
-    "radial-gradient(circle at 18% 22%, rgba(255,255,255,0.12) 0 1px, transparent 1px), radial-gradient(circle at 32% 64%, rgba(255,255,255,0.12) 0 1px, transparent 1px), radial-gradient(circle at 70% 28%, rgba(255,255,255,0.10) 0 1px, transparent 1px), linear-gradient(115deg, #5b21b6 0%, #7c2dff 46%, #2563eb 100%)",
-  backgroundSize: "88px 88px, 120px 120px, 96px 96px, auto",
-};
-
-const statIconStyle = { alignItems: "center", borderRadius: 8, display: "flex", height: 42, justifyContent: "center", width: 42 };
-const toolbarInputStyle = { borderRadius: 8, height: 40 };
-const mutedTextStyle = { color: "#64748b" };
-const sectionTitleStyle = { color: "#0f172a", fontSize: 16 };
 
 const formatCurrency = (value) => `${Number(value || 0).toLocaleString("vi-VN")} VND`;
 const formatDate = (value) => (value ? new Date(value).toLocaleDateString("vi-VN") : "-");
@@ -168,15 +159,25 @@ const ContractManagementPage = () => {
 
   const contractStats = useMemo(() => {
     const active = contracts.filter((item) => item.status === "active").length;
-    const expired = contracts.filter((item) => item.status === "expired").length;
-    return { active, expired, total: contracts.length };
-  }, [contracts]);
+    const expired = contracts.filter((item) => ["expired", "terminated"].includes(item.status)).length;
+    const pending = contracts.filter((item) => ["pending_user_signature", "revision_requested", "signed_pending_payment"].includes(item.status)).length;
+    return {
+      active,
+      expired,
+      pending,
+      expiring: expiringContracts.length,
+      total: contracts.length,
+    };
+  }, [contracts, expiringContracts]);
 
   const filteredContracts = useMemo(() => {
     const keyword = searchText.trim().toLowerCase();
     return contracts.filter((item) => {
-      const matchesSearch = !keyword || [item.contractCode, item.roomNumber, item.roomName, item.tenantName]
-        .some((value) => String(value || "").toLowerCase().includes(keyword));
+      const matchesSearch =
+        !keyword ||
+        [item.contractCode, item.roomNumber, item.roomName, item.tenantName]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(keyword));
       return matchesSearch && (statusFilter === "all" || item.status === statusFilter);
     });
   }, [contracts, searchText, statusFilter]);
@@ -208,7 +209,6 @@ const ContractManagementPage = () => {
 
   const fetchContracts = async () => {
     setLoading(true);
-
     try {
       const { data } = await http.get("/contracts");
       setContracts(data);
@@ -224,7 +224,7 @@ const ContractManagementPage = () => {
       const { data } = await http.get("/contracts/expiring");
       setExpiringContracts(data || []);
     } catch (error) {
-      message.error(error.response?.data?.message || "Khong tai duoc hop dong sap het han");
+      message.error(error.response?.data?.message || "Không tải được hợp đồng sắp hết hạn");
     }
   };
 
@@ -294,7 +294,6 @@ const ContractManagementPage = () => {
 
   const handleSubmit = async (values) => {
     setSubmitting(true);
-
     try {
       const payload = toPayload(values);
 
@@ -383,12 +382,12 @@ const ContractManagementPage = () => {
   const handleSendReminder = async (record) => {
     try {
       await http.patch(`/contracts/${record.id}/remind-expiry`, {
-        note: "Admin nhac khach xu ly hop dong sap het han.",
+        note: "Admin nhắc khách xử lý hợp đồng sắp hết hạn.",
       });
-      message.success("Da gui nhac nho");
+      message.success("Đã gửi nhắc nhở");
       refreshAll();
     } catch (error) {
-      message.error(error.response?.data?.message || "Gui nhac nho that bai");
+      message.error(error.response?.data?.message || "Gửi nhắc nhở thất bại");
     }
   };
 
@@ -397,22 +396,19 @@ const ContractManagementPage = () => {
       if (file.response?.urls) {
         return file.response.urls;
       }
-
       if (file.url?.startsWith(apiOrigin)) {
         return file.url.replace(apiOrigin, "");
       }
-
       return file.url ? [file.url] : [];
     });
 
   const openCompleteCheckoutModal = async (record) => {
     let nextRecord = record;
-
     try {
       const { data } = await http.get(`/contracts/${record.id}`);
       nextRecord = data;
     } catch (error) {
-      message.warning(error.response?.data?.message || "Khong tai duoc thong tin tra phong moi nhat");
+      message.warning(error.response?.data?.message || "Không tải được thông tin trả phòng mới nhất");
     }
 
     const request = nextRecord.latestCheckoutRequest || nextRecord.pendingLifecycleRequest || {};
@@ -455,7 +451,7 @@ const ContractManagementPage = () => {
       });
       onSuccess(data);
     } catch (error) {
-      message.error(error.response?.data?.message || "Upload bien lai hoan coc that bai");
+      message.error(error.response?.data?.message || "Upload biên lai hoàn cọc thất bại");
       onError(error);
     }
   };
@@ -493,7 +489,7 @@ const ContractManagementPage = () => {
         waterOld: data.waterOld ?? 0,
       }));
     } catch (error) {
-      message.warning(error.response?.data?.message || "Khong tai duoc chi so cu");
+      message.warning(error.response?.data?.message || "Không tải được chỉ số cũ");
     }
   };
 
@@ -521,11 +517,11 @@ const ContractManagementPage = () => {
     setFinalInvoiceLoading(true);
     try {
       await http.post(`/contracts/${finalInvoiceContract.id}/checkout-final-invoice`, finalInvoiceForm);
-      message.success("Da tao hoa don chot tra phong");
+      message.success("Đã tạo hóa đơn chốt trả phòng");
       closeFinalInvoiceModal();
       refreshAll();
     } catch (error) {
-      message.error(error.response?.data?.message || "Tao hoa don chot tra phong that bai");
+      message.error(error.response?.data?.message || "Tạo hóa đơn chốt trả phòng thất bại");
     } finally {
       setFinalInvoiceLoading(false);
     }
@@ -540,11 +536,11 @@ const ContractManagementPage = () => {
         ...completeCheckoutForm,
         refundProofImages: toImageUrls(refundProofFileList),
       });
-      message.success("Da hoan tat checkout");
+      message.success("Đã hoàn tất thủ tục trả phòng");
       closeCompleteCheckoutModal();
       refreshAll();
     } catch (error) {
-      message.error(error.response?.data?.message || "Hoan tat checkout that bai");
+      message.error(error.response?.data?.message || "Hoàn tất trả phòng thất bại");
     } finally {
       setCompleteCheckoutLoading(false);
     }
@@ -561,7 +557,7 @@ const ContractManagementPage = () => {
           monthlyRent: lifecycleForm.monthlyRent,
           note: lifecycleForm.note,
         });
-        message.success("Da xu ly gia han");
+        message.success("Đã xử lý gia hạn hợp đồng");
       } else {
         await http.post(`/contracts/${lifecycleContract.id}/checkout`, {
           checkoutDate: lifecycleForm.checkoutDate,
@@ -570,96 +566,118 @@ const ContractManagementPage = () => {
           refundBankAccountNumber: lifecycleForm.refundBankAccountNumber,
           refundBankName: lifecycleForm.refundBankName,
         });
-        message.success("Da tao thu tuc tra phong");
+        message.success("Đã tạo thủ tục trả phòng");
       }
 
       closeLifecycleModal();
       refreshAll();
     } catch (error) {
-      message.error(error.response?.data?.message || "Xu ly that bai");
+      message.error(error.response?.data?.message || "Xử lý thất bại");
     } finally {
       setLifecycleSubmitting(false);
     }
   };
 
   const expiryBucketMeta = {
-    expiring: { color: "gold", label: "Sap het han" },
-    no_response: { color: "orange", label: "Chua phan hoi" },
-    urgent: { color: "red", label: "Can xu ly gap" },
-    overdue: { color: "red", label: "Qua han" },
+    expiring: { bg: "#fef3c7", color: "#b45309", label: "Sắp hết hạn" },
+    no_response: { bg: "#ffedd5", color: "#c2410c", label: "Chưa phản hồi" },
+    urgent: { bg: "#fee2e2", color: "#dc2626", label: "Cần xử lý gấp" },
+    overdue: { bg: "#fee2e2", color: "#b91c1c", label: "Quá hạn" },
   };
 
   const expiringColumns = [
     {
-      title: "Hop dong",
+      title: "HỢP ĐỒNG",
       key: "contract",
       render: (_, record) => (
-        <Space direction="vertical" size={0}>
-          <Typography.Text strong>{record.contractCode}</Typography.Text>
-          <Typography.Text type="secondary">
-            Phong {record.roomNumber || "-"} - {record.tenantName || "-"}
-          </Typography.Text>
+        <Space direction="vertical" size={2}>
+          <span className="cm-code-badge">{record.contractCode}</span>
+          <span style={{ fontSize: 13, color: "#475569" }}>
+            Phòng {record.roomNumber || "-"} - {record.tenantName || "-"}
+          </span>
         </Space>
       ),
     },
     {
-      title: "Het han",
+      title: "HẾT HẠN",
       key: "endDate",
       render: (_, record) => (
-        <Space direction="vertical" size={0}>
-          <Typography.Text>{formatDate(record.endDate)}</Typography.Text>
-          <Typography.Text type={Number(record.daysUntilEnd || 0) <= 7 ? "danger" : "secondary"}>
-            {record.daysUntilEnd < 0 ? `Qua han ${Math.abs(record.daysUntilEnd)} ngay` : `Con ${record.daysUntilEnd} ngay`}
-          </Typography.Text>
+        <Space direction="vertical" size={2}>
+          <span style={{ fontWeight: 600, color: "#334155" }}>{formatDate(record.endDate)}</span>
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: Number(record.daysUntilEnd || 0) <= 7 ? "#dc2626" : "#64748b",
+            }}
+          >
+            {record.daysUntilEnd < 0
+              ? `Quá hạn ${Math.abs(record.daysUntilEnd)} ngày`
+              : `Còn ${record.daysUntilEnd} ngày`}
+          </span>
         </Space>
       ),
     },
     {
-      title: "Phan loai",
+      title: "PHÂN LOẠI",
       dataIndex: "expiryBucket",
       key: "expiryBucket",
       render: (value) => {
         const meta = expiryBucketMeta[value] || expiryBucketMeta.expiring;
-        return <Tag color={meta.color}>{meta.label}</Tag>;
+        return (
+          <span
+            style={{
+              background: meta.bg,
+              borderRadius: 6,
+              color: meta.color,
+              display: "inline-block",
+              fontSize: 12,
+              fontWeight: 700,
+              padding: "3px 10px",
+            }}
+          >
+            {meta.label}
+          </span>
+        );
       },
     },
     {
-      title: "Phan hoi",
+      title: "PHẢN HỒI",
       key: "request",
       render: (_, record) =>
         record.pendingLifecycleRequest ? (
-          <Tag color={record.pendingLifecycleRequest.type === "renewal" ? "blue" : "orange"}>
-            {record.pendingLifecycleRequest.type === "renewal" ? "Yeu cau gia han" : "Yeu cau tra phong"}
+          <Tag color={record.pendingLifecycleRequest.type === "renewal" ? "blue" : "orange"} style={{ borderRadius: 6, fontWeight: 600 }}>
+            {record.pendingLifecycleRequest.type === "renewal" ? "Yêu cầu gia hạn" : "Yêu cầu trả phòng"}
           </Tag>
         ) : (
-          <Tag>Chua co</Tag>
+          <Tag style={{ borderRadius: 6 }}>Chưa có</Tag>
         ),
     },
     {
-      title: "Thao tac",
+      title: "THAO TÁC",
       key: "actions",
-      width: 320,
+      width: 340,
       render: (_, record) => (
         <Space wrap size={6}>
-          <Button size="small" onClick={() => handleViewDetail(record)} style={{ borderRadius: 6 }}>
+          <Button size="small" className="cm-btn-sm" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
             Xem
           </Button>
-          <Button size="small" onClick={() => handleSendReminder(record)} style={{ borderRadius: 6 }}>
-            Nhac
+          <Button size="small" className="cm-btn-sm" icon={<BellOutlined />} onClick={() => handleSendReminder(record)}>
+            Nhắc
           </Button>
-          <Button size="small" type="primary" onClick={() => openLifecycleModal(record, "renew")} style={{ borderRadius: 6 }}>
-            Gia han
+          <Button size="small" type="primary" className="cm-btn-sm" icon={<SyncOutlined />} onClick={() => openLifecycleModal(record, "renew")}>
+            Gia hạn
           </Button>
-          <Button size="small" danger onClick={() => openLifecycleModal(record, "checkout")} style={{ borderRadius: 6 }}>
-            Tra phong
+          <Button size="small" danger className="cm-btn-sm" icon={<StopOutlined />} onClick={() => openLifecycleModal(record, "checkout")}>
+            Trả phòng
           </Button>
           {["checkout_requested", "expired_pending"].includes(record.status) ? (
             <>
-              <Button size="small" onClick={() => openFinalInvoiceModal(record)} style={{ borderRadius: 6 }}>
-                Hoa don cuoi
+              <Button size="small" className="cm-btn-sm" icon={<FileTextOutlined />} onClick={() => openFinalInvoiceModal(record)}>
+                HĐ cuối
               </Button>
-              <Button size="small" onClick={() => openCompleteCheckoutModal(record)} style={{ borderRadius: 6 }}>
-                Hoan tat
+              <Button size="small" className="cm-btn-sm" style={{ background: "#ecfdf5", color: "#047857", borderColor: "#a7f3d0" }} icon={<CheckOutlined />} onClick={() => openCompleteCheckoutModal(record)}>
+                Hoàn tất
               </Button>
             </>
           ) : null}
@@ -675,71 +693,108 @@ const ContractManagementPage = () => {
         dataIndex: "contractCode",
         key: "contractCode",
         width: 175,
-        render: (value) => <Typography.Text strong style={{ color: "#334155" }}>{value}</Typography.Text>,
+        render: (value) => <span className="cm-code-badge">{value}</span>,
       },
       {
         title: "PHÒNG",
         dataIndex: "roomNumber",
         key: "roomNumber",
-        width: 190,
-        render: (value, record) => <Typography.Text style={{ color: "#475569" }}>{value || "-"} - {record.roomName || "-"}</Typography.Text>,
+        width: 180,
+        render: (value, record) => (
+          <div className="cm-room-tag">
+            <HomeOutlined style={{ color: "#7c3aed" }} />
+            <span>{value || "-"} {record.roomName ? `(${record.roomName})` : ""}</span>
+          </div>
+        ),
       },
       {
         title: "NGƯỜI ĐẠI DIỆN",
         dataIndex: "tenantName",
         key: "tenantName",
-        width: 205,
-        render: (value) => <Typography.Text style={{ color: "#475569" }}>{value || "-"}</Typography.Text>,
+        width: 200,
+        render: (value) => (
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Avatar size={28} style={{ background: "#f5f3ff", color: "#7c3aed", fontWeight: 700 }}>
+              {value?.charAt(0)?.toUpperCase() || <UserOutlined />}
+            </Avatar>
+            <span style={{ fontWeight: 600, color: "#334155" }}>{value || "-"}</span>
+          </div>
+        ),
       },
       {
         title: "THÀNH VIÊN",
         dataIndex: "memberCount",
         key: "memberCount",
         width: 110,
+        align: "center",
+        render: (value) => (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#475569", fontWeight: 600 }}>
+            <TeamOutlined style={{ color: "#64748b" }} /> {value || 1}
+          </span>
+        ),
       },
       {
         title: "GIÁ THUÊ",
         dataIndex: "monthlyRent",
         key: "monthlyRent",
-        render: formatCurrency,
+        render: (value) => <span className="cm-money-text">{formatCurrency(value)}</span>,
       },
       {
         title: "TIỀN CỌC",
         dataIndex: "deposit",
         key: "deposit",
-        render: formatCurrency,
+        render: (value) => <span className="cm-money-text" style={{ color: "#4f46e5" }}>{formatCurrency(value)}</span>,
       },
       {
         title: "NGÀY TẠO",
         dataIndex: "createdAt",
         key: "createdAt",
-        render: formatDate,
+        render: (value) => <span style={{ color: "#64748b", fontSize: 13 }}>{formatDate(value)}</span>,
       },
       {
         title: "NGÀY VÀO",
         dataIndex: "moveInDate",
         key: "moveInDate",
-        render: formatDate,
+        render: (value) => <span style={{ color: "#334155", fontSize: 13 }}>{formatDate(value)}</span>,
       },
       {
         title: "THỜI HẠN",
         dataIndex: "durationMonths",
         key: "durationMonths",
-        render: (value) => `${value} tháng`,
+        render: (value) => <Tag color="purple" style={{ borderRadius: 6, fontWeight: 600 }}>{value} tháng</Tag>,
       },
       {
         title: "HẾT HẠN",
         dataIndex: "endDate",
         key: "endDate",
-        render: formatDate,
+        render: (value) => <span style={{ color: "#334155", fontSize: 13, fontWeight: 600 }}>{formatDate(value)}</span>,
       },
       {
         title: "TRẠNG THÁI",
         dataIndex: "status",
         key: "status",
         render: (status) => {
-          const meta = statusMeta[status] || { label: status };
-          return <Tag bordered={false} icon={status === "active" ? <CheckCircleOutlined /> : <StopOutlined />} style={{ background: status === "active" ? "#dcfce7" : status === "terminated" ? "#fee2e2" : "#f1f5f9", borderRadius: 5, color: status === "active" ? "#15803d" : status === "terminated" ? "#dc2626" : "#64748b", fontWeight: 700, padding: "3px 10px" }}>{meta.label}</Tag>;
+          const meta = statusMeta[status] || { bg: "#f1f5f9", color: "#64748b", label: status };
+          return (
+            <span
+              style={{
+                alignItems: "center",
+                background: meta.bg,
+                border: `1px solid ${meta.bg}`,
+                borderRadius: 8,
+                color: meta.color,
+                display: "inline-flex",
+                fontSize: 12,
+                fontWeight: 700,
+                gap: 5,
+                padding: "4px 10px",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {meta.icon}
+              {meta.label}
+            </span>
+          );
         },
       },
       {
@@ -749,19 +804,49 @@ const ContractManagementPage = () => {
         align: "center",
         width: 175,
         render: (_, record) => (
-          <Space size={7}>
-            <Tooltip title="Xem chi tiết"><Button size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)} style={{ borderRadius: 8, height: 32, width: 32 }} /></Tooltip>
-            <Tooltip title="Xem file hợp đồng"><Button size="small" icon={<FileTextOutlined />} onClick={() => handleViewFile(record)} style={{ borderRadius: 8, height: 32, width: 32 }} /></Tooltip>
-            <Tooltip title="Sửa hợp đồng"><Button size="small" icon={<EditOutlined />} onClick={() => openEditModal(record)} style={{ borderRadius: 8, height: 32, width: 32 }} /></Tooltip>
+          <Space size={6}>
+            <Tooltip title="Xem chi tiết hợp đồng">
+              <Button
+                size="small"
+                className="cm-action-btn view"
+                icon={<EyeOutlined />}
+                onClick={() => handleViewDetail(record)}
+              />
+            </Tooltip>
+            <Tooltip title="Xem nội dung văn bản hợp đồng">
+              <Button
+                size="small"
+                className="cm-action-btn doc"
+                icon={<FileTextOutlined />}
+                onClick={() => handleViewFile(record)}
+              />
+            </Tooltip>
+            <Tooltip title="Chỉnh sửa hợp đồng">
+              <Button
+                size="small"
+                className="cm-action-btn edit"
+                icon={<EditOutlined />}
+                onClick={() => openEditModal(record)}
+              />
+            </Tooltip>
             <Popconfirm
-              title="Xóa hợp đồng này?"
-              description="Không thể xóa hợp đồng đang hiệu lực."
+              title="Xác nhận xóa hợp đồng này?"
+              description="Không thể xóa hợp đồng đang có hiệu lực."
               okText="Xóa"
               cancelText="Hủy"
+              okButtonProps={{ danger: true }}
               onConfirm={() => handleDelete(record)}
               disabled={record.status === "active"}
             >
-              <Tooltip title="Xóa hợp đồng"><Button danger size="small" icon={<DeleteOutlined />} disabled={record.status === "active"} style={{ borderRadius: 8, height: 32, width: 32 }} /></Tooltip>
+              <Tooltip title={record.status === "active" ? "Không thể xóa hợp đồng đang hiệu lực" : "Xóa hợp đồng"}>
+                <Button
+                  danger
+                  size="small"
+                  className="cm-action-btn delete"
+                  icon={<DeleteOutlined />}
+                  disabled={record.status === "active"}
+                />
+              </Tooltip>
             </Popconfirm>
           </Space>
         ),
@@ -771,142 +856,262 @@ const ContractManagementPage = () => {
   );
 
   return (
-    <Space direction="vertical" size={18} className="page-stack" style={{ maxWidth: "100%", margin: "0 auto" }}>
-      <Card styles={{ body: { minHeight: 230, padding: 28 } }} style={heroStyle}>
-        <Row gutter={[18, 18]} align="middle" justify="space-between">
-          <Col xs={24} lg={15}>
-            <Typography.Text style={{ color: "rgba(255,255,255,0.78)", fontSize: 12, fontWeight: 800 }}>TRỌ PLUS ADMIN</Typography.Text>
-            <Typography.Title level={2} style={{ color: "#ffffff", margin: "6px 0 8px", fontSize: 30 }}>Quản lý hợp đồng</Typography.Title>
-            <Typography.Paragraph style={{ color: "rgba(255,255,255,0.86)", marginBottom: 16, maxWidth: 620 }}>Tạo, cập nhật, theo dõi thời hạn và xem chi tiết hợp đồng thuê phòng.</Typography.Paragraph>
-            <Space wrap>
-              <Tag bordered={false} style={{ background: "rgba(255,255,255,0.18)", borderRadius: 999, color: "#ffffff", fontWeight: 800, padding: "4px 14px" }}>{contractStats.total} hợp đồng</Tag>
-              <Tag bordered={false} style={{ background: "rgba(255,255,255,0.18)", borderRadius: 999, color: "#ffffff", fontWeight: 800, padding: "4px 14px" }}>{contractStats.active} đang hiệu lực</Tag>
-              <Tag bordered={false} style={{ background: "rgba(255,255,255,0.18)", borderRadius: 999, color: "#ffffff", fontWeight: 800, padding: "4px 14px" }}>{contractStats.expired} hết hạn</Tag>
-            </Space>
-          </Col>
-          <Col xs={24} lg={9}>
-            <Space wrap style={{ marginTop: 8, width: "100%", justifyContent: "flex-start" }}>
-              <Button icon={<ReloadOutlined />} onClick={refreshAll} style={{ borderRadius: 8, fontWeight: 700, height: 40 }}>Tải lại</Button>
-              <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal} style={{ background: "rgba(255,255,255,0.16)", borderColor: "rgba(255,255,255,0.18)", borderRadius: 8, boxShadow: "none", fontWeight: 800, height: 40 }}>Thêm hợp đồng</Button>
-            </Space>
-          </Col>
-        </Row>
-      </Card>
+    <div className="contract-mgmt-container">
+      {/* Hero Welcome Banner */}
+      <div className="cm-hero-banner">
+        <div className="cm-hero-inner">
+          <div className="cm-hero-left">
+            <div className="cm-hero-badge">
+              <span className="pulse-dot" />
+              <span>HỆ THỐNG QUẢN TRỊ HỢP ĐỒNG</span>
+            </div>
+            <Typography.Title level={2} className="cm-hero-title">
+              Quản Lý Hợp Đồng Thuê Phòng
+            </Typography.Title>
+            <Typography.Paragraph className="cm-hero-subtitle">
+              Tạo mới, theo dõi kỳ hạn hợp đồng, xử lý yêu cầu gia hạn, trả phòng và chốt hóa đơn thanh lý cọc.
+            </Typography.Paragraph>
+          </div>
 
-      <Card style={{ ...panelStyle, background: "#ffffff" }} styles={{ body: { padding: "18px 20px" } }}>
-        <Row gutter={[12, 12]} align="middle" justify="space-between">
-          <Col xs={24} lg={8}><Space><div style={{ ...statIconStyle, background: "#f5edff", color: "#7c3aed", height: 36, width: 36 }}><FilterOutlined /></div><div><Typography.Text strong style={sectionTitleStyle}>Bộ lọc hợp đồng</Typography.Text><br /><Typography.Text style={mutedTextStyle}>Tìm nhanh theo mã, phòng, người đại diện</Typography.Text></div></Space></Col>
-          <Col xs={24} lg={16}><Row gutter={[10, 10]} justify="end"><Col xs={24} md={12}><Input allowClear prefix={<SearchOutlined />} placeholder="Tìm mã hợp đồng, phòng, người đại diện" style={toolbarInputStyle} value={searchText} onChange={(event) => setSearchText(event.target.value)} /></Col><Col xs={12} md={6}><Select value={statusFilter} style={{ ...toolbarInputStyle, width: "100%" }} onChange={setStatusFilter} options={[{ label: "Tất cả trạng thái", value: "all" }, ...statusOptions]} /></Col><Col xs={12} md={6}><Button block icon={<ReloadOutlined />} onClick={resetFilters} style={{ ...toolbarInputStyle, background: "#f3f6fb", borderColor: "#f3f6fb", fontWeight: 700 }}>Đặt lại</Button></Col></Row></Col>
-        </Row>
-      </Card>
+          <div className="cm-hero-right">
+            <Button
+              className="cm-btn-reload"
+              icon={<ReloadOutlined spin={loading} />}
+              onClick={refreshAll}
+              loading={loading}
+            >
+              Tải lại
+            </Button>
+            <Button
+              type="primary"
+              className="cm-btn-add"
+              icon={<PlusOutlined />}
+              onClick={openCreateModal}
+            >
+              Thêm hợp đồng
+            </Button>
+          </div>
+        </div>
+      </div>
 
-      <Card
-        title={<Space><div style={{ ...statIconStyle, background: "#f5edff", color: "#7c3aed", height: 34, width: 34 }}><FileProtectOutlined /></div><div><Typography.Text strong style={sectionTitleStyle}>Danh sách hợp đồng</Typography.Text><br /><Typography.Text type="secondary" style={{ fontSize: 12 }}>Theo dõi các hợp đồng thuê phòng trong hệ thống</Typography.Text></div></Space>}
-        extra={<Tag bordered={false} style={{ background: "#f5edff", borderRadius: 999, color: "#7c3aed", fontWeight: 800, padding: "5px 12px" }}>Hiển thị {filteredContracts.length}/{contracts.length}</Tag>}
-        style={{ ...panelStyle, overflow: "hidden" }}
-        styles={{ body: { padding: 0 }, header: { borderBottom: "1px solid #f1f5f9", minHeight: 74, padding: "12px 20px" } }}
-      >
+      {/* KPI Stats Grid */}
+      <div className="cm-stats-grid">
+        <div className="cm-stat-card">
+          <div className="cm-stat-info">
+            <span className="cm-stat-label">Tổng hợp đồng</span>
+            <span className="cm-stat-value">{contractStats.total}</span>
+            <span className="cm-stat-sub">Toàn bộ hồ sơ hợp đồng</span>
+          </div>
+          <div className="cm-stat-icon-wrap icon-purple">
+            <FileProtectOutlined />
+          </div>
+        </div>
+
+        <div className="cm-stat-card">
+          <div className="cm-stat-info">
+            <span className="cm-stat-label">Đang hiệu lực</span>
+            <span className="cm-stat-value" style={{ color: "#059669" }}>{contractStats.active}</span>
+            <span className="cm-stat-sub">Khách đang thuê hiện tại</span>
+          </div>
+          <div className="cm-stat-icon-wrap icon-emerald">
+            <CheckCircleOutlined />
+          </div>
+        </div>
+
+        <div className="cm-stat-card">
+          <div className="cm-stat-info">
+            <span className="cm-stat-label">Sắp hết hạn</span>
+            <span className="cm-stat-value" style={{ color: "#d97706" }}>{contractStats.expiring}</span>
+            <span className="cm-stat-sub">Cần nhắc nhở / gia hạn</span>
+          </div>
+          <div className="cm-stat-icon-wrap icon-amber">
+            <CalendarOutlined />
+          </div>
+        </div>
+
+        <div className="cm-stat-card">
+          <div className="cm-stat-info">
+            <span className="cm-stat-label">Hết hạn / Chấm dứt</span>
+            <span className="cm-stat-value" style={{ color: "#64748b" }}>{contractStats.expired}</span>
+            <span className="cm-stat-sub">Hợp đồng đã kết thúc</span>
+          </div>
+          <div className="cm-stat-icon-wrap icon-rose">
+            <StopOutlined />
+          </div>
+        </div>
+      </div>
+
+      {/* Filter Toolbar */}
+      <div className="cm-filter-card">
+        <div className="cm-filter-row">
+          <div className="cm-filter-left">
+            <Input
+              allowClear
+              prefix={<SearchOutlined style={{ color: "#94a3b8" }} />}
+              placeholder="Tìm kiếm mã hợp đồng, số phòng, người đại diện..."
+              className="cm-search-input"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+            />
+          </div>
+
+          <div className="cm-filter-controls">
+            <Select
+              value={statusFilter}
+              className="cm-select-filter"
+              onChange={setStatusFilter}
+              options={[{ label: "Tất cả trạng thái", value: "all" }, ...statusOptions]}
+            />
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={resetFilters}
+              className="cm-btn-reset"
+            >
+              Đặt lại
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Contracts Table */}
+      <div className="cm-table-card">
+        <div className="cm-table-header">
+          <h3 className="cm-table-title">
+            <FileProtectOutlined style={{ color: "#7c3aed" }} />
+            Danh Sách Hợp Đồng Thuê Phòng
+          </h3>
+          <span className="cm-count-pill">
+            Hiển thị {filteredContracts.length} / {contracts.length} hợp đồng
+          </span>
+        </div>
+
         <Table
           rowKey="id"
           columns={columns}
           dataSource={filteredContracts}
           loading={loading}
           size="middle"
-          rowClassName={() => "contract-management-row"}
+          className="cm-table"
           locale={{ emptyText: <Empty description="Không có hợp đồng phù hợp" /> }}
-          scroll={{ x: 1600 }}
-          pagination={{ pageSize: 8, showSizeChanger: false, showTotal: (total) => `${total} hợp đồng` }}
+          scroll={{ x: 1650 }}
+          pagination={{
+            pageSize: 8,
+            showSizeChanger: false,
+            showTotal: (total) => `Tổng ${total} hợp đồng`,
+          }}
         />
-      </Card>
+      </div>
 
-      <Card
-        title={
-          <Space>
-            <CalendarOutlined style={{ color: "#f97316" }} />
-            <Typography.Text strong style={sectionTitleStyle}>Hop dong sap het han</Typography.Text>
-          </Space>
-        }
-        extra={<Tag color="orange">{expiringContracts.length} can theo doi</Tag>}
-        style={{ ...panelStyle, overflow: "hidden" }}
-        styles={{ body: { padding: 0 } }}
-      >
-        <Table
-          rowKey="id"
-          columns={expiringColumns}
-          dataSource={expiringContracts}
-          pagination={{ pageSize: 5, showSizeChanger: false }}
-          locale={{ emptyText: <Empty description="Khong co hop dong sap het han" /> }}
-          scroll={{ x: 900 }}
-        />
-      </Card>
+      {/* Expiring Contracts Table */}
+      {expiringContracts.length > 0 && (
+        <div className="cm-table-card">
+          <div className="cm-table-header">
+            <h3 className="cm-table-title">
+              <CalendarOutlined style={{ color: "#f97316" }} />
+              Hợp Đồng Sắp Hết Hạn Cần Theo Dõi
+            </h3>
+            <span className="cm-count-pill orange">
+              {expiringContracts.length} hợp đồng cần xử lý
+            </span>
+          </div>
 
+          <Table
+            rowKey="id"
+            columns={expiringColumns}
+            dataSource={expiringContracts}
+            pagination={{ pageSize: 5, showSizeChanger: false }}
+            locale={{ emptyText: <Empty description="Không có hợp đồng sắp hết hạn" /> }}
+            scroll={{ x: 950 }}
+            className="cm-table"
+          />
+        </div>
+      )}
+
+      {/* Modal Gia hạn / Trả phòng */}
       <Modal
-        title={lifecycleMode === "renew" ? "Xu ly gia han hop dong" : "Tao thu tuc tra phong"}
+        title={
+          <div className="cm-modal-header">
+            <Avatar size={36} style={{ background: lifecycleMode === "renew" ? "#7c3aed" : "#ea580c" }} icon={lifecycleMode === "renew" ? <SyncOutlined /> : <StopOutlined />} />
+            <div>
+              <h4 className="cm-modal-title">{lifecycleMode === "renew" ? "Xử lý gia hạn hợp đồng" : "Tạo thủ tục trả phòng"}</h4>
+              <p className="cm-modal-subtitle">{lifecycleContract?.contractCode}</p>
+            </div>
+          </div>
+        }
         open={Boolean(lifecycleContract)}
         onCancel={closeLifecycleModal}
         onOk={submitLifecycleAction}
         confirmLoading={lifecycleSubmitting}
-        okText="Xac nhan"
-        cancelText="Dong"
-        width={640}
+        okText={lifecycleMode === "renew" ? "Xác nhận gia hạn" : "Tạo thủ tục trả phòng"}
+        cancelText="Đóng"
+        width={650}
       >
         {lifecycleContract ? (
-          <Space direction="vertical" size={14} style={{ width: "100%" }}>
-            <Descriptions bordered size="small" column={1}>
-              <Descriptions.Item label="Hop dong">{lifecycleContract.contractCode}</Descriptions.Item>
-              <Descriptions.Item label="Phong">
-                {lifecycleContract.roomNumber || "-"} - {lifecycleContract.roomName || "-"}
+          <Space direction="vertical" size={16} style={{ width: "100%", marginTop: 8 }}>
+            <Descriptions bordered size="small" column={1} className="cm-descriptions">
+              <Descriptions.Item label="Hợp đồng">{lifecycleContract.contractCode}</Descriptions.Item>
+              <Descriptions.Item label="Phòng">
+                {lifecycleContract.roomNumber || "-"} {lifecycleContract.roomName ? `(${lifecycleContract.roomName})` : ""}
               </Descriptions.Item>
-              <Descriptions.Item label="Nguoi thue">{lifecycleContract.tenantName || "-"}</Descriptions.Item>
-              <Descriptions.Item label="Het han">{formatDate(lifecycleContract.endDate)}</Descriptions.Item>
+              <Descriptions.Item label="Người thuê">{lifecycleContract.tenantName || "-"}</Descriptions.Item>
+              <Descriptions.Item label="Ngày hết hạn">{formatDate(lifecycleContract.endDate)}</Descriptions.Item>
             </Descriptions>
 
             {lifecycleMode === "renew" ? (
-              <div className="form-grid">
-                <Form.Item label="Thoi han moi (thang)">
-                  <InputNumber
-                    min={1}
-                    value={lifecycleForm.durationMonths}
-                    onChange={(value) => setLifecycleForm((current) => ({ ...current, durationMonths: value || 1 }))}
-                    className="full-width-input"
-                  />
-                </Form.Item>
-                <Form.Item label="Gia thue moi">
-                  <InputNumber
-                    min={0}
-                    value={lifecycleForm.monthlyRent}
-                    onChange={(value) => setLifecycleForm((current) => ({ ...current, monthlyRent: value || 0 }))}
-                    className="full-width-input"
-                    addonAfter="VND"
-                  />
-                </Form.Item>
-              </div>
+              <Row gutter={16}>
+                <Col xs={24} md={12}>
+                  <Form.Item label="Thời hạn mới (tháng)">
+                    <InputNumber
+                      min={1}
+                      value={lifecycleForm.durationMonths}
+                      onChange={(value) => setLifecycleForm((current) => ({ ...current, durationMonths: value || 1 }))}
+                      style={{ width: "100%", borderRadius: 8 }}
+                      addonAfter="tháng"
+                    />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item label="Giá thuê mới">
+                    <InputNumber
+                      min={0}
+                      value={lifecycleForm.monthlyRent}
+                      onChange={(value) => setLifecycleForm((current) => ({ ...current, monthlyRent: value || 0 }))}
+                      style={{ width: "100%", borderRadius: 8 }}
+                      addonAfter="VND"
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
             ) : (
-              <Space direction="vertical" size={10} style={{ width: "100%" }}>
-                <Form.Item label="Ngay tra phong">
+              <Space direction="vertical" size={12} style={{ width: "100%" }}>
+                <Form.Item label="Ngày trả phòng">
                   <Input
                     type="date"
                     value={lifecycleForm.checkoutDate}
                     onChange={(event) => setLifecycleForm((current) => ({ ...current, checkoutDate: event.target.value }))}
+                    style={{ borderRadius: 8 }}
                   />
                 </Form.Item>
-                <Descriptions bordered size="small" column={1}>
-                  <Descriptions.Item label="Tai khoan nhan hoan coc">
-                    <Space direction="vertical" size={8} style={{ width: "100%" }}>
+                <Descriptions bordered size="small" column={1} className="cm-descriptions">
+                  <Descriptions.Item label="Tài khoản nhận hoàn cọc">
+                    <Space direction="vertical" size={8} style={{ width: "100%", marginTop: 4 }}>
                       <Input
-                        placeholder="Ten ngan hang"
+                        placeholder="Tên ngân hàng"
                         value={lifecycleForm.refundBankName}
                         onChange={(event) => setLifecycleForm((current) => ({ ...current, refundBankName: event.target.value }))}
+                        style={{ borderRadius: 8 }}
                       />
                       <Input
-                        placeholder="So tai khoan"
+                        placeholder="Số tài khoản"
                         value={lifecycleForm.refundBankAccountNumber}
                         onChange={(event) => setLifecycleForm((current) => ({ ...current, refundBankAccountNumber: event.target.value }))}
+                        style={{ borderRadius: 8 }}
                       />
                       <Input
-                        placeholder="Chu tai khoan"
+                        placeholder="Chủ tài khoản"
                         value={lifecycleForm.refundBankAccountName}
                         onChange={(event) => setLifecycleForm((current) => ({ ...current, refundBankAccountName: event.target.value }))}
+                        style={{ borderRadius: 8 }}
                       />
                     </Space>
                   </Descriptions.Item>
@@ -914,283 +1119,328 @@ const ContractManagementPage = () => {
               </Space>
             )}
 
-            <Form.Item label="Ghi chu">
+            <Form.Item label="Ghi chú">
               <Input.TextArea
                 rows={3}
                 value={lifecycleForm.note}
                 onChange={(event) => setLifecycleForm((current) => ({ ...current, note: event.target.value }))}
+                placeholder="Nhập ghi chú chi tiết nếu có..."
+                style={{ borderRadius: 8 }}
               />
             </Form.Item>
           </Space>
         ) : null}
       </Modal>
 
+      {/* Modal Chốt điện nước & Hóa đơn cuối */}
       <Modal
-        title="Chot dien nuoc va tao hoa don cuoi"
+        title={
+          <div className="cm-modal-header">
+            <Avatar size={36} style={{ background: "#0284c7" }} icon={<FileTextOutlined />} />
+            <div>
+              <h4 className="cm-modal-title">Chốt điện nước và tạo hóa đơn cuối</h4>
+              <p className="cm-modal-subtitle">Phòng {finalInvoiceContract?.roomNumber} - {finalInvoiceContract?.contractCode}</p>
+            </div>
+          </div>
+        }
         open={Boolean(finalInvoiceContract)}
         onCancel={closeFinalInvoiceModal}
         onOk={handleCreateFinalInvoice}
         confirmLoading={finalInvoiceLoading}
-        okText="Tao hoa don cuoi"
-        cancelText="Dong"
+        okText="Tạo hóa đơn cuối"
+        cancelText="Đóng"
         width={760}
       >
         {finalInvoiceContract ? (
-          <Space direction="vertical" size={14} style={{ width: "100%" }}>
+          <Space direction="vertical" size={14} style={{ width: "100%", marginTop: 8 }}>
             <Alert
               showIcon
               type="info"
-              message="Hoa don cuoi dung de chot dien nuoc, phi hu hong/phat sinh truoc khi hoan tat tra phong."
+              message="Hóa đơn cuối dùng để chốt chỉ số điện nước, phí phát sinh / hư hại trước khi đối soát và hoàn cọc."
               style={{ borderRadius: 8 }}
             />
-            <Descriptions bordered size="small" column={2}>
-              <Descriptions.Item label="Hop dong">{finalInvoiceContract.contractCode}</Descriptions.Item>
-              <Descriptions.Item label="Phong">{finalInvoiceContract.roomNumber || "-"}</Descriptions.Item>
-              <Descriptions.Item label="Nguoi thue">{finalInvoiceContract.tenantName || "-"}</Descriptions.Item>
-              <Descriptions.Item label="Trang thai">{statusMeta[finalInvoiceContract.status]?.label || finalInvoiceContract.status}</Descriptions.Item>
+            <Descriptions bordered size="small" column={2} className="cm-descriptions">
+              <Descriptions.Item label="Hợp đồng">{finalInvoiceContract.contractCode}</Descriptions.Item>
+              <Descriptions.Item label="Phòng">{finalInvoiceContract.roomNumber || "-"}</Descriptions.Item>
+              <Descriptions.Item label="Người thuê">{finalInvoiceContract.tenantName || "-"}</Descriptions.Item>
+              <Descriptions.Item label="Trạng thái">
+                <Tag color={statusMeta[finalInvoiceContract.status]?.color || "default"}>
+                  {statusMeta[finalInvoiceContract.status]?.label || finalInvoiceContract.status}
+                </Tag>
+              </Descriptions.Item>
             </Descriptions>
 
+            <div className="cm-form-section-title">
+              <CalendarOutlined style={{ color: "#0284c7" }} /> Kỳ tính phí và hạn thanh toán
+            </div>
             <Row gutter={12}>
               <Col xs={24} md={6}>
-                <Form.Item label="Thang">
+                <Form.Item label="Tháng">
                   <InputNumber
                     min={1}
                     max={12}
                     value={finalInvoiceForm.month}
                     onChange={(value) => setFinalInvoiceForm((current) => ({ ...current, month: value || 1 }))}
-                    className="full-width-input"
+                    style={{ width: "100%", borderRadius: 8 }}
                   />
                 </Form.Item>
               </Col>
               <Col xs={24} md={6}>
-                <Form.Item label="Nam">
+                <Form.Item label="Năm">
                   <InputNumber
                     min={2000}
                     value={finalInvoiceForm.year}
                     onChange={(value) => setFinalInvoiceForm((current) => ({ ...current, year: value || new Date().getFullYear() }))}
-                    className="full-width-input"
+                    style={{ width: "100%", borderRadius: 8 }}
                   />
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
-                <Form.Item label="Han thanh toan">
+                <Form.Item label="Hạn thanh toán">
                   <Input
                     type="date"
                     value={finalInvoiceForm.dueDate}
                     onChange={(event) => setFinalInvoiceForm((current) => ({ ...current, dueDate: event.target.value }))}
+                    style={{ borderRadius: 8 }}
                   />
                 </Form.Item>
               </Col>
+            </Row>
+
+            <div className="cm-form-section-title">
+              <CheckCircleOutlined style={{ color: "#059669" }} /> Chỉ số điện nước
+            </div>
+            <Row gutter={12}>
               <Col xs={24} md={12}>
-                <Form.Item label="Chi so dien cu">
+                <Form.Item label="Chỉ số điện cũ">
                   <InputNumber
                     min={0}
                     value={finalInvoiceForm.electricityOld}
                     onChange={(value) => setFinalInvoiceForm((current) => ({ ...current, electricityOld: value || 0 }))}
-                    className="full-width-input"
+                    style={{ width: "100%", borderRadius: 8 }}
                   />
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
-                <Form.Item label="Chi so dien moi">
+                <Form.Item label="Chỉ số điện mới">
                   <InputNumber
                     min={0}
                     value={finalInvoiceForm.electricityNew}
                     onChange={(value) => setFinalInvoiceForm((current) => ({ ...current, electricityNew: value || 0 }))}
-                    className="full-width-input"
+                    style={{ width: "100%", borderRadius: 8 }}
                   />
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
-                <Form.Item label="Chi so nuoc cu">
+                <Form.Item label="Chỉ số nước cũ">
                   <InputNumber
                     min={0}
                     value={finalInvoiceForm.waterOld}
                     onChange={(value) => setFinalInvoiceForm((current) => ({ ...current, waterOld: value || 0 }))}
-                    className="full-width-input"
+                    style={{ width: "100%", borderRadius: 8 }}
                   />
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
-                <Form.Item label="Chi so nuoc moi">
+                <Form.Item label="Chỉ số nước mới">
                   <InputNumber
                     min={0}
                     value={finalInvoiceForm.waterNew}
                     onChange={(value) => setFinalInvoiceForm((current) => ({ ...current, waterNew: value || 0 }))}
-                    className="full-width-input"
+                    style={{ width: "100%", borderRadius: 8 }}
                   />
                 </Form.Item>
               </Col>
+            </Row>
+
+            <div className="cm-form-section-title">
+              <FileDoneOutlined style={{ color: "#7c3aed" }} /> Chi phí phát sinh
+            </div>
+            <Row gutter={12}>
               <Col xs={24} md={8}>
-                <Form.Item label="Tien phong phat sinh">
+                <Form.Item label="Tiền phòng phát sinh">
                   <InputNumber
                     min={0}
                     value={finalInvoiceForm.rentAmount}
                     onChange={(value) => setFinalInvoiceForm((current) => ({ ...current, rentAmount: value || 0 }))}
-                    className="full-width-input"
+                    style={{ width: "100%", borderRadius: 8 }}
                     addonAfter="VND"
                   />
                 </Form.Item>
               </Col>
               <Col xs={24} md={8}>
-                <Form.Item label="Phi dich vu phat sinh">
+                <Form.Item label="Phí dịch vụ phát sinh">
                   <InputNumber
                     min={0}
                     value={finalInvoiceForm.serviceAmount}
                     onChange={(value) => setFinalInvoiceForm((current) => ({ ...current, serviceAmount: value || 0 }))}
-                    className="full-width-input"
+                    style={{ width: "100%", borderRadius: 8 }}
                     addonAfter="VND"
                   />
                 </Form.Item>
               </Col>
               <Col xs={24} md={8}>
-                <Form.Item label="Phi khac/hu hong">
+                <Form.Item label="Phí khác / hư hại">
                   <InputNumber
                     min={0}
                     value={finalInvoiceForm.otherAmount}
                     onChange={(value) => setFinalInvoiceForm((current) => ({ ...current, otherAmount: value || 0 }))}
-                    className="full-width-input"
+                    style={{ width: "100%", borderRadius: 8 }}
                     addonAfter="VND"
                   />
                 </Form.Item>
               </Col>
               <Col xs={24} md={8}>
-                <Form.Item label="Giam tru">
+                <Form.Item label="Giảm trừ">
                   <InputNumber
                     min={0}
                     value={finalInvoiceForm.discountAmount}
                     onChange={(value) => setFinalInvoiceForm((current) => ({ ...current, discountAmount: value || 0 }))}
-                    className="full-width-input"
+                    style={{ width: "100%", borderRadius: 8 }}
                     addonAfter="VND"
                   />
                 </Form.Item>
               </Col>
             </Row>
 
-            <Form.Item label="Ghi chu hoa don cuoi">
+            <Form.Item label="Ghi chú hóa đơn cuối">
               <Input.TextArea
                 rows={3}
                 value={finalInvoiceForm.note}
                 onChange={(event) => setFinalInvoiceForm((current) => ({ ...current, note: event.target.value }))}
-                placeholder="VD: chot dien nuoc ngay ban giao, phi ve sinh, hu hong..."
+                placeholder="VD: Chốt điện nước ngày bàn giao, phí vệ sinh, hư hại trang thiết bị..."
+                style={{ borderRadius: 8 }}
               />
             </Form.Item>
           </Space>
         ) : null}
       </Modal>
 
+      {/* Modal Hoàn tất trả phòng & Đối soát cọc */}
       <Modal
-        title="Hoan tat tra phong va doi soat coc"
+        title={
+          <div className="cm-modal-header">
+            <Avatar size={36} style={{ background: "#059669" }} icon={<CheckCircleOutlined />} />
+            <div>
+              <h4 className="cm-modal-title">Hoàn tất trả phòng và đối soát cọc</h4>
+              <p className="cm-modal-subtitle">{completeCheckoutContract?.contractCode}</p>
+            </div>
+          </div>
+        }
         open={Boolean(completeCheckoutContract)}
         onCancel={closeCompleteCheckoutModal}
         onOk={handleCompleteCheckout}
         confirmLoading={completeCheckoutLoading}
-        okText="Hoan tat tra phong"
-        cancelText="Dong"
-        width={720}
+        okText="Hoàn tất trả phòng"
+        cancelText="Đóng"
+        width={740}
       >
         {completeCheckoutContract ? (
-          <Space direction="vertical" size={14} style={{ width: "100%" }}>
+          <Space direction="vertical" size={14} style={{ width: "100%", marginTop: 8 }}>
             <Alert
               showIcon
               type="warning"
-              message="Chi hoan tat tra phong sau khi da chot hoa don cuoi, khach khong con cong no va admin da doi soat tien coc."
+              message="Chỉ hoàn tất sau khi đã chốt hóa đơn cuối, kiểm tra phòng và đối soát tiền cọc xong."
               style={{ borderRadius: 8 }}
             />
-            <Descriptions bordered size="small" column={2}>
-              <Descriptions.Item label="Hop dong">{completeCheckoutContract.contractCode}</Descriptions.Item>
-              <Descriptions.Item label="Phong">{completeCheckoutContract.roomNumber || "-"}</Descriptions.Item>
-              <Descriptions.Item label="Nguoi thue">{completeCheckoutContract.tenantName || "-"}</Descriptions.Item>
-              <Descriptions.Item label="Tien coc hop dong">{formatCurrency(completeCheckoutContract.deposit)}</Descriptions.Item>
-              <Descriptions.Item label="Ngan hang">{completeCheckoutForm.refundBankName || "-"}</Descriptions.Item>
-              <Descriptions.Item label="So tai khoan">{completeCheckoutForm.refundBankAccountNumber || "-"}</Descriptions.Item>
-              <Descriptions.Item label="Chu tai khoan" span={2}>
+            <Descriptions bordered size="small" column={2} className="cm-descriptions">
+              <Descriptions.Item label="Hợp đồng">{completeCheckoutContract.contractCode}</Descriptions.Item>
+              <Descriptions.Item label="Phòng">{completeCheckoutContract.roomNumber || "-"}</Descriptions.Item>
+              <Descriptions.Item label="Người thuê">{completeCheckoutContract.tenantName || "-"}</Descriptions.Item>
+              <Descriptions.Item label="Tiền cọc ban đầu">{formatCurrency(completeCheckoutContract.deposit)}</Descriptions.Item>
+              <Descriptions.Item label="Ngân hàng">{completeCheckoutForm.refundBankName || "-"}</Descriptions.Item>
+              <Descriptions.Item label="Số tài khoản">{completeCheckoutForm.refundBankAccountNumber || "-"}</Descriptions.Item>
+              <Descriptions.Item label="Chủ tài khoản" span={2}>
                 {completeCheckoutForm.refundBankAccountName || "-"}
               </Descriptions.Item>
             </Descriptions>
 
             <Row gutter={12}>
               <Col xs={24} md={12}>
-                <Form.Item label="Trang thai hoan coc">
+                <Form.Item label="Trạng thái hoàn cọc">
                   <Select
                     value={completeCheckoutForm.refundStatus}
                     onChange={(value) => setCompleteCheckoutForm((current) => ({ ...current, refundStatus: value }))}
+                    style={{ borderRadius: 8 }}
                     options={[
-                      { label: "Khong can hoan", value: "not_required" },
-                      { label: "Cho hoan coc", value: "pending" },
-                      { label: "Da hoan coc", value: "refunded" },
-                      { label: "Da khau tru het coc", value: "deducted" },
-                      { label: "Khach con phai tra them", value: "extra_charge_required" },
+                      { label: "Không cần hoàn cọc", value: "not_required" },
+                      { label: "Chờ hoàn cọc", value: "pending" },
+                      { label: "Đã hoàn cọc", value: "refunded" },
+                      { label: "Đã khấu trừ hết cọc", value: "deducted" },
+                      { label: "Khách còn phải trả thêm", value: "extra_charge_required" },
                     ]}
                   />
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
-                <Form.Item label="So tien hoan coc">
+                <Form.Item label="Số tiền hoàn cọc">
                   <InputNumber
                     min={0}
                     value={completeCheckoutForm.refundAmount}
                     onChange={(value) => setCompleteCheckoutForm((current) => ({ ...current, refundAmount: value || 0 }))}
-                    className="full-width-input"
+                    style={{ width: "100%", borderRadius: 8 }}
                     addonAfter="VND"
                   />
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
-                <Form.Item label="So tien khau tru">
+                <Form.Item label="Số tiền khấu trừ">
                   <InputNumber
                     min={0}
                     value={completeCheckoutForm.refundDeductionAmount}
                     onChange={(value) =>
                       setCompleteCheckoutForm((current) => ({ ...current, refundDeductionAmount: value || 0 }))
                     }
-                    className="full-width-input"
+                    style={{ width: "100%", borderRadius: 8 }}
                     addonAfter="VND"
                   />
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
-                <Form.Item label="Tien khach con phai tra them">
+                <Form.Item label="Tiền khách phải trả thêm">
                   <InputNumber
                     min={0}
                     value={completeCheckoutForm.refundExtraChargeAmount}
                     onChange={(value) =>
                       setCompleteCheckoutForm((current) => ({ ...current, refundExtraChargeAmount: value || 0 }))
                     }
-                    className="full-width-input"
+                    style={{ width: "100%", borderRadius: 8 }}
                     addonAfter="VND"
                   />
                 </Form.Item>
               </Col>
             </Row>
 
-            <Form.Item label="Cap nhat tai khoan nhan hoan coc neu can">
+            <Form.Item label="Cập nhật tài khoản nhận hoàn cọc nếu có thay đổi">
               <Space direction="vertical" size={8} style={{ width: "100%" }}>
                 <Input
-                  placeholder="Ten ngan hang"
+                  placeholder="Tên ngân hàng"
                   value={completeCheckoutForm.refundBankName}
                   onChange={(event) =>
                     setCompleteCheckoutForm((current) => ({ ...current, refundBankName: event.target.value }))
                   }
+                  style={{ borderRadius: 8 }}
                 />
                 <Input
-                  placeholder="So tai khoan"
+                  placeholder="Số tài khoản"
                   value={completeCheckoutForm.refundBankAccountNumber}
                   onChange={(event) =>
                     setCompleteCheckoutForm((current) => ({ ...current, refundBankAccountNumber: event.target.value }))
                   }
+                  style={{ borderRadius: 8 }}
                 />
                 <Input
-                  placeholder="Chu tai khoan"
+                  placeholder="Chủ tài khoản"
                   value={completeCheckoutForm.refundBankAccountName}
                   onChange={(event) =>
                     setCompleteCheckoutForm((current) => ({ ...current, refundBankAccountName: event.target.value }))
                   }
+                  style={{ borderRadius: 8 }}
                 />
               </Space>
             </Form.Item>
 
-            <Form.Item label="Bien lai chuyen khoan hoan coc">
+            <Form.Item label="Biên lai chuyển khoản hoàn cọc">
               <Upload
                 accept="image/png,image/jpeg,image/webp"
                 customRequest={handleRefundProofUpload}
@@ -1200,44 +1450,57 @@ const ContractManagementPage = () => {
                 onChange={({ fileList }) => setRefundProofFileList(fileList)}
               >
                 {refundProofFileList.length >= 5 ? null : (
-                  <button type="button" style={{ border: 0, background: "transparent", cursor: "pointer" }}>
-                    <UploadOutlined />
-                    <div style={{ marginTop: 8 }}>Tai bien lai</div>
+                  <button type="button" style={{ border: 0, background: "transparent", cursor: "pointer", color: "#64748b" }}>
+                    <UploadOutlined style={{ fontSize: 18, color: "#7c3aed" }} />
+                    <div style={{ marginTop: 8, fontSize: 12, fontWeight: 600 }}>Tải biên lai</div>
                   </button>
                 )}
               </Upload>
             </Form.Item>
 
-            <Form.Item label="Ghi chu doi soat">
+            <Form.Item label="Ghi chú đối soát">
               <Input.TextArea
                 rows={3}
                 value={completeCheckoutForm.note}
                 onChange={(event) => setCompleteCheckoutForm((current) => ({ ...current, note: event.target.value }))}
+                placeholder="Ghi chú đối soát cọc..."
+                style={{ borderRadius: 8 }}
               />
             </Form.Item>
           </Space>
         ) : null}
       </Modal>
 
+      {/* Modal Tạo / Sửa hợp đồng */}
       <Modal
         title={
-          <Space>
+          <div className="cm-modal-header">
             <Avatar size={36} style={{ background: "#7c3aed" }} icon={<FileProtectOutlined />} />
-            <div><Typography.Text strong>{editingContract ? "Sửa hợp đồng" : "Thêm hợp đồng"}</Typography.Text><br /><Typography.Text type="secondary" style={{ fontSize: 12 }}>{editingContract ? editingContract.contractCode : "Tạo hợp đồng mới cho phòng"}</Typography.Text></div>
-          </Space>
+            <div>
+              <h4 className="cm-modal-title">{editingContract ? "Chỉnh sửa hợp đồng" : "Tạo hợp đồng thuê mới"}</h4>
+              <p className="cm-modal-subtitle">{editingContract ? editingContract.contractCode : "Thiết lập hợp đồng thuê phòng cho khách"}</p>
+            </div>
+          </div>
         }
         open={modalOpen}
         onCancel={closeModal}
         onOk={() => form.submit()}
         confirmLoading={submitting}
-        okText={editingContract ? "Lưu" : "Tạo hợp đồng"}
+        okText={editingContract ? "Lưu thay đổi" : "Tạo hợp đồng"}
         cancelText="Hủy"
         width={820}
       >
-        <Alert showIcon type="info" message={editingContract ? "Cập nhật thông tin hợp đồng" : "Chọn người đại diện để tự động điền thông tin phòng"} style={{ marginBottom: 18, borderRadius: 8 }} />
+        <Alert
+          showIcon
+          type="info"
+          message={editingContract ? "Cập nhật thông tin hợp đồng thuê phòng" : "Chọn người đại diện để hệ thống tự động điền thông tin phòng và người thuê"}
+          style={{ marginBottom: 18, borderRadius: 8 }}
+        />
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
-          <Space><TeamOutlined style={{ color: "#7c3aed" }} /><Typography.Text strong>Thông tin người thuê</Typography.Text></Space>
-          <Divider style={{ margin: "12px 0 16px" }} />
+          <div className="cm-form-section-title">
+            <TeamOutlined style={{ color: "#7c3aed" }} /> Thông tin người thuê và phòng
+          </div>
+          <Divider className="cm-form-divider" />
           <Form.Item name="representativePicker" label="Phòng - Người đại diện">
             <Select
               options={representativeOptions}
@@ -1245,6 +1508,7 @@ const ContractManagementPage = () => {
               showSearch
               optionFilterProp="label"
               onChange={handleRepresentativeChange}
+              style={{ borderRadius: 8 }}
             />
           </Form.Item>
           <Form.Item name="tenant" hidden rules={[{ required: true }]}>
@@ -1254,100 +1518,138 @@ const ContractManagementPage = () => {
             <Input />
           </Form.Item>
 
-          <Space><CalendarOutlined style={{ color: "#2563eb" }} /><Typography.Text strong>Thông tin hợp đồng</Typography.Text></Space>
-          <Divider style={{ margin: "12px 0 16px" }} />
-          <div className="form-grid">
-            <Form.Item name="contractCode" label="Mã hợp đồng" rules={[{ required: true }]}>
-              <Input placeholder="VD: HDT-2026-001" />
-            </Form.Item>
-            <Form.Item name="memberCount" label="Tổng thành viên">
-              <InputNumber min={1} className="full-width-input" disabled />
-            </Form.Item>
-            <Form.Item name="monthlyRent" label="Giá thuê" rules={[{ required: true }]}>
-              <InputNumber min={0} className="full-width-input" addonAfter="VND" />
-            </Form.Item>
-            <Form.Item name="deposit" label="Tiền cọc">
-              <InputNumber min={0} className="full-width-input" addonAfter="VND" />
-            </Form.Item>
-            <Form.Item name="moveInDate" label="Ngày vào ở" rules={[{ required: true }]}>
-              <DatePicker className="full-width-input" format="DD/MM/YYYY" onChange={updateEndDate} />
-            </Form.Item>
-            <Form.Item name="durationMonths" label="Thời hạn hợp đồng" rules={[{ required: true }]}>
-              <InputNumber min={1} className="full-width-input" addonAfter="tháng" onChange={updateEndDate} />
-            </Form.Item>
-            <Form.Item name="endDate" label="Hết hạn hợp đồng" rules={[{ required: true }]}>
-              <DatePicker className="full-width-input" format="DD/MM/YYYY" />
-            </Form.Item>
-            <Form.Item name="status" label="Trạng thái" rules={[{ required: true }]}>
-              <Select options={statusOptions} />
-            </Form.Item>
+          <div className="cm-form-section-title">
+            <CalendarOutlined style={{ color: "#2563eb" }} /> Điều khoản và giá trị hợp đồng
           </div>
-          <Form.Item name="terms" label="Điều khoản / ghi chú">
-            <Input.TextArea rows={4} />
+          <Divider className="cm-form-divider" />
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item name="contractCode" label="Mã hợp đồng" rules={[{ required: true, message: "Vui lòng nhập mã hợp đồng!" }]}>
+                <Input placeholder="VD: HDT-2026-001" style={{ borderRadius: 8 }} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="memberCount" label="Tổng thành viên">
+                <InputNumber min={1} style={{ width: "100%", borderRadius: 8 }} disabled />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="monthlyRent" label="Giá thuê" rules={[{ required: true, message: "Vui lòng nhập giá thuê!" }]}>
+                <InputNumber min={0} style={{ width: "100%", borderRadius: 8 }} addonAfter="VND" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="deposit" label="Tiền cọc" rules={[{ required: true, message: "Vui lòng nhập tiền cọc!" }]}>
+                <InputNumber min={0} style={{ width: "100%", borderRadius: 8 }} addonAfter="VND" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="moveInDate" label="Ngày vào ở" rules={[{ required: true, message: "Vui lòng chọn ngày vào ở!" }]}>
+                <DatePicker style={{ width: "100%", borderRadius: 8 }} format="DD/MM/YYYY" onChange={updateEndDate} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="durationMonths" label="Thời hạn hợp đồng" rules={[{ required: true, message: "Vui lòng nhập thời hạn!" }]}>
+                <InputNumber min={1} style={{ width: "100%", borderRadius: 8 }} addonAfter="tháng" onChange={updateEndDate} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="endDate" label="Hết hạn hợp đồng" rules={[{ required: true, message: "Vui lòng chọn ngày hết hạn!" }]}>
+                <DatePicker style={{ width: "100%", borderRadius: 8 }} format="DD/MM/YYYY" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="status" label="Trạng thái" rules={[{ required: true }]}>
+                <Select options={statusOptions} style={{ borderRadius: 8 }} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item name="terms" label="Điều khoản / Ghi chú hợp đồng">
+            <Input.TextArea rows={4} placeholder="Nhập các điều khoản quy định riêng nếu có..." style={{ borderRadius: 8 }} />
           </Form.Item>
           {editingContract?.status === "revision_requested" ? (
-            <Form.Item name="revisionResponse" label="Phản hồi yêu cầu chỉnh sửa">
-              <Input.TextArea rows={3} placeholder="VD: Đã cập nhật điều khoản theo nội dung khách yêu cầu" />
+            <Form.Item name="revisionResponse" label="Phản hồi yêu cầu chỉnh sửa từ khách">
+              <Input.TextArea rows={3} placeholder="VD: Đã cập nhật điều khoản theo nội dung khách yêu cầu" style={{ borderRadius: 8 }} />
             </Form.Item>
           ) : null}
         </Form>
       </Modal>
 
+      {/* Modal Chi tiết hợp đồng */}
       <Modal
-        title={<Space><Avatar size={36} style={{ background: "#7c3aed" }} icon={<FileProtectOutlined />} /><div><Typography.Text strong>Chi tiết hợp đồng</Typography.Text><br /><Typography.Text type="secondary" style={{ fontSize: 12 }}>{detailContract?.contractCode || "Thông tin hợp đồng thuê phòng"}</Typography.Text></div></Space>}
+        title={
+          <div className="cm-modal-header">
+            <Avatar size={36} style={{ background: "#7c3aed" }} icon={<FileProtectOutlined />} />
+            <div>
+              <h4 className="cm-modal-title">Chi tiết hợp đồng</h4>
+              <p className="cm-modal-subtitle">{detailContract?.contractCode || "Thông tin chi tiết hợp đồng thuê phòng"}</p>
+            </div>
+          </div>
+        }
         open={detailOpen}
         onCancel={() => setDetailOpen(false)}
         footer={[
-          <Button key="close" onClick={() => setDetailOpen(false)}>
+          <Button key="close" type="primary" onClick={() => setDetailOpen(false)} style={{ borderRadius: 8 }}>
             Đóng
           </Button>,
         ]}
         width={820}
       >
         {detailContract && (
-          <>
-          <Alert showIcon type={detailContract.status === "active" ? "success" : "info"} message={`Trạng thái: ${statusMeta[detailContract.status]?.label || "-"}`} style={{ marginBottom: 18, borderRadius: 8 }} />
-          <Space><TeamOutlined style={{ color: "#7c3aed" }} /><Typography.Text strong>Thông tin người thuê và phòng</Typography.Text></Space>
-          <Divider style={{ margin: "12px 0 16px" }} />
-          <Descriptions bordered size="small" column={2}>
-            <Descriptions.Item label="Mã hợp đồng">{detailContract.contractCode}</Descriptions.Item>
-            <Descriptions.Item label="Trạng thái">
-              <Tag bordered={false} color={statusMeta[detailContract.status]?.color}>
-                {statusMeta[detailContract.status]?.label}
-              </Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="Phòng">
-              {detailContract.roomNumber} - {detailContract.roomName}
-            </Descriptions.Item>
-            <Descriptions.Item label="Tầng">{detailContract.roomFloor}</Descriptions.Item>
-            <Descriptions.Item label="Người đại diện">{detailContract.tenantName}</Descriptions.Item>
-            <Descriptions.Item label="Liên hệ">
-              {detailContract.tenantPhone || detailContract.tenantEmail || "-"}
-            </Descriptions.Item>
-            <Descriptions.Item label="Tổng thành viên">{detailContract.memberCount}</Descriptions.Item>
-          </Descriptions>
-          <Space style={{ marginTop: 20 }}><CalendarOutlined style={{ color: "#2563eb" }} /><Typography.Text strong>Giá trị và thời hạn</Typography.Text></Space>
-          <Divider style={{ margin: "12px 0 16px" }} />
-          <Descriptions bordered size="small" column={2}>
-            <Descriptions.Item label="Giá thuê">{formatCurrency(detailContract.monthlyRent)}</Descriptions.Item>
-            <Descriptions.Item label="Tiền cọc">{formatCurrency(detailContract.deposit)}</Descriptions.Item>
-            <Descriptions.Item label="Ngày tạo">{formatDate(detailContract.createdAt)}</Descriptions.Item>
-            <Descriptions.Item label="Ngày vào ở">{formatDate(detailContract.moveInDate)}</Descriptions.Item>
-            <Descriptions.Item label="Thời hạn">{detailContract.durationMonths} tháng</Descriptions.Item>
-            <Descriptions.Item label="Hết hạn">{formatDate(detailContract.endDate)}</Descriptions.Item>
-            <Descriptions.Item label="Điều khoản" span={2}>
-              {detailContract.terms || "-"}
-            </Descriptions.Item>
-            {detailContract.revisionRequests?.length ? (
-              <Descriptions.Item label="Yêu cầu chỉnh sửa gần nhất" span={2}>
-                {detailContract.revisionRequests[detailContract.revisionRequests.length - 1]?.message || "-"}
+          <Space direction="vertical" size={16} style={{ width: "100%", marginTop: 8 }}>
+            <Alert
+              showIcon
+              type={detailContract.status === "active" ? "success" : "info"}
+              message={`Trạng thái hợp đồng: ${statusMeta[detailContract.status]?.label || detailContract.status}`}
+              style={{ borderRadius: 8 }}
+            />
+
+            <div className="cm-form-section-title">
+              <TeamOutlined style={{ color: "#7c3aed" }} /> Thông tin người thuê và phòng
+            </div>
+            <Descriptions bordered size="small" column={2} className="cm-descriptions">
+              <Descriptions.Item label="Mã hợp đồng">
+                <span className="cm-code-badge">{detailContract.contractCode}</span>
               </Descriptions.Item>
-            ) : null}
-          </Descriptions>
-          </>
+              <Descriptions.Item label="Trạng thái">
+                <Tag color={statusMeta[detailContract.status]?.color || "default"} style={{ borderRadius: 6, fontWeight: 700 }}>
+                  {statusMeta[detailContract.status]?.label || detailContract.status}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Phòng">
+                {detailContract.roomNumber} - {detailContract.roomName}
+              </Descriptions.Item>
+              <Descriptions.Item label="Tầng">{detailContract.roomFloor || "-"}</Descriptions.Item>
+              <Descriptions.Item label="Người đại diện">{detailContract.tenantName}</Descriptions.Item>
+              <Descriptions.Item label="Liên hệ">
+                {detailContract.tenantPhone || detailContract.tenantEmail || "-"}
+              </Descriptions.Item>
+              <Descriptions.Item label="Tổng thành viên">{detailContract.memberCount || 1} người</Descriptions.Item>
+            </Descriptions>
+
+            <div className="cm-form-section-title">
+              <CalendarOutlined style={{ color: "#2563eb" }} /> Giá trị và thời hạn hợp đồng
+            </div>
+            <Descriptions bordered size="small" column={2} className="cm-descriptions">
+              <Descriptions.Item label="Giá thuê">{formatCurrency(detailContract.monthlyRent)}</Descriptions.Item>
+              <Descriptions.Item label="Tiền cọc">{formatCurrency(detailContract.deposit)}</Descriptions.Item>
+              <Descriptions.Item label="Ngày tạo">{formatDate(detailContract.createdAt)}</Descriptions.Item>
+              <Descriptions.Item label="Ngày vào ở">{formatDate(detailContract.moveInDate)}</Descriptions.Item>
+              <Descriptions.Item label="Thời hạn">{detailContract.durationMonths} tháng</Descriptions.Item>
+              <Descriptions.Item label="Hết hạn">{formatDate(detailContract.endDate)}</Descriptions.Item>
+              <Descriptions.Item label="Điều khoản" span={2}>
+                {detailContract.terms || "-"}
+              </Descriptions.Item>
+              {detailContract.revisionRequests?.length ? (
+                <Descriptions.Item label="Yêu cầu chỉnh sửa gần nhất" span={2}>
+                  {detailContract.revisionRequests[detailContract.revisionRequests.length - 1]?.message || "-"}
+                </Descriptions.Item>
+              ) : null}
+            </Descriptions>
+          </Space>
         )}
       </Modal>
-    </Space>
+    </div>
   );
 };
 

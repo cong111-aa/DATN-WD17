@@ -1,0 +1,574 @@
+/* ==========================================================================
+   Invoice Management - Modern Theme
+   ========================================================================== */
+
+:root {
+  --im-primary: #0284c7;
+  --im-primary-dark: #0369a1;
+  --im-primary-light: #f0f9ff;
+  --im-accent-emerald: #059669;
+  --im-accent-amber: #d97706;
+  --im-accent-rose: #e11d48;
+  --im-accent-violet: #7c3aed;
+  --im-accent-indigo: #4f46e5;
+
+  --im-card-bg: #ffffff;
+  --im-card-border: #e2e8f0;
+  --im-card-radius: 16px;
+  --im-card-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
+  --im-card-shadow-hover: 0 16px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+
+  --im-text-main: #0f172a;
+  --im-text-muted: #64748b;
+  --im-text-subtle: #94a3b8;
+}
+
+/* Page Container */
+.invoice-mgmt-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px;
+  max-width: 1440px;
+  margin: 0 auto;
+  animation: imFadeIn 0.35s ease-out;
+}
+
+@keyframes imFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==========================================================================
+   Hero Banner
+   ========================================================================== */
+.im-hero-banner {
+  background: linear-gradient(135deg, #0f172a 0%, #0c4a6e 40%, #0284c7 80%, #38bdf8 100%);
+  border-radius: var(--im-card-radius);
+  padding: 28px 32px;
+  color: #ffffff;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 10px 30px -5px rgba(2, 132, 199, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.im-hero-banner::before {
+  content: "";
+  position: absolute;
+  top: -80px;
+  right: -60px;
+  width: 340px;
+  height: 340px;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.35) 0%, rgba(56, 189, 248, 0) 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.im-hero-banner::after {
+  content: "";
+  position: absolute;
+  bottom: -60px;
+  left: 25%;
+  width: 260px;
+  height: 260px;
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.25) 0%, rgba(14, 165, 233, 0) 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.im-hero-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  position: relative;
+  z-index: 2;
+  flex-wrap: wrap;
+}
+
+.im-hero-left {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.im-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #bae6fd;
+  width: fit-content;
+}
+
+.im-hero-badge .pulse-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #38bdf8;
+  border-radius: 50%;
+  box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7);
+  animation: imPulse 2s infinite;
+}
+
+@keyframes imPulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 8px rgba(56, 189, 248, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0);
+  }
+}
+
+.im-hero-title {
+  font-size: 26px;
+  font-weight: 800;
+  color: #ffffff !important;
+  margin: 0 !important;
+  letter-spacing: -0.5px;
+}
+
+.im-hero-subtitle {
+  color: #e0f2fe !important;
+  font-size: 14px;
+  margin: 0 !important;
+  max-width: 650px;
+}
+
+.im-hero-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.im-btn-reload {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  color: #ffffff !important;
+  border-radius: 10px !important;
+  backdrop-filter: blur(8px);
+  font-weight: 600;
+  height: 40px !important;
+  transition: all 0.2s ease !important;
+}
+
+.im-btn-reload:hover {
+  background: rgba(255, 255, 255, 0.22) !important;
+  color: #ffffff !important;
+  transform: translateY(-1px);
+}
+
+.im-btn-add {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  color: #ffffff !important;
+  border-radius: 10px !important;
+  font-weight: 700;
+  height: 40px !important;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4) !important;
+  transition: all 0.2s ease !important;
+}
+
+.im-btn-add:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(2, 132, 199, 0.55) !important;
+}
+
+/* ==========================================================================
+   KPI Stats Grid
+   ========================================================================== */
+.im-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 16px;
+}
+
+.im-stat-card {
+  background: var(--im-card-bg);
+  border-radius: var(--im-card-radius);
+  border: 1px solid var(--im-card-border);
+  box-shadow: var(--im-card-shadow);
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.im-stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--im-card-shadow-hover);
+  border-color: #cbd5e1;
+}
+
+.im-stat-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.im-stat-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--im-text-muted);
+}
+
+.im-stat-value {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--im-text-main);
+  letter-spacing: -0.5px;
+  line-height: 1.1;
+}
+
+.im-stat-sub {
+  font-size: 12px;
+  color: var(--im-text-subtle);
+}
+
+.im-stat-icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.im-stat-card:hover .im-stat-icon-wrap {
+  transform: scale(1.08);
+}
+
+.icon-blue {
+  background: #f0f9ff;
+  color: #0284c7;
+}
+
+.icon-emerald {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.icon-amber {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+.icon-rose {
+  background: #fff1f2;
+  color: #e11d48;
+}
+
+.icon-violet {
+  background: #f5f3ff;
+  color: #7c3aed;
+}
+
+/* ==========================================================================
+   Filter Toolbar
+   ========================================================================== */
+.im-filter-card {
+  background: var(--im-card-bg);
+  border-radius: var(--im-card-radius);
+  border: 1px solid var(--im-card-border);
+  box-shadow: var(--im-card-shadow);
+  padding: 16px 20px;
+}
+
+.im-filter-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.im-filter-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 260px;
+}
+
+.im-search-input {
+  border-radius: 10px !important;
+  height: 40px !important;
+}
+
+.im-filter-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.im-select-filter {
+  min-width: 140px;
+}
+
+.im-select-filter .ant-select-selector {
+  border-radius: 10px !important;
+  height: 40px !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.im-year-input {
+  width: 100px !important;
+  border-radius: 10px !important;
+  height: 40px !important;
+}
+
+.im-btn-reset {
+  border-radius: 10px !important;
+  height: 40px !important;
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  font-weight: 600 !important;
+  color: var(--im-text-muted) !important;
+}
+
+.im-btn-reset:hover {
+  background: #f1f5f9 !important;
+  color: var(--im-text-main) !important;
+}
+
+/* ==========================================================================
+   Table Section
+   ========================================================================== */
+.im-table-card {
+  background: var(--im-card-bg);
+  border-radius: var(--im-card-radius);
+  border: 1px solid var(--im-card-border);
+  box-shadow: var(--im-card-shadow);
+  overflow: hidden;
+}
+
+.im-table-header {
+  padding: 18px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #f1f5f9;
+  background: #ffffff;
+}
+
+.im-table-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--im-text-main);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.im-count-pill {
+  background: #f0f9ff;
+  color: #0284c7;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  border: 1px solid #e0f2fe;
+}
+
+.im-table .ant-table-thead > tr > th {
+  background: #f8fafc !important;
+  font-weight: 700 !important;
+  color: var(--im-text-muted) !important;
+  font-size: 12px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  padding: 14px 16px !important;
+}
+
+.im-table .ant-table-tbody > tr > td {
+  padding: 14px 16px !important;
+}
+
+.im-table .ant-table-tbody > tr:hover > td {
+  background: #f8fafc !important;
+}
+
+/* Custom Table Elements */
+.im-code-badge {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 700;
+  color: #0284c7;
+  background: #f0f9ff;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid #e0f2fe;
+  font-size: 12px;
+  display: inline-block;
+}
+
+.im-util-badge {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #334155;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Action Buttons */
+.im-action-btn {
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 8px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.2s ease !important;
+}
+
+.im-action-btn:hover {
+  transform: translateY(-1px);
+}
+
+.im-action-btn.view {
+  color: #0284c7;
+  background: #f0f9ff;
+  border-color: #e0f2fe;
+}
+.im-action-btn.view:hover {
+  background: #0284c7;
+  color: #ffffff;
+}
+
+.im-action-btn.edit {
+  color: #d97706;
+  background: #fffbeb;
+  border-color: #fef3c7;
+}
+.im-action-btn.edit:hover {
+  background: #d97706;
+  color: #ffffff;
+}
+
+.im-action-btn.delete {
+  color: #e11d48;
+  background: #fff1f2;
+  border-color: #ffe4e6;
+}
+.im-action-btn.delete:hover:not(:disabled) {
+  background: #e11d48;
+  color: #ffffff;
+}
+
+/* ==========================================================================
+   Modal & Form Styling
+   ========================================================================== */
+.im-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 8px;
+}
+
+.im-modal-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--im-text-main);
+  margin: 0 !important;
+}
+
+.im-modal-subtitle {
+  font-size: 12px;
+  color: var(--im-text-muted);
+  margin: 0 !important;
+}
+
+.im-form-section-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--im-text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  margin-bottom: 8px;
+}
+
+.im-form-divider {
+  margin: 8px 0 16px 0 !important;
+}
+
+.im-descriptions .ant-descriptions-item-label {
+  background-color: #f8fafc !important;
+  font-weight: 600;
+  color: var(--im-text-muted);
+}
+
+.im-summary-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px;
+  margin-top: 12px;
+}
+
+/* Responsive */
+@media (max-width: 992px) {
+  .invoice-mgmt-container {
+    padding: 16px;
+    gap: 16px;
+  }
+  .im-hero-banner {
+    padding: 20px 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  .im-hero-inner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .im-hero-right {
+    width: 100%;
+  }
+  .im-filter-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .im-filter-controls {
+    width: 100%;
+  }
+  .im-select-filter,
+  .im-year-input {
+    flex: 1;
+  }
+}
