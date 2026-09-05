@@ -6,7 +6,7 @@ const User = require("../models/User");
 const { activateContractAfterInitialPaymentIfNeeded } = require("../services/contractInitialPaymentService");
 const { createNotification } = require("../services/notificationService");
 
-const invoiceStatuses = ["unpaid", "partial", "paid", "overdue"];
+const invoiceStatuses = ["draft", "unpaid", "partial", "paid", "overdue"];
 const moneyFields = [
   "rentAmount",
   "electricityAmount",
@@ -131,6 +131,10 @@ const calculateTotalAmount = (payload) => {
 const deriveStatus = (paidAmount, totalAmount, requestedStatus) => {
   paidAmount = Number(paidAmount || 0);
   totalAmount = Number(totalAmount || 0);
+
+  if (requestedStatus === "draft") {
+    return "draft";
+  }
 
   if (requestedStatus === "overdue" && paidAmount < totalAmount) {
     return "overdue";
@@ -523,7 +527,9 @@ const createInvoice = async (req, res, next) => {
     });
 
     const populatedInvoice = await populateInvoice(Invoice.findById(invoice._id));
-    await notifyInvoiceCreated(populatedInvoice);
+    if (populatedInvoice.status !== "draft") {
+      await notifyInvoiceCreated(populatedInvoice);
+    }
     res.status(201).json(toInvoiceResponse(populatedInvoice));
   } catch (error) {
     if (!res.statusCode || res.statusCode < 400) {
@@ -544,6 +550,7 @@ const updateInvoice = async (req, res, next) => {
     }
 
     const payload = req.body;
+    const previousStatus = invoice.status;
     await validateInvoicePayload(payload, false);
 
     if (payload.invoiceCode && payload.invoiceCode !== invoice.invoiceCode) {
@@ -635,13 +642,18 @@ const updateInvoice = async (req, res, next) => {
 
     invoice.totalAmount = totalAmount;
     invoice.status =
-      payload.status === "paid"
-        ? "paid"
-        : deriveStatus(invoice.paidAmount, totalAmount, payload.status ?? invoice.status);
+      previousStatus === "draft" && payload.status === undefined
+        ? deriveStatus(invoice.paidAmount, totalAmount)
+        : payload.status === "paid"
+          ? "paid"
+          : deriveStatus(invoice.paidAmount, totalAmount, payload.status ?? invoice.status);
 
     const updatedInvoice = await invoice.save();
     await activateContractAfterInitialPaymentIfNeeded(updatedInvoice._id);
     const populatedInvoice = await populateInvoice(Invoice.findById(updatedInvoice._id));
+    if (previousStatus === "draft" && populatedInvoice.status !== "draft") {
+      await notifyInvoiceCreated(populatedInvoice);
+    }
     res.json(toInvoiceResponse(populatedInvoice));
   } catch (error) {
     if (!res.statusCode || res.statusCode < 400) {
@@ -668,6 +680,8 @@ const updateInvoiceStatus = async (req, res, next) => {
       throw new Error("Invoice not found");
     }
 
+    const previousStatus = invoice.status;
+
     if (status === "paid") {
       invoice.paidAmount = invoice.totalAmount;
       invoice.status = "paid";
@@ -680,6 +694,9 @@ const updateInvoiceStatus = async (req, res, next) => {
     const updatedInvoice = await invoice.save();
     await activateContractAfterInitialPaymentIfNeeded(updatedInvoice._id);
     const populatedInvoice = await populateInvoice(Invoice.findById(updatedInvoice._id));
+    if (previousStatus === "draft" && populatedInvoice.status !== "draft") {
+      await notifyInvoiceCreated(populatedInvoice);
+    }
     res.json(toInvoiceResponse(populatedInvoice));
   } catch (error) {
     next(error);

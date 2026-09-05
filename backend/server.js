@@ -5,6 +5,7 @@ const env = require("./src/config/env");
 const { initSocket } = require("./src/socket");
 const { startContractExpiryChecker } = require("./src/services/contractExpiryService");
 const { startInvoiceOverdueChecker } = require("./src/services/invoiceOverdueService");
+const { startMonthlyInvoiceDraftScheduler } = require("./src/services/monthlyInvoiceDraftService");
 const { startExpiredPaymentLockReleaser } = require("./src/utils/roomPaymentLock");
 
 const startServer = async () => {
@@ -15,6 +16,7 @@ const startServer = async () => {
   startContractExpiryChecker();
   startExpiredPaymentLockReleaser();
   startInvoiceOverdueChecker();
+  startMonthlyInvoiceDraftScheduler();
 
   server.listen(env.port, () => {
     console.log(`Server is running on port ${env.port}`);
