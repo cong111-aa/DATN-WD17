@@ -27,6 +27,10 @@ const {
   updateMyRepairRequest,
   updateMyRoomRequestPaymentProof,
 } = require("../controllers/meController");
+const {
+  createMyOccupantRequest,
+  getMyOccupantRequests,
+} = require("../controllers/occupantRequestController");
 const { protect } = require("../middlewares/authMiddleware");
 
 const router = express.Router();
@@ -52,6 +56,8 @@ router.patch("/contracts/:id/sign", protect, signMyContract);
 router.get("/contracts/:id/file", protect, getMyContractFile);
 router.get("/invoices", protect, getMyInvoices);
 router.get("/invoices/:id", protect, getMyInvoiceById);
+router.get("/occupant-requests", protect, getMyOccupantRequests);
+router.post("/occupant-requests", protect, createMyOccupantRequest);
 router.get("/repair-requests", protect, getMyRepairRequests);
 router.post("/repair-requests", protect, createMyRepairRequest);
 router.get("/repair-requests/:id", protect, getMyRepairRequestById);
