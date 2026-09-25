@@ -21,6 +21,8 @@ import {
   ThunderboltOutlined,
   ToolOutlined,
   UnorderedListOutlined,
+  UploadOutlined,
+  UserAddOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import {
@@ -29,6 +31,7 @@ import {
   Card,
   Descriptions,
   Empty,
+  Form,
   Image,
   Input,
   Modal,
@@ -39,6 +42,8 @@ import {
   Tag,
   Tooltip,
   Typography,
+  Upload,
+  message,
 } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -51,6 +56,8 @@ const apiOrigin = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").
 const formatCurrency = (value) => `${Number(value || 0).toLocaleString("vi-VN")} đ`;
 const formatDate = (value) => (value ? new Date(value).toLocaleDateString("vi-VN") : "-");
 const toImageUrl = (url) => (url?.startsWith("http") ? url : `${apiOrigin}${url}`);
+const toUploadedImageUrl = (fileList = []) =>
+  fileList.find((file) => file.status === "done" && file.url)?.url || "";
 
 const roomRoleMeta = {
   representative: {
@@ -89,9 +96,14 @@ const tenantStatusMeta = {
 };
 
 const UserMyRoomsPage = () => {
+  const [occupantForm] = Form.useForm();
   const navigate = useNavigate();
   const [tenancies, setTenancies] = useState([]);
+  const [occupantRequests, setOccupantRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [occupantModalOpen, setOccupantModalOpen] = useState(false);
+  const [occupantSubmitting, setOccupantSubmitting] = useState(false);
+  const [selectedTenancy, setSelectedTenancy] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all"); // 'all' | 'active' | 'inactive'
   const [viewMode, setViewMode] = useState("grid"); // 'grid' | 'table'
@@ -100,8 +112,12 @@ const UserMyRoomsPage = () => {
   const fetchTenancies = async () => {
     setLoading(true);
     try {
-      const { data } = await http.get("/me/tenancies");
+      const [{ data }, { data: requestData }] = await Promise.all([
+        http.get("/me/tenancies"),
+        http.get("/me/occupant-requests"),
+      ]);
       setTenancies(data || []);
+      setOccupantRequests(requestData || []);
     } catch (err) {
       // Error handled globally by interceptor
     } finally {
@@ -112,6 +128,54 @@ const UserMyRoomsPage = () => {
   useEffect(() => {
     fetchTenancies();
   }, []);
+
+  const handleIdentityImageUpload = async ({ file, onError, onSuccess }) => {
+    try {
+      const formData = new FormData();
+      formData.append("images", file);
+      const { data } = await http.post("/uploads/identity", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      onSuccess({ url: data.urls?.[0] || "" });
+    } catch (error) {
+      message.error(error.response?.data?.message || "Upload anh CCCD that bai");
+      onError(error);
+    }
+  };
+
+  const handleIdentityUploadChange = (fieldName, { fileList }) => {
+    occupantForm.setFieldValue(fieldName, toUploadedImageUrl(fileList));
+  };
+
+  const openOccupantModal = (tenancy) => {
+    setSelectedTenancy(tenancy);
+    occupantForm.resetFields();
+    occupantForm.setFieldsValue({ room: tenancy.room });
+    setOccupantModalOpen(true);
+  };
+
+  const closeOccupantModal = () => {
+    setOccupantModalOpen(false);
+    setSelectedTenancy(null);
+    occupantForm.resetFields();
+  };
+
+  const handleSubmitOccupantRequest = async (values) => {
+    setOccupantSubmitting(true);
+    try {
+      await http.post("/me/occupant-requests", {
+        ...values,
+        room: selectedTenancy?.room,
+      });
+      message.success("Da gui yeu cau them nguoi o cho admin");
+      closeOccupantModal();
+      fetchTenancies();
+    } catch (error) {
+      message.error(error.response?.data?.message || "Gui yeu cau them nguoi o that bai");
+    } finally {
+      setOccupantSubmitting(false);
+    }
+  };
 
   // Filtered tenancies
   const filteredTenancies = useMemo(() => {
@@ -140,6 +204,17 @@ const UserMyRoomsPage = () => {
       totalCount: tenancies.length,
     };
   }, [tenancies]);
+
+  const pendingOccupantRequestCountByRoom = useMemo(
+    () =>
+      occupantRequests.reduce((map, request) => {
+        if (request.status === "pending" && request.room) {
+          map[request.room] = (map[request.room] || 0) + 1;
+        }
+        return map;
+      }, {}),
+    [occupantRequests]
+  );
 
   // Table Columns Setup
   const tenancyColumns = [
@@ -267,6 +342,16 @@ const UserMyRoomsPage = () => {
           >
             Chi tiết
           </Button>
+          {record.status === "active" && (
+            <Button
+              size="small"
+              icon={<UserAddOutlined />}
+              onClick={() => openOccupantModal(record)}
+              style={{ borderRadius: 6 }}
+            >
+              Them nguoi o
+            </Button>
+          )}
           <Button
             size="small"
             icon={<ToolOutlined />}
@@ -628,6 +713,18 @@ const UserMyRoomsPage = () => {
                     >
                       Chi tiết phòng
                     </Button>
+                    {tenancy.status === "active" && (
+                      <Button
+                        icon={<UserAddOutlined />}
+                        onClick={() => openOccupantModal(tenancy)}
+                        style={{ borderRadius: 10, fontWeight: 600, borderColor: "#cbd5e1" }}
+                      >
+                        Them nguoi o
+                        {pendingOccupantRequestCountByRoom[tenancy.room]
+                          ? ` (${pendingOccupantRequestCountByRoom[tenancy.room]} cho)`
+                          : ""}
+                      </Button>
+                    )}
                     <Button
                       icon={<ToolOutlined />}
                       onClick={() => navigate("/user/repair-requests")}
@@ -661,6 +758,83 @@ const UserMyRoomsPage = () => {
           />
         </Card>
       )}
+
+      <Modal
+        title={`Them nguoi o${selectedTenancy?.roomNumber ? ` - Phong ${selectedTenancy.roomNumber}` : ""}`}
+        open={occupantModalOpen}
+        onCancel={closeOccupantModal}
+        onOk={() => occupantForm.submit()}
+        confirmLoading={occupantSubmitting}
+        okText="Gui yeu cau"
+        cancelText="Huy"
+        width={760}
+      >
+        <Form form={occupantForm} layout="vertical" onFinish={handleSubmitOccupantRequest}>
+          <Form.Item name="room" hidden>
+            <Input />
+          </Form.Item>
+          <Form.Item name="name" label="Ho va ten" rules={[{ required: true, message: "Vui long nhap ho ten" }]}>
+            <Input placeholder="Nhap ho ten nguoi o moi" />
+          </Form.Item>
+          <Space size={12} style={{ width: "100%" }} align="start">
+            <Form.Item
+              name="phone"
+              label="So dien thoai"
+              rules={[{ required: true, message: "Vui long nhap so dien thoai" }]}
+              style={{ flex: 1 }}
+            >
+              <Input placeholder="Nhap so dien thoai" />
+            </Form.Item>
+            <Form.Item
+              name="identityNumber"
+              label="So CCCD/CMND"
+              rules={[{ required: true, message: "Vui long nhap so CCCD" }]}
+              style={{ flex: 1 }}
+            >
+              <Input placeholder="Nhap so CCCD/CMND" />
+            </Form.Item>
+          </Space>
+          <Space size={12} style={{ width: "100%" }} align="start">
+            <Form.Item
+              name="identityFrontImage"
+              label="CCCD mat truoc"
+              rules={[{ required: true, message: "Vui long upload CCCD mat truoc" }]}
+              style={{ flex: 1 }}
+            >
+              <Input placeholder="/uploads/identity/..." readOnly />
+            </Form.Item>
+            <Form.Item
+              name="identityBackImage"
+              label="CCCD mat sau"
+              rules={[{ required: true, message: "Vui long upload CCCD mat sau" }]}
+              style={{ flex: 1 }}
+            >
+              <Input placeholder="/uploads/identity/..." readOnly />
+            </Form.Item>
+          </Space>
+          <Space size={12} style={{ marginBottom: 16 }}>
+            <Upload
+              accept="image/*"
+              customRequest={handleIdentityImageUpload}
+              maxCount={1}
+              onChange={(info) => handleIdentityUploadChange("identityFrontImage", info)}
+            >
+              <Button icon={<UploadOutlined />}>Upload mat truoc</Button>
+            </Upload>
+            <Upload
+              accept="image/*"
+              customRequest={handleIdentityImageUpload}
+              maxCount={1}
+              onChange={(info) => handleIdentityUploadChange("identityBackImage", info)}
+            >
+              <Button icon={<UploadOutlined />}>Upload mat sau</Button>
+            </Upload>
+          </Space>
+          <Form.Item name="note" label="Ghi chu">
+            <Input.TextArea rows={3} placeholder="Nhap ghi chu neu co" />
+          </Form.Item>
+        </Form>
+      </Modal>
 
       {/* Modal Detail Room */}
       <Modal

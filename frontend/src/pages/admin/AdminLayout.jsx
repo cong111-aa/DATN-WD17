@@ -12,6 +12,7 @@ import {
   SolutionOutlined,
   TeamOutlined,
   ToolOutlined,
+  UserAddOutlined,
   UserOutlined,
   UserSwitchOutlined,
 } from "@ant-design/icons";
@@ -605,6 +606,10 @@ const routeMeta = {
     icon: <UserSwitchOutlined />,
     title: "Quản lý khách thuê",
   },
+  "/admin/occupant-requests": {
+    icon: <UserAddOutlined />,
+    title: "Yeu cau them nguoi o",
+  },
 };
 
 const AdminLayout = () => {
@@ -632,9 +637,11 @@ const AdminLayout = () => {
               ? "/admin/repair-requests"
               : location.pathname.startsWith("/admin/room-requests")
                 ? "/admin/room-requests"
-                : location.pathname.startsWith("/admin/tenants")
-                  ? "/admin/tenants"
-                  : "/admin";
+                : location.pathname.startsWith("/admin/occupant-requests")
+                  ? "/admin/occupant-requests"
+                  : location.pathname.startsWith("/admin/tenants")
+                    ? "/admin/tenants"
+                    : "/admin";
 
   const currentRoute = routeMeta[selectedKey] || {
     icon: <DashboardOutlined />,
@@ -675,6 +682,12 @@ const AdminLayout = () => {
           icon: <UserSwitchOutlined />,
           label: "Khách thuê phòng",
           onClick: () => navigate("/admin/tenants"),
+        },
+        {
+          key: "/admin/occupant-requests",
+          icon: <UserAddOutlined />,
+          label: "Yeu cau them nguoi o",
+          onClick: () => navigate("/admin/occupant-requests"),
         },
         {
           key: "/admin/contracts",
