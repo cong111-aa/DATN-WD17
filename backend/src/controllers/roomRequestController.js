@@ -296,6 +296,21 @@ const processRoomRequest = async (req, res, next, status) => {
 
     const populatedRequest = await populateRoomRequest(RoomRequest.findById(updatedRequest._id));
 
+    if (status !== "approved" || request.type !== "rent" || !createdRecords.contract) {
+      await createNotification({
+        link: "/user/room-requests",
+        message:
+          status === "approved"
+            ? "Yeu cau giu phong cua ban da duoc admin chap nhan."
+            : `Yeu cau ${request.type === "rent" ? "thue phong" : "giu phong"} cua ban da bi tu choi.${request.adminNote ? ` Ly do: ${request.adminNote}` : ""}`,
+        metadata: { room: populatedRequest.room?._id, roomRequest: populatedRequest._id, contract: populatedRequest.contract?._id },
+        recipient: populatedRequest.user?._id || populatedRequest.user,
+        recipientRole: "user",
+        title: status === "approved" ? "Yeu cau da duoc chap nhan" : "Yeu cau da bi tu choi",
+        type: status === "approved" ? "room_request_approved" : "room_request_rejected",
+      });
+    }
+
     if (status === "approved" && createdRecords.contract) {
       await createNotification({
         link: "/user/contracts",
@@ -387,6 +402,16 @@ const markRoomRequestPaid = async (req, res, next) => {
         populatedRequest.type === "rent"
           ? "Khach da thanh toan tien thue phong"
           : "Thanh toan giu phong thanh cong",
+      type: "room_request_paid",
+    });
+
+    await createNotification({
+      link: "/user/room-requests",
+      message: `Thanh toan QR thu cong cho phong ${roomLabel} da duoc admin xac nhan.`,
+      metadata: { amount: populatedRequest.amount, room: populatedRequest.room?._id, roomRequest: populatedRequest._id },
+      recipient: populatedRequest.user?._id || populatedRequest.user,
+      recipientRole: "user",
+      title: "Thanh toan da duoc xac nhan",
       type: "room_request_paid",
     });
 

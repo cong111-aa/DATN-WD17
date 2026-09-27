@@ -1,4 +1,5 @@
 const Invoice = require("../models/Invoice");
+const Contract = require("../models/Contract");
 const MeterReading = require("../models/MeterReading");
 const Room = require("../models/Room");
 const Tenant = require("../models/Tenant");
@@ -379,6 +380,168 @@ const notifyInvoiceCreated = async (invoice) => {
   });
 };
 
+const getMonthlyBillingPreview = async (req, res, next) => {
+  try {
+    const month = Number(req.query.month || new Date().getMonth() + 1);
+    const year = Number(req.query.year || new Date().getFullYear());
+    const contracts = await Contract.find({ status: "active" })
+      .populate("tenant", "name email phone")
+      .populate("room", "roomNumber name price serviceFee electricityPrice waterPrice");
+
+    const rows = await Promise.all(
+      contracts.map(async (contract) => {
+        const room = contract.room;
+        const tenant = contract.tenant;
+        if (!room || !tenant) return null;
+
+        const existingInvoice = await Invoice.findOne({
+          invoiceType: "monthly",
+          room: room._id,
+          tenant: tenant._id,
+          month,
+          year,
+        }).select("_id invoiceCode status totalAmount");
+        const seed = await getPreviousMeterReadingForPeriod(room._id, month, year);
+        const nextPeriod = getNextPeriod(month, year);
+
+        return {
+          contract: contract._id,
+          electricityOld: seed.electricityOld ?? seed.electricityNew ?? 0,
+          electricityNew: seed.electricityNew ?? seed.electricityOld ?? 0,
+          existingInvoice: existingInvoice
+            ? { id: existingInvoice._id, invoiceCode: existingInvoice.invoiceCode, status: existingInvoice.status, totalAmount: existingInvoice.totalAmount }
+            : null,
+          month,
+          room: room._id,
+          roomNumber: room.roomNumber,
+          roomName: room.name,
+          roomPrice: Number(contract.monthlyRent ?? room.price ?? 0),
+          serviceAmount: Number(room.serviceFee || 0),
+          servicePeriodMonth: nextPeriod.month,
+          servicePeriodYear: nextPeriod.year,
+          tenant: tenant._id,
+          tenantName: tenant.name,
+          waterOld: seed.waterOld ?? seed.waterNew ?? 0,
+          waterNew: seed.waterNew ?? seed.waterOld ?? 0,
+          year,
+        };
+      })
+    );
+
+    res.json(rows.filter(Boolean));
+  } catch (error) {
+    next(error);
+  }
+};
+
+const createMonthlyInvoicesBulk = async (req, res, next) => {
+  try {
+    const month = Number(req.body.month);
+    const year = Number(req.body.year);
+    const items = Array.isArray(req.body.items) ? req.body.items : [];
+    const nextPeriod = getNextPeriod(month, year);
+
+    if (month < 1 || month > 12 || year < 2000 || !items.length) {
+      res.status(400);
+      throw new Error("Month, year and at least one billing item are required");
+    }
+
+    const created = [];
+    const skipped = [];
+    for (const item of items) {
+      const contract = await Contract.findOne({ _id: item.contract, status: "active" })
+        .populate("tenant", "name email")
+        .populate("room", "roomNumber name price serviceFee electricityPrice waterPrice");
+
+      if (!contract?.room || !contract?.tenant) {
+        skipped.push({ contract: item.contract, reason: "active_contract_not_found" });
+        continue;
+      }
+
+      const existingInvoice = await Invoice.findOne({
+        invoiceType: "monthly",
+        room: contract.room._id,
+        tenant: contract.tenant._id,
+        month,
+        year,
+      });
+      if (existingInvoice) {
+        skipped.push({ contract: contract._id, invoice: existingInvoice._id, reason: "invoice_exists" });
+        continue;
+      }
+
+      const electricityOld = toNumber(item.electricityOld);
+      const electricityNew = toNumber(item.electricityNew);
+      const waterOld = toNumber(item.waterOld);
+      const waterNew = toNumber(item.waterNew);
+      if (electricityNew < electricityOld || waterNew < waterOld) {
+        skipped.push({ contract: contract._id, reason: "new_reading_less_than_old" });
+        continue;
+      }
+
+      const meterReading = await MeterReading.findOneAndUpdate(
+        { room: contract.room._id, month, year },
+        {
+          electricityOld,
+          electricityNew,
+          month,
+          note: `MONTHLY:${month}/${year}`,
+          room: contract.room._id,
+          waterOld,
+          waterNew,
+          year,
+        },
+        { new: true, setDefaultsOnInsert: true, upsert: true }
+      );
+      const electricityAmount = (electricityNew - electricityOld) * Number(contract.room.electricityPrice || 0);
+      const waterAmount = (waterNew - waterOld) * Number(contract.room.waterPrice || 0);
+      const rentAmount = Number(contract.monthlyRent ?? contract.room.price ?? 0);
+      const serviceAmount = Number(contract.room.serviceFee || 0);
+      const otherAmount = Math.max(toNumber(item.otherAmount), 0);
+      const discountAmount = Math.max(toNumber(item.discountAmount), 0);
+      const totalAmount = rentAmount + electricityAmount + waterAmount + serviceAmount + otherAmount - discountAmount;
+      if (totalAmount < 0) {
+        skipped.push({ contract: contract._id, reason: "discount_greater_than_total" });
+        continue;
+      }
+
+      const invoice = await Invoice.create({
+        contract: contract._id,
+        discountAmount,
+        dueDate: new Date(nextPeriod.year, nextPeriod.month - 1, 5, 23, 59, 59, 999),
+        electricityAmount,
+        invoiceCode: `MONTHLY-${year}${String(month).padStart(2, "0")}-${contract.room.roomNumber}-${Date.now()}-${Math.floor(Math.random() * 900 + 100)}`,
+        invoiceType: "monthly",
+        meterReading: meterReading._id,
+        month,
+        note: `UTILITY_PERIOD:${month}/${year} | RENT_SERVICE_PERIOD:${nextPeriod.month}/${nextPeriod.year}`,
+        otherAmount,
+        paidAmount: 0,
+        rentAmount,
+        rentPeriodMonth: nextPeriod.month,
+        rentPeriodYear: nextPeriod.year,
+        room: contract.room._id,
+        serviceAmount,
+        servicePeriodMonth: nextPeriod.month,
+        servicePeriodYear: nextPeriod.year,
+        status: "unpaid",
+        tenant: contract.tenant._id,
+        totalAmount,
+        waterAmount,
+        year,
+      });
+      const populatedInvoice = await populateInvoice(Invoice.findById(invoice._id));
+      created.push(populatedInvoice);
+      await notifyInvoiceCreated(populatedInvoice);
+    }
+
+    res.status(201).json({ created: created.map(toInvoiceResponse), skipped });
+  } catch (error) {
+    if (!res.statusCode || res.statusCode < 400) res.status(400);
+    next(error);
+  }
+};
+
 const getInvoices = async (req, res, next) => {
   try {
     const filter = {};
@@ -725,10 +888,12 @@ const deleteInvoice = async (req, res, next) => {
 };
 
 module.exports = {
+  createMonthlyInvoicesBulk,
   createInvoice,
   deleteInvoice,
   getInvoiceById,
   getInvoiceMeterReadingSeed,
+  getMonthlyBillingPreview,
   getInvoices,
   updateInvoice,
   updateInvoiceStatus,

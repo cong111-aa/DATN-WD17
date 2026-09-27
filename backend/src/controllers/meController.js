@@ -10,7 +10,7 @@ const RoomRequest = require("../models/RoomRequest");
 const Tenant = require("../models/Tenant");
 const renderContractHtml = require("../utils/renderContractHtml");
 const { buildBankTransferPayment, buildPaymentContent, buildVietQrUrl } = require("../utils/paymentQr");
-const { notifyAdmins } = require("../services/notificationService");
+const { createNotification, notifyAdmins } = require("../services/notificationService");
 const { daysUntil } = require("../services/contractExpiryService");
 const { createInitialContractInvoiceIfNeeded } = require("../services/contractInitialPaymentService");
 const { acquireRoomPaymentLock, clearExpiredRoomPaymentLock } = require("../utils/roomPaymentLock");
@@ -966,6 +966,14 @@ const cancelMyRoomRequest = async (req, res, next) => {
     await roomRequest.save();
     await roomRequest.populate(roomRequestPopulate);
 
+    await notifyAdmins({
+      link: "/admin/room-requests",
+      message: `${req.user.name} da huy yeu cau ${roomRequest.type === "rent" ? "thue phong" : "giu phong"} ${roomRequest.room?.roomNumber || "-"}.`,
+      metadata: { room: roomRequest.room?._id, roomRequest: roomRequest._id, user: req.user._id },
+      title: "Nguoi dung huy yeu cau",
+      type: "room_request_cancelled",
+    });
+
     res.json(toRoomRequestResponse(roomRequest));
   } catch (error) {
     if (!res.statusCode || res.statusCode < 400) {
@@ -1396,6 +1404,13 @@ const createMyRepairRequest = async (req, res, next) => {
     });
 
     const populatedRequest = await RepairRequest.findById(request._id).populate(repairRequestPopulate);
+    await notifyAdmins({
+      link: "/admin/repair-requests",
+      message: `${req.user.name} vua gui yeu cau su co "${title}" cho phong ${populatedRequest.room?.roomNumber || "-"}.`,
+      metadata: { repairRequest: request._id, room: populatedRequest.room?._id, user: req.user._id },
+      title: "Yeu cau su co moi",
+      type: "repair_request_created",
+    });
     res.status(201).json(toRepairRequestResponse(populatedRequest));
   } catch (error) {
     if (!res.statusCode || res.statusCode < 400) {
@@ -1449,6 +1464,13 @@ const updateMyRepairRequest = async (req, res, next) => {
 
     const updatedRequest = await request.save();
     const populatedRequest = await RepairRequest.findById(updatedRequest._id).populate(repairRequestPopulate);
+    await notifyAdmins({
+      link: "/admin/repair-requests",
+      message: `${req.user.name} da cap nhat yeu cau su co "${populatedRequest.title}" cho phong ${populatedRequest.room?.roomNumber || "-"}.`,
+      metadata: { repairRequest: updatedRequest._id, room: populatedRequest.room?._id, user: req.user._id },
+      title: "Yeu cau su co da duoc cap nhat",
+      type: "repair_request_updated",
+    });
     res.json(toRepairRequestResponse(populatedRequest));
   } catch (error) {
     if (!res.statusCode || res.statusCode < 400) {
