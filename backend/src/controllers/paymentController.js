@@ -1,5 +1,6 @@
 const Invoice = require("../models/Invoice");
 const Payment = require("../models/Payment");
+const Room = require("../models/Room");
 const RoomRequest = require("../models/RoomRequest");
 const { activateContractAfterInitialPaymentIfNeeded } = require("../services/contractInitialPaymentService");
 const { createNotification, notifyAdmins } = require("../services/notificationService");
@@ -120,7 +121,10 @@ const markInvoicePaid = async (invoice, amount) => {
 
 const findPayableTarget = async ({ targetId, targetType, userId }) => {
   if (targetType === "room_request") {
-    const roomRequest = await RoomRequest.findOne({ _id: targetId, user: userId });
+    const roomRequest = await RoomRequest.findOne({ _id: targetId, user: userId }).populate(
+      "sourceHoldRequest",
+      "amount"
+    );
 
     if (!roomRequest) {
       throw new Error("Room request not found");
@@ -134,8 +138,22 @@ const findPayableTarget = async ({ targetId, targetType, userId }) => {
       throw new Error("This room request is already paid");
     }
 
-    if (roomRequest.paymentProvider !== "vnpay") {
+    const canSwitchRentRequestToVnpay = roomRequest.type === "rent" && Boolean(roomRequest.sourceHoldRequest);
+    if (roomRequest.paymentProvider !== "vnpay" && !canSwitchRentRequestToVnpay) {
       throw new Error("This room request is not configured for VNPay payment");
+    }
+
+    if (canSwitchRentRequestToVnpay && Number(roomRequest.amount || 0) <= 0) {
+      const room = await Room.findById(roomRequest.room).select("price");
+      roomRequest.depositCreditAmount = Number(
+        roomRequest.depositCreditAmount || roomRequest.sourceHoldRequest?.amount || 0
+      );
+      roomRequest.amount = Math.max(Number(room?.price || 0) - roomRequest.depositCreditAmount, 0);
+      await roomRequest.save();
+    }
+
+    if (Number(roomRequest.amount || 0) <= 0) {
+      throw new Error("The room request amount must be greater than zero");
     }
 
     return {
@@ -152,6 +170,10 @@ const findPayableTarget = async ({ targetId, targetType, userId }) => {
 
     if (!invoice) {
       throw new Error("Invoice not found");
+    }
+
+    if (invoice.invoiceType === "checkout_final") {
+      throw new Error("Checkout final invoices are settled from the deposit and cannot be paid by the tenant");
     }
 
     const remainingAmount = Math.max(

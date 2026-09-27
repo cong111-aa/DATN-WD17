@@ -41,29 +41,46 @@ const createInitialContractInvoiceIfNeeded = async (contractId) => {
   const serviceAmount = Number(room?.serviceFee || 0);
   const totalAmount = depositDue + rentAmount + serviceAmount;
 
-  const invoice = await Invoice.create({
-    contract: contract._id,
-    dueDate: addDays(now, 3),
-    invoiceCode: generateInitialInvoiceCode(contract.contractCode),
-    invoiceType: "initial_contract",
-    month: now.getMonth() + 1,
-    note: `INITIAL_CONTRACT:${contract._id} | Tien coc con phai dong: ${depositDue.toLocaleString(
-      "vi-VN"
-    )} VND. Tien phong va dich vu thang dau.`,
-    otherAmount: depositDue,
-    paidAmount: 0,
-    rentAmount,
-    rentPeriodMonth: now.getMonth() + 1,
-    rentPeriodYear: now.getFullYear(),
-    room: room?._id || contract.room,
-    serviceAmount,
-    servicePeriodMonth: now.getMonth() + 1,
-    servicePeriodYear: now.getFullYear(),
-    status: "unpaid",
-    tenant: contract.tenant,
-    totalAmount,
-    year: now.getFullYear(),
-  });
+  let invoice;
+  try {
+    invoice = await Invoice.create({
+      contract: contract._id,
+      dueDate: addDays(now, 3),
+      invoiceCode: generateInitialInvoiceCode(contract.contractCode),
+      invoiceType: "initial_contract",
+      month: now.getMonth() + 1,
+      note: `INITIAL_CONTRACT:${contract._id} | Tien coc con phai dong: ${depositDue.toLocaleString(
+        "vi-VN"
+      )} VND. Tien phong va dich vu thang dau.`,
+      otherAmount: depositDue,
+      paidAmount: 0,
+      rentAmount,
+      rentPeriodMonth: now.getMonth() + 1,
+      rentPeriodYear: now.getFullYear(),
+      room: room?._id || contract.room,
+      serviceAmount,
+      servicePeriodMonth: now.getMonth() + 1,
+      servicePeriodYear: now.getFullYear(),
+      status: "unpaid",
+      tenant: contract.tenant,
+      totalAmount,
+      year: now.getFullYear(),
+    });
+  } catch (error) {
+    // Two quick signature requests can race on the unique initial-invoice index.
+    if (error?.code !== 11000) {
+      throw error;
+    }
+
+    invoice = await Invoice.findOne({
+      contract: contract._id,
+      invoiceType: "initial_contract",
+    });
+
+    if (!invoice) {
+      throw error;
+    }
+  }
 
   contract.initialInvoice = invoice._id;
   await contract.save();

@@ -458,6 +458,7 @@ const getMyPaymentHistory = async (req, res, next) => {
     const [paidInvoices, paidRoomRequests] = await Promise.all([
       Invoice.find({
         tenant: req.user._id,
+        invoiceType: { $ne: "checkout_final" },
         paidAmount: { $gt: 0 },
       })
         .populate("room", "roomNumber name")
@@ -767,8 +768,6 @@ const createMyRentRequestFromHoldDeposit = async (req, res, next) => {
       durationMonths,
       message = "",
       occupants = [],
-      paymentProofImages = [],
-      paymentProvider = "manual_qr",
     } = req.body;
 
     const holdRequest = await RoomRequest.findOne({
@@ -1206,6 +1205,15 @@ const signMyContract = async (req, res, next) => {
       throw new Error("Contract not found");
     }
 
+    // A double click or browser retry may reach this endpoint after the first
+    // request has already completed. Return the signed contract instead of
+    // treating the safe retry as a new invalid signing attempt.
+    if (contract.status === "signed_pending_payment") {
+      await createInitialContractInvoiceIfNeeded(contract._id);
+      await contract.populate(contractPopulate);
+      return res.json(toContractResponse(contract));
+    }
+
     if (contract.status !== "pending_user_signature") {
       res.status(400);
       throw new Error("Only contracts waiting for signature can be signed");
@@ -1301,7 +1309,11 @@ const requestMyContractRevision = async (req, res, next) => {
 
 const getMyInvoices = async (req, res, next) => {
   try {
-    const invoices = await Invoice.find({ tenant: req.user._id, status: { $ne: "draft" } })
+    const invoices = await Invoice.find({
+      tenant: req.user._id,
+      invoiceType: { $ne: "checkout_final" },
+      status: { $ne: "draft" },
+    })
       .populate(invoicePopulate)
       .sort({ year: -1, month: -1, createdAt: -1 });
 
@@ -1315,6 +1327,7 @@ const getMyInvoiceById = async (req, res, next) => {
   try {
     const invoice = await Invoice.findOne({
       _id: req.params.id,
+      invoiceType: { $ne: "checkout_final" },
       status: { $ne: "draft" },
       tenant: req.user._id,
     }).populate(invoicePopulate);
