@@ -92,6 +92,9 @@ const getPaymentStateMeta = (record) => {
   return { bg: "#fffbeb", color: "#b45309", border: "#fde68a", label: "Chờ xác nhận" };
 };
 
+const getRequestStateMeta = (record) =>
+  record.status === "approved" ? requestStatusMeta.approved : requestStatusMeta.pending;
+
 const getPaymentProviderMeta = (provider) =>
   provider === "vnpay" ? paymentProviderMeta.vnpay : paymentProviderMeta.manual_qr;
 
@@ -730,7 +733,7 @@ const RoomRequestManagementPage = () => {
       key: "paymentState",
       width: 160,
       render: (_, record) => {
-        const meta = getPaymentStateMeta(record);
+        const meta = getRequestStateMeta(record);
         return (
           <span
             style={{
@@ -1049,8 +1052,8 @@ const RoomRequestManagementPage = () => {
                 </Typography.Text>
               </Descriptions.Item>
               <Descriptions.Item label="Trạng thái">
-                <Tag color={requestStatusMeta[detailRequest.status]?.color}>
-                  {requestStatusMeta[detailRequest.status]?.label}
+                <Tag color={getRequestStateMeta(detailRequest).color}>
+                  {getRequestStateMeta(detailRequest).label}
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="Hợp đồng">
