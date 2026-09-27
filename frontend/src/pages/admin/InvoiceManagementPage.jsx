@@ -36,6 +36,7 @@ import {
   Row,
   Select,
   Space,
+  Spin,
   Table,
   Tag,
   Tooltip,
@@ -609,6 +610,14 @@ const InvoiceManagementPage = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [monthFilter, setMonthFilter] = useState("all");
   const [yearFilter, setYearFilter] = useState("");
+  const [bulkBillingOpen, setBulkBillingOpen] = useState(false);
+  const [bulkBillingLoading, setBulkBillingLoading] = useState(false);
+  const [bulkBillingSubmitting, setBulkBillingSubmitting] = useState(false);
+  const [bulkBillingPeriod, setBulkBillingPeriod] = useState({
+    month: new Date().getMonth() + 1,
+    year: new Date().getFullYear(),
+  });
+  const [bulkBillingItems, setBulkBillingItems] = useState([]);
 
   const watchedValues = Form.useWatch([], form) || {};
 
@@ -807,6 +816,55 @@ const InvoiceManagementPage = () => {
       message.error(error.response?.data?.message || "Lưu hóa đơn thất bại");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const loadBulkBillingPreview = async (period = bulkBillingPeriod) => {
+    setBulkBillingLoading(true);
+    try {
+      const { data } = await http.get("/invoices/monthly/preview", { params: period });
+      setBulkBillingItems(data || []);
+    } catch (error) {
+      message.error(error.response?.data?.message || "Không tải được danh sách phòng đang thuê");
+    } finally {
+      setBulkBillingLoading(false);
+    }
+  };
+
+  const openBulkBillingModal = () => {
+    setBulkBillingOpen(true);
+    loadBulkBillingPreview();
+  };
+
+  const handleBulkBillingPeriodChange = (field, value) => {
+    const nextPeriod = {
+      ...bulkBillingPeriod,
+      [field]: value || (field === "month" ? 1 : new Date().getFullYear()),
+    };
+    setBulkBillingPeriod(nextPeriod);
+    loadBulkBillingPreview(nextPeriod);
+  };
+
+  const updateBulkBillingItem = (contractId, field, value) => {
+    setBulkBillingItems((current) =>
+      current.map((item) => (item.contract === contractId ? { ...item, [field]: value ?? 0 } : item))
+    );
+  };
+
+  const handleCreateBulkInvoices = async () => {
+    setBulkBillingSubmitting(true);
+    try {
+      const { data } = await http.post("/invoices/monthly/bulk", {
+        ...bulkBillingPeriod,
+        items: bulkBillingItems.filter((item) => !item.existingInvoice),
+      });
+      message.success(`Đã tạo ${data.created?.length || 0} hóa đơn; bỏ qua ${data.skipped?.length || 0} phòng`);
+      setBulkBillingOpen(false);
+      refreshAll();
+    } catch (error) {
+      message.error(error.response?.data?.message || "Tạo hóa đơn hàng loạt thất bại");
+    } finally {
+      setBulkBillingSubmitting(false);
     }
   };
 
@@ -1044,6 +1102,14 @@ const InvoiceManagementPage = () => {
             >
               Thêm hóa đơn
             </Button>
+            <Button
+              type="primary"
+              icon={<CalculatorOutlined />}
+              onClick={openBulkBillingModal}
+              style={{ background: "#0f766e", borderColor: "#0f766e" }}
+            >
+              Tạo hóa đơn cho phòng đang thuê
+            </Button>
           </div>
         </div>
       </div>
@@ -1173,6 +1239,144 @@ const InvoiceManagementPage = () => {
           }}
         />
       </div>
+
+      <Modal
+        title={
+          <div className="im-modal-header">
+            <Avatar size={36} style={{ background: "#0f766e" }} icon={<CalculatorOutlined />} />
+            <div>
+              <h4 className="im-modal-title">Tạo hóa đơn cho phòng đang thuê</h4>
+              <p className="im-modal-subtitle">Nhập chỉ số mới. Chỉ số cũ được lấy tự động từ kỳ trước.</p>
+            </div>
+          </div>
+        }
+        open={bulkBillingOpen}
+        onCancel={() => setBulkBillingOpen(false)}
+        onOk={handleCreateBulkInvoices}
+        confirmLoading={bulkBillingSubmitting}
+        okText="Tạo hóa đơn"
+        cancelText="Đóng"
+        width={1180}
+        destroyOnClose
+      >
+        <Space direction="vertical" size={16} style={{ width: "100%" }}>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Typography.Text strong>Kỳ điện nước</Typography.Text>
+              <Select
+                style={{ width: "100%", marginTop: 6 }}
+                value={bulkBillingPeriod.month}
+                onChange={(value) => handleBulkBillingPeriodChange("month", value)}
+                options={Array.from({ length: 12 }, (_, index) => ({
+                  value: index + 1,
+                  label: `Tháng ${index + 1}`,
+                }))}
+              />
+            </Col>
+            <Col span={12}>
+              <Typography.Text strong>Năm</Typography.Text>
+              <InputNumber
+                style={{ width: "100%", marginTop: 6 }}
+                min={2020}
+                max={2100}
+                value={bulkBillingPeriod.year}
+                onChange={(value) => handleBulkBillingPeriodChange("year", value)}
+              />
+            </Col>
+          </Row>
+
+          <Alert
+            type="info"
+            showIcon
+            message="Công thức kỳ này"
+            description="Tiền điện và nước của kỳ đang chọn + tiền phòng và dịch vụ của tháng kế tiếp."
+          />
+
+          {bulkBillingLoading ? (
+            <div style={{ minHeight: 180, display: "grid", placeItems: "center" }}>
+              <Spin tip="Đang tải các phòng đang thuê..." />
+            </div>
+          ) : bulkBillingItems.length === 0 ? (
+            <Empty description="Không có phòng đang thuê cần lập hóa đơn" />
+          ) : (
+            <Table
+              size="small"
+              bordered
+              pagination={false}
+              rowKey="contract"
+              dataSource={bulkBillingItems}
+              scroll={{ x: 1000, y: 420 }}
+              columns={[
+                {
+                  title: "Phòng / người thuê",
+                  width: 190,
+                  render: (_, record) => (
+                    <Space direction="vertical" size={0}>
+                      <Typography.Text strong>{record.roomNumber || record.roomName}</Typography.Text>
+                      <Typography.Text type="secondary">{record.tenantName || "Chưa có tên"}</Typography.Text>
+                    </Space>
+                  ),
+                },
+                {
+                  title: "Điện cũ",
+                  dataIndex: "electricityOld",
+                  width: 90,
+                  render: (value) => `${Number(value || 0).toLocaleString("vi-VN")} kWh`,
+                },
+                {
+                  title: "Điện mới",
+                  dataIndex: "electricityNew",
+                  width: 130,
+                  render: (value, record) => (
+                    <InputNumber
+                      min={Number(record.electricityOld || 0)}
+                      value={Number(value ?? record.electricityOld ?? 0)}
+                      disabled={Boolean(record.existingInvoice)}
+                      onChange={(next) => updateBulkBillingItem(record.contract, "electricityNew", next)}
+                      style={{ width: "100%" }}
+                    />
+                  ),
+                },
+                {
+                  title: "Nước cũ",
+                  dataIndex: "waterOld",
+                  width: 90,
+                  render: (value) => `${Number(value || 0).toLocaleString("vi-VN")} m³`,
+                },
+                {
+                  title: "Nước mới",
+                  dataIndex: "waterNew",
+                  width: 130,
+                  render: (value, record) => (
+                    <InputNumber
+                      min={Number(record.waterOld || 0)}
+                      value={Number(value ?? record.waterOld ?? 0)}
+                      disabled={Boolean(record.existingInvoice)}
+                      onChange={(next) => updateBulkBillingItem(record.contract, "waterNew", next)}
+                      style={{ width: "100%" }}
+                    />
+                  ),
+                },
+                {
+                  title: "Tiền kỳ kế tiếp",
+                  width: 160,
+                  render: (_, record) => `${Number(record.roomPrice || 0).toLocaleString("vi-VN")} đ + dịch vụ`,
+                },
+                {
+                  title: "Trạng thái",
+                  width: 150,
+                  render: (_, record) =>
+                    record.existingInvoice ? (
+                      <Tag color="green">Đã có hóa đơn</Tag>
+                    ) : (
+                      <Tag color="blue">Chờ nhập chỉ số</Tag>
+                    ),
+                },
+              ]}
+            />
+          )}
+        </Space>
+      </Modal>
 
       {/* Modal Tạo / Sửa hóa đơn */}
       <Modal

@@ -1,5 +1,6 @@
 const RepairRequest = require("../models/RepairRequest");
 const Room = require("../models/Room");
+const { createNotification } = require("../services/notificationService");
 
 const requestPriorities = ["low", "medium", "high", "urgent"];
 const requestStatuses = ["pending", "processing", "resolved", "cancelled"];
@@ -196,6 +197,18 @@ const updateRepairRequest = async (req, res, next) => {
 
     const updatedRequest = await request.save();
     const populatedRequest = await populateRepairRequest(RepairRequest.findById(updatedRequest._id));
+    const recipient = populatedRequest.tenant?._id || populatedRequest.createdBy?._id;
+    if (recipient && populatedRequest.createdByRole !== "admin") {
+      await createNotification({
+        link: "/user/repair-requests",
+        message: `Yeu cau su co "${populatedRequest.title}" da duoc cap nhat sang trang thai ${populatedRequest.status}.${populatedRequest.adminNote ? ` Ghi chu: ${populatedRequest.adminNote}` : ""}`,
+        metadata: { repairRequest: populatedRequest._id, room: populatedRequest.room?._id || populatedRequest.room },
+        recipient,
+        recipientRole: "user",
+        title: "Cap nhat yeu cau su co",
+        type: "repair_request_updated",
+      });
+    }
     res.json(toRepairRequestResponse(populatedRequest));
   } catch (error) {
     if (!res.statusCode || res.statusCode < 400) {
