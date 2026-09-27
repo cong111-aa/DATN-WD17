@@ -608,7 +608,7 @@ const routeMeta = {
   },
   "/admin/occupant-requests": {
     icon: <UserAddOutlined />,
-    title: "Yeu cau them nguoi o",
+    title: "Yêu cầu thêm người ở",
   },
 };
 
@@ -686,7 +686,7 @@ const AdminLayout = () => {
         {
           key: "/admin/occupant-requests",
           icon: <UserAddOutlined />,
-          label: "Yeu cau them nguoi o",
+          label: "Yêu cầu thêm người ở",
           onClick: () => navigate("/admin/occupant-requests"),
         },
         {
