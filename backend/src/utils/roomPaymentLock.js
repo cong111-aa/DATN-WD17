@@ -1,6 +1,7 @@
 const Contract = require("../models/Contract");
 const Room = require("../models/Room");
 const RoomRequest = require("../models/RoomRequest");
+const Payment = require("../models/Payment");
 const Tenant = require("../models/Tenant");
 
 const PAYMENT_LOCK_DURATION_MINUTES = 15;
@@ -20,6 +21,11 @@ const markExpiredPaymentRequestFailed = async (requestId) => {
       $set: { paymentStatus: "failed" },
       $unset: { holdExpiresAt: "" },
     }
+  );
+
+  await Payment.updateMany(
+    { roomRequest: requestId, status: "pending" },
+    { $set: { status: "failed", note: "Quá thời gian thanh toán" } }
   );
 };
 

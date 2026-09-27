@@ -1038,18 +1038,23 @@ function OperatingExpenseManagementPage() {
         const items = (values.items || [])
           .filter((item) => Number(item.amount || 0) > 0)
           .map((item) => ({
-            ...item,
-            expenseDate: values.expenseDate ? values.expenseDate.toISOString() : undefined,
-            month: values.month,
-            status: values.status,
-            year: values.year,
+            category: item.category,
+            title: item.title,
+            amount: item.amount,
+            note: item.note,
           }));
         if (!items.length) {
           message.warning("Cần nhập ít nhất một khoản chi có số tiền lớn hơn 0");
           return;
         }
 
-        await http.post("/operating-expenses/bulk", { items });
+        await http.post("/operating-expenses/bulk", {
+          expenseDate: values.expenseDate ? values.expenseDate.toISOString() : undefined,
+          items,
+          month: values.month,
+          status: values.status,
+          year: values.year,
+        });
         message.success(`Đã tạo thành công ${items.length} khoản chi phí`);
       }
 

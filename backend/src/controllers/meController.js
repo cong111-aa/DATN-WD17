@@ -3,6 +3,7 @@ const Contract = require("../models/Contract");
 const ContractLifecycleRequest = require("../models/ContractLifecycleRequest");
 const InterestedRoom = require("../models/InterestedRoom");
 const Invoice = require("../models/Invoice");
+const Payment = require("../models/Payment");
 const RepairRequest = require("../models/RepairRequest");
 const Room = require("../models/Room");
 const RoomRequest = require("../models/RoomRequest");
@@ -420,6 +421,51 @@ const getMyRoomRequestById = async (req, res, next) => {
     }
 
     res.json(toRoomRequestResponse(roomRequest));
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getMyPaymentHistory = async (req, res, next) => {
+  try {
+    const payments = await Payment.find({
+      tenant: req.user._id,
+      status: { $in: ["success", "failed", "cancelled", "refunded"] },
+    })
+      .populate({
+        path: "roomRequest",
+        select: "requestCode type room",
+        populate: { path: "room", select: "roomNumber name" },
+      })
+      .populate({
+        path: "invoice",
+        select: "invoiceCode month year room",
+        populate: { path: "room", select: "roomNumber name" },
+      })
+      .sort({ createdAt: -1 });
+
+    res.json(
+      payments.map((payment) => ({
+        id: payment._id,
+        targetType: payment.targetType,
+        amount: payment.amount,
+        method: payment.method,
+        provider: payment.provider,
+        status: payment.status === "success" ? "success" : "failed",
+        providerTransactionId: payment.providerTransactionId,
+        providerTxnRef: payment.providerTxnRef,
+        paidAt: payment.paidAt,
+        createdAt: payment.createdAt,
+        requestCode: payment.roomRequest?.requestCode,
+        requestType: payment.roomRequest?.type,
+        invoiceCode: payment.invoice?.invoiceCode,
+        invoiceMonth: payment.invoice?.month,
+        invoiceYear: payment.invoice?.year,
+        roomNumber:
+          payment.roomRequest?.room?.roomNumber || payment.invoice?.room?.roomNumber,
+        roomName: payment.roomRequest?.room?.name || payment.invoice?.room?.name,
+      }))
+    );
   } catch (error) {
     next(error);
   }
@@ -1361,6 +1407,7 @@ module.exports = {
   getMyInterestedRooms,
   getMyInvoiceById,
   getMyInvoices,
+  getMyPaymentHistory,
   getMyRepairRequestById,
   getMyRepairRequests,
   getMyRoomRequests,

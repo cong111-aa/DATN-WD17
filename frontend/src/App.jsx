@@ -22,6 +22,7 @@ import UserInterestedRoomsPage from "./pages/user/UserInterestedRoomsPage";
 import UserInvoicesPage from "./pages/user/UserInvoicesPage";
 import UserLayout from "./pages/user/UserLayout";
 import UserMyRoomsPage from "./pages/user/UserMyRoomsPage";
+import UserPaymentHistoryPage from "./pages/user/UserPaymentHistoryPage";
 import UserProfilePage from "./pages/user/UserProfilePage";
 import UserRepairRequestsPage from "./pages/user/UserRepairRequestsPage";
 import UserRoomDetailPage from "./pages/user/UserRoomDetailPage";
@@ -66,6 +67,7 @@ const App = () => (
         <Route path="my-rooms" element={<UserMyRoomsPage />} />
         <Route path="contracts" element={<UserContractsPage />} />
         <Route path="invoices" element={<UserInvoicesPage />} />
+        <Route path="payment-history" element={<UserPaymentHistoryPage />} />
         <Route path="repair-requests" element={<UserRepairRequestsPage />} />
         <Route path="room-requests" element={<UserRoomRequestsPage />} />
         <Route path="interested-rooms" element={<UserInterestedRoomsPage />} />
