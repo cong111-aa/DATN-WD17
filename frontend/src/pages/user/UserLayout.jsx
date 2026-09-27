@@ -8,6 +8,7 @@ import {
   FileTextOutlined,
   HeartOutlined,
   HomeOutlined,
+  HistoryOutlined,
   LogoutOutlined,
   ToolOutlined,
   UserOutlined,
@@ -126,6 +127,11 @@ const UserLayout = () => {
         key: "/user/room-requests",
         icon: <CreditCardOutlined style={{ color: "#0284c7" }} />,
         label: "Phòng đã cọc",
+      },
+      {
+        key: "/user/payment-history",
+        icon: <HistoryOutlined style={{ color: "#0284c7" }} />,
+        label: "Lịch sử thanh toán",
       },
       {
         key: "/user/interested-rooms",

@@ -136,7 +136,7 @@ const UserRoomRequestsPage = () => {
   const [vnpaySubmitting, setVnpaySubmitting] = useState(false);
 
   const depositedRooms = useMemo(
-    () => roomRequests.filter((request) => request.type === "hold_deposit"),
+    () => roomRequests.filter((request) => request.type === "hold_deposit" && request.paymentStatus === "paid"),
     [roomRequests]
   );
 
