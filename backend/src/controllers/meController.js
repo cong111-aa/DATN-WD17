@@ -430,42 +430,147 @@ const getMyPaymentHistory = async (req, res, next) => {
   try {
     const payments = await Payment.find({
       tenant: req.user._id,
-      status: { $in: ["success", "failed", "cancelled", "refunded"] },
     })
       .populate({
         path: "roomRequest",
-        select: "requestCode type room",
+        select: "requestCode type room amount paymentProvider paymentProofImages paidAt adminNote holdExpiresAt",
         populate: { path: "room", select: "roomNumber name" },
       })
       .populate({
         path: "invoice",
-        select: "invoiceCode month year room",
+        select: "invoiceCode month year room totalAmount paidAmount rentAmount electricityAmount waterAmount serviceAmount otherAmount",
         populate: { path: "room", select: "roomNumber name" },
       })
       .sort({ createdAt: -1 });
 
-    res.json(
-      payments.map((payment) => ({
+    const existingInvoicePaymentIds = new Set(
+      payments
+        .filter((p) => p.targetType === "invoice" && p.invoice)
+        .map((p) => (p.invoice._id || p.invoice).toString())
+    );
+
+    const existingRoomRequestPaymentIds = new Set(
+      payments
+        .filter((p) => p.targetType === "room_request" && p.roomRequest)
+        .map((p) => (p.roomRequest._id || p.roomRequest).toString())
+    );
+
+    const [paidInvoices, paidRoomRequests] = await Promise.all([
+      Invoice.find({
+        tenant: req.user._id,
+        paidAmount: { $gt: 0 },
+      })
+        .populate("room", "roomNumber name")
+        .sort({ updatedAt: -1 }),
+      RoomRequest.find({
+        user: req.user._id,
+        paymentStatus: "paid",
+      })
+        .populate("room", "roomNumber name")
+        .sort({ updatedAt: -1 }),
+    ]);
+
+    const formattedPayments = payments.map((payment) => {
+      const roomNum = payment.roomRequest?.room?.roomNumber || payment.invoice?.room?.roomNumber || "";
+      const roomNm = payment.roomRequest?.room?.name || payment.invoice?.room?.name || "";
+      return {
         id: payment._id,
         targetType: payment.targetType,
         amount: payment.amount,
-        method: payment.method,
-        provider: payment.provider,
-        status: payment.status === "success" ? "success" : "failed",
-        providerTransactionId: payment.providerTransactionId,
-        providerTxnRef: payment.providerTxnRef,
+        method: payment.method || (payment.provider === "vnpay" ? "vnpay" : "bank_transfer"),
+        provider: payment.provider || "vnpay",
+        status: payment.status || "success",
+        providerTransactionId: payment.providerTransactionId || "",
+        providerTxnRef: payment.providerTxnRef || "",
+        providerResponseCode: payment.providerResponseCode || "",
         paidAt: payment.paidAt,
         createdAt: payment.createdAt,
+        paymentUrl: payment.paymentUrl || "",
+        note: payment.note || "",
         requestCode: payment.roomRequest?.requestCode,
         requestType: payment.roomRequest?.type,
         invoiceCode: payment.invoice?.invoiceCode,
         invoiceMonth: payment.invoice?.month,
         invoiceYear: payment.invoice?.year,
-        roomNumber:
-          payment.roomRequest?.room?.roomNumber || payment.invoice?.room?.roomNumber,
-        roomName: payment.roomRequest?.room?.name || payment.invoice?.room?.name,
-      }))
-    );
+        roomNumber: roomNum,
+        roomName: roomNm,
+        invoiceDetails: payment.invoice
+          ? {
+              totalAmount: payment.invoice.totalAmount,
+              paidAmount: payment.invoice.paidAmount,
+              rentAmount: payment.invoice.rentAmount,
+              electricityAmount: payment.invoice.electricityAmount,
+              waterAmount: payment.invoice.waterAmount,
+              serviceAmount: payment.invoice.serviceAmount,
+              otherAmount: payment.invoice.otherAmount,
+            }
+          : null,
+      };
+    });
+
+    for (const inv of paidInvoices) {
+      if (!existingInvoicePaymentIds.has(inv._id.toString())) {
+        formattedPayments.push({
+          id: `inv-${inv._id}`,
+          targetType: "invoice",
+          amount: inv.paidAmount,
+          method: "bank_transfer",
+          provider: "bank",
+          status: "success",
+          providerTransactionId: inv.invoiceCode,
+          providerTxnRef: inv.invoiceCode,
+          paidAt: inv.updatedAt || inv.createdAt,
+          createdAt: inv.createdAt,
+          note: inv.note || `Thanh toán hóa đơn tháng ${inv.month}/${inv.year}`,
+          invoiceCode: inv.invoiceCode,
+          invoiceMonth: inv.month,
+          invoiceYear: inv.year,
+          roomNumber: inv.room?.roomNumber || "",
+          roomName: inv.room?.name || "",
+          invoiceDetails: {
+            totalAmount: inv.totalAmount,
+            paidAmount: inv.paidAmount,
+            rentAmount: inv.rentAmount,
+            electricityAmount: inv.electricityAmount,
+            waterAmount: inv.waterAmount,
+            serviceAmount: inv.serviceAmount,
+            otherAmount: inv.otherAmount,
+          },
+        });
+      }
+    }
+
+    for (const reqItem of paidRoomRequests) {
+      if (!existingRoomRequestPaymentIds.has(reqItem._id.toString())) {
+        formattedPayments.push({
+          id: `rq-${reqItem._id}`,
+          targetType: "room_request",
+          amount: reqItem.amount,
+          method: reqItem.paymentProvider === "vnpay" ? "vnpay" : "bank_transfer",
+          provider: reqItem.paymentProvider || "manual_qr",
+          status: "success",
+          providerTransactionId: reqItem.requestCode,
+          providerTxnRef: reqItem.requestCode,
+          paidAt: reqItem.paidAt || reqItem.paymentConfirmedAt || reqItem.updatedAt,
+          createdAt: reqItem.createdAt,
+          note:
+            reqItem.adminNote ||
+            (reqItem.type === "rent" ? "Thanh toán tiền thuê phòng" : "Thanh toán cọc giữ phòng"),
+          requestCode: reqItem.requestCode,
+          requestType: reqItem.type,
+          roomNumber: reqItem.room?.roomNumber || "",
+          roomName: reqItem.room?.name || "",
+        });
+      }
+    }
+
+    formattedPayments.sort((a, b) => {
+      const dateA = new Date(a.paidAt || a.createdAt || 0).getTime();
+      const dateB = new Date(b.paidAt || b.createdAt || 0).getTime();
+      return dateB - dateA;
+    });
+
+    res.json(formattedPayments);
   } catch (error) {
     next(error);
   }
