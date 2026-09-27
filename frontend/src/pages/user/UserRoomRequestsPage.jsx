@@ -129,7 +129,6 @@ const UserRoomRequestsPage = () => {
   const [viewMode, setViewMode] = useState("grid");
 
   const [detailRequest, setDetailRequest] = useState(null);
-  const [paymentProvider, setPaymentProvider] = useState("manual_qr");
   const [paymentRequest, setPaymentRequest] = useState(null);
   const [rentHoldRequest, setRentHoldRequest] = useState(null);
   const [rentSubmitting, setRentSubmitting] = useState(false);
@@ -214,12 +213,10 @@ const UserRoomRequestsPage = () => {
 
   const openRentModal = (record) => {
     setRentHoldRequest(record);
-    setPaymentProvider("manual_qr");
     rentForm.resetFields();
     rentForm.setFieldsValue({
       durationMonths: 12,
       occupantCount: 1,
-      paymentProvider: "manual_qr",
       occupants: [
         {
           name: user?.name || "",
@@ -257,10 +254,7 @@ const UserRoomRequestsPage = () => {
     }
   };
 
-  const submitRentFromHold = async (provider) => {
-    setPaymentProvider(provider);
-    rentForm.setFieldValue("paymentProvider", provider);
-
+  const submitRentFromHold = async () => {
     try {
       await rentForm.validateFields();
       rentForm.submit();
@@ -279,12 +273,10 @@ const UserRoomRequestsPage = () => {
         message: values.message,
         occupantCount: values.occupantCount,
         occupants: values.occupants || [],
-        paymentProvider: values.paymentProvider || paymentProvider,
       });
 
       message.success("Đã tạo yêu cầu thuê phòng từ khoản tiền cọc thành công!");
       closeRentModal();
-      setPaymentRequest(null);
       fetchRoomRequests();
 
     } catch (error) {
@@ -468,10 +460,6 @@ const UserRoomRequestsPage = () => {
       },
     },
   ];
-
-  const remainingRentAmount = rentHoldRequest
-    ? Math.max(Number(rentHoldRequest.roomPrice || 0) - Number(rentHoldRequest.amount || 0), 0)
-    : 0;
 
   return (
     <div className="my-room-requests-container">
@@ -882,27 +870,13 @@ const UserRoomRequestsPage = () => {
             Hủy
           </Button>,
           <Button
-            key="manual"
+            key="rent-request"
             type="primary"
-            loading={rentSubmitting && paymentProvider === "manual_qr"}
-            onClick={() => submitRentFromHold("manual_qr")}
+            loading={rentSubmitting}
+            onClick={submitRentFromHold}
             style={{ background: "#0f766e", borderRadius: 8, fontWeight: 700 }}
           >
-            Thanh toán VietQR thủ công
-          </Button>,
-          <Button
-            key="vnpay"
-            type="primary"
-            loading={rentSubmitting && paymentProvider === "vnpay"}
-            onClick={() => submitRentFromHold("vnpay")}
-            style={{
-              background: "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
-              borderRadius: 8,
-              display: "none",
-              fontWeight: 700,
-            }}
-          >
-            Thanh toán online VNPay
+            Gửi yêu cầu thuê
           </Button>,
         ]}
         width={860}
@@ -920,18 +894,14 @@ const UserRoomRequestsPage = () => {
               <Descriptions.Item label="Đã khấu trừ tiền cọc">
                 <Text type="success" strong>- {formatCurrency(rentHoldRequest.amount)}</Text>
               </Descriptions.Item>
-              <Descriptions.Item label="Cần thanh toán thêm">
-                <Text strong style={{ color: "#0284c7", fontSize: 16 }}>
-                  {formatCurrency(remainingRentAmount)}
+              <Descriptions.Item label="Bước tiếp theo">
+                <Text type="secondary">
+                  Admin tạo hợp đồng, sau đó bạn ký và thanh toán hóa đơn đầu kỳ.
                 </Text>
               </Descriptions.Item>
             </Descriptions>
 
             <Form form={rentForm} layout="vertical" onFinish={handleRentSubmit}>
-              <Form.Item name="paymentProvider" hidden initialValue="manual_qr">
-                <Input />
-              </Form.Item>
-
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                 <Form.Item
                   name="durationMonths"

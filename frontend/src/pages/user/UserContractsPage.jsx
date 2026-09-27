@@ -347,12 +347,19 @@ const UserContractsPage = () => {
   const handleSignContract = async () => {
     if (!detailContract) return;
 
+    if (signing) return;
+
     if (!acceptedTerms) {
       message.warning("Bạn cần xác nhận đã đọc và đồng ý điều khoản hợp đồng");
       return;
     }
 
     const signatureDataUrl = canvasRef.current?.toDataURL("image/png");
+
+    if (!signatureDataUrl || signatureDataUrl === "data:," || !signatureDataUrl.startsWith("data:image/")) {
+      message.warning("Vui lòng tạo hoặc vẽ chữ ký trước khi xác nhận ký hợp đồng");
+      return;
+    }
 
     setSigning(true);
     try {

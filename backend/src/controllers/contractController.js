@@ -1101,13 +1101,13 @@ const createCheckoutFinalInvoice = async (req, res, next) => {
     await contract.save();
 
     await createNotification({
-      link: "/user/invoices",
-      message: `Ban co hoa don chot tra phong ${invoice.invoiceCode} cho phong ${room.roomNumber || room.name || "-"}. Tong tien ${Number(totalAmount || 0).toLocaleString("vi-VN")} VND.`,
+      link: "/user/contracts",
+      message: `Admin da chot dien nuoc va chi phi tra phong ${room.roomNumber || room.name || "-"} voi tong ${Number(totalAmount || 0).toLocaleString("vi-VN")} VND. Khoan nay se duoc doi soat va tru vao tien coc, ban khong can thanh toan rieng.`,
       metadata: { contract: contract._id, invoice: invoice._id, room: roomId },
       recipient: tenantId,
       recipientRole: "user",
-      title: "Hoa don chot tra phong",
-      type: "invoice_created",
+      title: "Da chot dien nuoc tra phong",
+      type: "contract_checkout_requested",
     });
 
     res.status(201).json({
