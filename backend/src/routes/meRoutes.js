@@ -32,10 +32,13 @@ const {
   createMyOccupantRequest,
   getMyOccupantRequests,
 } = require("../controllers/occupantRequestController");
+const { getProfile, updateProfile } = require("../controllers/authController");
 const { protect } = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 
+router.get("/profile", protect, getProfile);
+router.put("/profile", protect, updateProfile);
 router.get("/tenancies", protect, getMyTenancies);
 router.get("/available-rooms", protect, getAvailableRooms);
 router.get("/available-rooms/:id", protect, getAvailableRoomById);

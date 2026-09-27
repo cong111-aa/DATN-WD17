@@ -18,4 +18,13 @@ const uploadIdentityImages = (req, res) => {
   res.status(201).json({ urls });
 };
 
-module.exports = { uploadIdentityImages, uploadPaymentProofImages, uploadRepairRequestImages, uploadRoomImages };
+const uploadAvatarImage = (req, res) => {
+  const file = req.file || (req.files && req.files[0]);
+  if (!file) {
+    return res.status(400).json({ message: "Vui lòng chọn ảnh đại diện" });
+  }
+  const url = `/uploads/avatars/${file.filename}`;
+  res.status(201).json({ url, urls: [url] });
+};
+
+module.exports = { uploadAvatarImage, uploadIdentityImages, uploadPaymentProofImages, uploadRepairRequestImages, uploadRoomImages };

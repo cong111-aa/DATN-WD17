@@ -17,6 +17,7 @@ const userSchema = new mongoose.Schema(
     identityNumber: { type: String, default: "", trim: true }, // So CCCD/CMND
     identityFrontImage: { type: String, default: "" }, // Anh mat truoc CCCD
     identityBackImage: { type: String, default: "" }, // Anh mat sau CCCD
+    avatar: { type: String, default: "" }, // Anh dai dien nguoi dung
     role: {
       type: String,
       enum: ["admin", "user"],

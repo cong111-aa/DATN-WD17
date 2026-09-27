@@ -9,6 +9,7 @@ const toAuthResponse = (user) => ({
   identityNumber: user.identityNumber,
   identityFrontImage: user.identityFrontImage,
   identityBackImage: user.identityBackImage,
+  avatar: user.avatar || "",
   role: user.role,
   status: user.status,
   token: generateToken(user._id),
@@ -107,6 +108,7 @@ const updateProfile = async (req, res, next) => {
     user.identityNumber = req.body.identityNumber ?? user.identityNumber;
     user.identityFrontImage = req.body.identityFrontImage ?? user.identityFrontImage;
     user.identityBackImage = req.body.identityBackImage ?? user.identityBackImage;
+    user.avatar = req.body.avatar ?? user.avatar;
 
     if (req.body.password) {
       user.password = req.body.password;

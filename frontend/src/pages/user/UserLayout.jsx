@@ -22,6 +22,9 @@ import { useAuth } from "../../context/AuthContext";
 
 const { Content, Header } = Layout;
 
+const apiOrigin = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/api\/?$/, "");
+const toImageUrl = (url) => (url ? (url.startsWith("http") ? url : `${apiOrigin}${url}`) : "");
+
 const UserLayout = () => {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
@@ -180,7 +183,12 @@ const UserLayout = () => {
           placement="bottomRight"
         >
           <div className="header-user-btn">
-            <Avatar className="header-user-avatar" size={34} icon={<UserOutlined />}>
+            <Avatar
+              className="header-user-avatar"
+              size={34}
+              icon={<UserOutlined />}
+              src={user?.avatar ? toImageUrl(user.avatar) : undefined}
+            >
               {user?.name?.[0]?.toUpperCase()}
             </Avatar>
             <div className="header-user-info-text">
