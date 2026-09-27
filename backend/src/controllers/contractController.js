@@ -796,9 +796,20 @@ const completeCheckout = async (req, res, next) => {
       throw new Error("Cannot complete checkout for this contract status");
     }
 
+    const finalInvoice = await Invoice.findOne({
+      contract: contract._id,
+      invoiceType: "checkout_final",
+    });
+
+    if (!finalInvoice) {
+      res.status(400);
+      throw new Error("Create the checkout final invoice before completing checkout");
+    }
+
     const unpaidInvoiceCount = await Invoice.countDocuments({
       room: contract.room,
       tenant: contract.tenant,
+      invoiceType: { $ne: "checkout_final" },
       status: { $in: ["unpaid", "partial", "overdue"] },
     });
 
@@ -808,11 +819,21 @@ const completeCheckout = async (req, res, next) => {
     }
 
     const completedAt = req.body.completedAt ? new Date(req.body.completedAt) : new Date();
-    const refundStatus = req.body.refundStatus || "not_required";
+    const depositAmount = Number(contract.deposit || 0);
+    const finalInvoiceAmount = Number(finalInvoice.totalAmount || 0);
+    const calculatedRefundAmount = Math.max(depositAmount - finalInvoiceAmount, 0);
+    const calculatedDeductionAmount = Math.min(depositAmount, finalInvoiceAmount);
+    const calculatedExtraChargeAmount = Math.max(finalInvoiceAmount - depositAmount, 0);
+    const refundStatus =
+      calculatedRefundAmount > 0
+        ? req.body.refundStatus || "pending"
+        : calculatedDeductionAmount > 0
+          ? "deducted"
+          : "not_required";
     const refundProofImages = normalizeRefundProofImages(req.body.refundProofImages);
-    const refundAmount = Number(req.body.refundAmount || 0);
-    const refundDeductionAmount = Number(req.body.refundDeductionAmount || 0);
-    const refundExtraChargeAmount = Number(req.body.refundExtraChargeAmount || 0);
+    const refundAmount = calculatedRefundAmount;
+    const refundDeductionAmount = calculatedDeductionAmount;
+    const refundExtraChargeAmount = calculatedExtraChargeAmount;
 
     if (!["not_required", "pending", "refunded", "deducted", "extra_charge_required"].includes(refundStatus)) {
       res.status(400);
@@ -822,6 +843,11 @@ const completeCheckout = async (req, res, next) => {
     if (refundStatus === "pending") {
       res.status(400);
       throw new Error("Deposit refund must be settled before completing checkout");
+    }
+
+    if (calculatedRefundAmount > 0 && refundStatus !== "refunded") {
+      res.status(400);
+      throw new Error("Refund the remaining deposit before completing checkout");
     }
 
     if ([refundAmount, refundDeductionAmount, refundExtraChargeAmount].some((value) => value < 0)) {
@@ -846,6 +872,11 @@ const completeCheckout = async (req, res, next) => {
       { room: contract.room, user: contract.tenant, status: "active" },
       { moveOutDate: completedAt, status: "inactive" }
     );
+
+    finalInvoice.paidAmount = finalInvoice.totalAmount;
+    finalInvoice.status = "paid";
+    finalInvoice.note = `${finalInvoice.note || ""} | Da quyet toan bang tien coc khi checkout.`.trim();
+    await finalInvoice.save();
 
     contract.status = "terminated";
     contract.checkoutCompletedAt = completedAt;
@@ -928,9 +959,16 @@ const completeCheckout = async (req, res, next) => {
       }
     );
 
+    const notificationRoom = await Room.findById(contract.room).select("roomNumber name");
+    const roomLabel = notificationRoom?.roomNumber || notificationRoom?.name || "-";
+    const refundMessage =
+      calculatedRefundAmount > 0
+        ? `Da hoan ${calculatedRefundAmount.toLocaleString("vi-VN")} VND vao tai khoan ngan hang da cung cap. Tien dien nuoc va cac khoan cuoi ky da tru: ${calculatedDeductionAmount.toLocaleString("vi-VN")} VND.`
+        : `Tien dien nuoc va cac khoan cuoi ky ${calculatedDeductionAmount.toLocaleString("vi-VN")} VND da duoc tru het vao tien coc; khong con so du hoan lai.`;
+
     await createNotification({
       link: "/user/contracts",
-      message: "Thu tuc tra phong da hoan tat.",
+      message: `Hop dong phong ${roomLabel} da ket thuc. ${refundMessage}`,
       metadata: { contract: contract._id, room: contract.room },
       recipient: contract.tenant,
       recipientRole: "user",

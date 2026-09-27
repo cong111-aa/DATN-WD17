@@ -902,7 +902,7 @@ const ContractManagementPage = () => {
       refundBankName: request.refundBankName || "",
       refundDeductionAmount: 0,
       refundExtraChargeAmount: 0,
-      refundStatus: Number(nextRecord.deposit || 0) > 0 ? "pending" : "not_required",
+      refundStatus: Number(nextRecord.deposit || 0) > 0 ? "refunded" : "not_required",
     });
   };
 

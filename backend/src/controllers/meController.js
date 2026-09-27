@@ -989,6 +989,18 @@ const requestMyContractCheckout = async (req, res, next) => {
     const checkoutDate = req.body.checkoutDate ? new Date(req.body.checkoutDate) : new Date(contract.endDate);
     const refundBankInfo = normalizeRefundBankInfo(req.body);
 
+    if (Number.isNaN(checkoutDate.getTime())) {
+      res.status(400);
+      throw new Error("Invalid checkout date");
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (checkoutDate < today) {
+      res.status(400);
+      throw new Error("Checkout date cannot be in the past");
+    }
+
     if (
       !refundBankInfo.refundBankName ||
       !refundBankInfo.refundBankAccountNumber ||
